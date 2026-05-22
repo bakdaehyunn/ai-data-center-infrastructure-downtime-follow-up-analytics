@@ -1,0 +1,627 @@
+openapi: 3.1.0
+info:
+  title: Critical Procurement Bottleneck Analytics API
+  version: 0.1.0
+  description: Read-only analytics API for procurement bottleneck diagnosis.
+servers:
+  - url: http://localhost:8000
+    description: Local development
+tags:
+  - name: Health
+  - name: Overview
+  - name: Bottlenecks
+  - name: Requests
+  - name: Operations
+  - name: Metadata
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        "200":
+          description: Service status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /api/overview:
+    get:
+      tags: [Overview]
+      summary: Operations overview
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+        - $ref: "#/components/parameters/DepartmentId"
+        - $ref: "#/components/parameters/VendorId"
+        - $ref: "#/components/parameters/ItemCategory"
+        - $ref: "#/components/parameters/CriticalityLevel"
+      responses:
+        "200":
+          description: Overview metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverviewResponse"
+  /api/bottlenecks/stages:
+    get:
+      tags: [Bottlenecks]
+      summary: Stage bottleneck summary
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+        - $ref: "#/components/parameters/DepartmentId"
+        - $ref: "#/components/parameters/VendorId"
+        - $ref: "#/components/parameters/ItemCategory"
+        - $ref: "#/components/parameters/CriticalityLevel"
+      responses:
+        "200":
+          description: Stage bottlenecks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StageBottleneck"
+  /api/bottlenecks/vendors:
+    get:
+      tags: [Bottlenecks]
+      summary: Vendor bottleneck summary
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+        - $ref: "#/components/parameters/DepartmentId"
+        - $ref: "#/components/parameters/ItemCategory"
+        - $ref: "#/components/parameters/CriticalityLevel"
+      responses:
+        "200":
+          description: Vendor bottlenecks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VendorBottleneck"
+  /api/bottlenecks/departments:
+    get:
+      tags: [Bottlenecks]
+      summary: Department bottleneck summary
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+        - $ref: "#/components/parameters/VendorId"
+        - $ref: "#/components/parameters/ItemCategory"
+        - $ref: "#/components/parameters/CriticalityLevel"
+      responses:
+        "200":
+          description: Department bottlenecks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DepartmentBottleneck"
+  /api/requests/critical:
+    get:
+      tags: [Requests]
+      summary: Critical request queue
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 25
+            minimum: 1
+            maximum: 100
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+        - $ref: "#/components/parameters/DepartmentId"
+        - $ref: "#/components/parameters/VendorId"
+        - $ref: "#/components/parameters/ItemCategory"
+        - $ref: "#/components/parameters/CriticalityLevel"
+        - $ref: "#/components/parameters/Stage"
+      responses:
+        "200":
+          description: Prioritized critical requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CriticalRequest"
+  /api/requests/{request_id}:
+    get:
+      tags: [Requests]
+      summary: Request detail
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      responses:
+        "200":
+          description: Request detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/requests/{request_id}/timeline:
+    get:
+      tags: [Requests]
+      summary: Request timeline
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      responses:
+        "200":
+          description: Request timeline events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TimelineEvent"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/pipeline-runs:
+    get:
+      tags: [Operations]
+      summary: Pipeline run list
+      responses:
+        "200":
+          description: Pipeline runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PipelineRun"
+  /api/pipeline-runs/{pipeline_run_id}:
+    get:
+      tags: [Operations]
+      summary: Pipeline run detail
+      parameters:
+        - name: pipeline_run_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Pipeline run detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRun"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/data-quality/checks:
+    get:
+      tags: [Operations]
+      summary: Data quality check results
+      parameters:
+        - name: pipeline_run_id
+          in: query
+          schema:
+            type: string
+        - name: severity
+          in: query
+          schema:
+            $ref: "#/components/schemas/Severity"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/QualityStatus"
+        - name: target_table
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Data quality results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DataQualityCheck"
+  /api/metadata/filters:
+    get:
+      tags: [Metadata]
+      summary: Filter metadata
+      responses:
+        "200":
+          description: Filter options
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilterMetadata"
+components:
+  parameters:
+    FromDate:
+      name: from_date
+      in: query
+      schema:
+        type: string
+        format: date
+    ToDate:
+      name: to_date
+      in: query
+      schema:
+        type: string
+        format: date
+    DepartmentId:
+      name: department_id
+      in: query
+      schema:
+        type: string
+    VendorId:
+      name: vendor_id
+      in: query
+      schema:
+        type: string
+    ItemCategory:
+      name: item_category
+      in: query
+      schema:
+        type: string
+    CriticalityLevel:
+      name: criticality_level
+      in: query
+      schema:
+        $ref: "#/components/schemas/CriticalityLevel"
+    Stage:
+      name: stage
+      in: query
+      schema:
+        $ref: "#/components/schemas/ProcurementStage"
+    RequestId:
+      name: request_id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, service]
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: procurement-bottleneck-api
+    OverviewResponse:
+      type: object
+      required:
+        - total_requests
+        - open_requests
+        - delayed_requests
+        - critical_open_requests
+        - avg_cycle_time_hours
+        - total_delay_hours
+        - top_bottleneck_stage
+        - latest_pipeline_run_status
+        - data_quality_status
+      properties:
+        total_requests:
+          type: integer
+        open_requests:
+          type: integer
+        delayed_requests:
+          type: integer
+        critical_open_requests:
+          type: integer
+        avg_cycle_time_hours:
+          type: number
+        total_delay_hours:
+          type: number
+        top_bottleneck_stage:
+          $ref: "#/components/schemas/ProcurementStage"
+        latest_pipeline_run_status:
+          $ref: "#/components/schemas/PipelineStatus"
+        data_quality_status:
+          $ref: "#/components/schemas/QualityStatus"
+    StageBottleneck:
+      type: object
+      properties:
+        stage:
+          $ref: "#/components/schemas/ProcurementStage"
+        request_count:
+          type: integer
+        delayed_count:
+          type: integer
+        delay_rate:
+          type: number
+        avg_duration_hours:
+          type: number
+        p90_duration_hours:
+          type: number
+        total_delay_hours:
+          type: number
+    VendorBottleneck:
+      type: object
+      properties:
+        vendor_id:
+          type: string
+        vendor_name:
+          type: string
+        total_po_count:
+          type: integer
+        delayed_po_count:
+          type: integer
+        delay_rate:
+          type: number
+        avg_confirmation_hours:
+          type: number
+        avg_delivery_delay_days:
+          type: number
+        reliability_tier:
+          type: string
+        total_delay_hours:
+          type: number
+    DepartmentBottleneck:
+      type: object
+      properties:
+        department_id:
+          type: string
+        department_name:
+          type: string
+        request_count:
+          type: integer
+        delayed_count:
+          type: integer
+        critical_request_count:
+          type: integer
+        avg_cycle_time_hours:
+          type: number
+        return_for_correction_count:
+          type: integer
+        total_delay_hours:
+          type: number
+    CriticalRequest:
+      type: object
+      properties:
+        request_id:
+          type: string
+        request_number:
+          type: string
+        request_title:
+          type: string
+        department_name:
+          type: string
+        current_stage:
+          $ref: "#/components/schemas/ProcurementStage"
+        days_in_current_stage:
+          type: number
+        needed_by_date:
+          type: string
+          format: date
+        criticality_level:
+          $ref: "#/components/schemas/CriticalityLevel"
+        business_impact:
+          type: string
+        total_priority_score:
+          type: number
+        recommended_action:
+          type: string
+        reason_summary:
+          type: string
+    RequestDetail:
+      type: object
+      properties:
+        request:
+          $ref: "#/components/schemas/CriticalRequest"
+        stage_lead_times:
+          type: array
+          items:
+            $ref: "#/components/schemas/StageLeadTime"
+        timeline:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimelineEvent"
+        related_po:
+          $ref: "#/components/schemas/PurchaseOrderSummary"
+        receipt:
+          $ref: "#/components/schemas/ReceiptSummary"
+        quality_flags:
+          type: array
+          items:
+            type: string
+    StageLeadTime:
+      type: object
+      properties:
+        stage:
+          $ref: "#/components/schemas/ProcurementStage"
+        entered_at:
+          type: string
+          format: date-time
+        exited_at:
+          type: string
+          format: date-time
+          nullable: true
+        duration_hours:
+          type: number
+        threshold_hours:
+          type: number
+        is_bottleneck:
+          type: boolean
+        delay_hours:
+          type: number
+    TimelineEvent:
+      type: object
+      properties:
+        event_id:
+          type: string
+        stage:
+          $ref: "#/components/schemas/ProcurementStage"
+        event_type:
+          type: string
+        event_status:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+        actor_type:
+          type: string
+        reason_code:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+    PurchaseOrderSummary:
+      type: object
+      nullable: true
+      properties:
+        po_id:
+          type: string
+        po_number:
+          type: string
+        vendor_id:
+          type: string
+        vendor_name:
+          type: string
+        po_status:
+          type: string
+        expected_delivery_date:
+          type: string
+          format: date
+    ReceiptSummary:
+      type: object
+      nullable: true
+      properties:
+        receipt_id:
+          type: string
+        received_at:
+          type: string
+          format: date-time
+        inspection_status:
+          type: string
+        inspection_completed_at:
+          type: string
+          format: date-time
+          nullable: true
+    PipelineRun:
+      type: object
+      properties:
+        pipeline_run_id:
+          type: string
+        pipeline_name:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: "#/components/schemas/PipelineStatus"
+        rows_extracted:
+          type: integer
+        rows_loaded:
+          type: integer
+        rows_rejected:
+          type: integer
+        error_message:
+          type: string
+          nullable: true
+    DataQualityCheck:
+      type: object
+      properties:
+        check_result_id:
+          type: string
+        pipeline_run_id:
+          type: string
+        check_name:
+          type: string
+        target_table:
+          type: string
+        severity:
+          $ref: "#/components/schemas/Severity"
+        status:
+          $ref: "#/components/schemas/QualityStatus"
+        failed_row_count:
+          type: integer
+        sample_failed_keys:
+          type: array
+          items:
+            type: string
+        message:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    FilterMetadata:
+      type: object
+      properties:
+        departments:
+          type: array
+          items:
+            $ref: "#/components/schemas/FilterOption"
+        vendors:
+          type: array
+          items:
+            $ref: "#/components/schemas/FilterOption"
+        item_categories:
+          type: array
+          items:
+            type: string
+        criticality_levels:
+          type: array
+          items:
+            $ref: "#/components/schemas/CriticalityLevel"
+        stages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProcurementStage"
+    FilterOption:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+    ProcurementStage:
+      type: string
+      enum:
+        - REQUEST_SUBMITTED
+        - BUDGET_REVIEW
+        - PROCUREMENT_REVIEW
+        - PO_CREATION
+        - VENDOR_CONFIRMATION
+        - DELIVERY
+        - RECEIVING
+        - INSPECTION
+        - CLOSED
+    CriticalityLevel:
+      type: string
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+    PipelineStatus:
+      type: string
+      enum: [RUNNING, SUCCESS, FAILED, PARTIAL_SUCCESS]
+    QualityStatus:
+      type: string
+      enum: [PASS, WARNING, FAILED, CRITICAL]
+    Severity:
+      type: string
+      enum: [INFO, WARNING, ERROR, CRITICAL]
