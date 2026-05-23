@@ -72,6 +72,14 @@ source .venv/bin/activate
 python -m app.sample_data.generator --output-dir generated/sample_data
 ```
 
+Run raw ingestion and data quality checks:
+
+```bash
+cd backend
+source .venv/bin/activate
+python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
+```
+
 Frontend build:
 
 ```bash
