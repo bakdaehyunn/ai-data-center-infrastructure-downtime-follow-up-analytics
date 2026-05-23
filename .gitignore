@@ -18,6 +18,9 @@ coverage/
 # Environment
 .env
 
+# Generated sample/output data
+backend/generated/
+
 # IDE
 .idea/
 .vscode/

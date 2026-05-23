@@ -64,6 +64,14 @@ source .venv/bin/activate
 pytest
 ```
 
+Generate deterministic sample source data:
+
+```bash
+cd backend
+source .venv/bin/activate
+python -m app.sample_data.generator --output-dir generated/sample_data
+```
+
 Frontend build:
 
 ```bash
