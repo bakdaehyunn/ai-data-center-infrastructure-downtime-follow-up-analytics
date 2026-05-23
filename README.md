@@ -109,6 +109,7 @@ docs/
   05_ui_spec.md
   06_implementation_plan.md
   07_verification_plan.md
+  08_portfolio_package.md
 
 docker-compose.yml
 ```
@@ -287,3 +288,5 @@ The project now has a working backend pipeline, API, and real-data frontend dash
 - add cleaner frontend routing for separate screens
 - add automated browser smoke tests
 - add deployment notes or a short demo video
+
+For repo description, pinned-project copy, and a short demo talk track, see [docs/08_portfolio_package.md](docs/08_portfolio_package.md).
