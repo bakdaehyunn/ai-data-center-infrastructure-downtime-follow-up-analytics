@@ -8,12 +8,13 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.models.ops import PipelineRun
-from app.pipeline.quality import run_raw_quality_checks
+from app.pipeline.core_transformer import transform_raw_to_core
+from app.pipeline.quality import run_core_quality_checks, run_raw_quality_checks
 from app.pipeline.raw_loader import load_raw_records, read_raw_source_records
 from app.sample_data.generator import generate_sample_dataset, write_sample_dataset
 
 
-PIPELINE_NAME = "raw_procurement_ingestion"
+PIPELINE_NAME = "procurement_ingestion"
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,8 @@ class PipelineResult:
     rows_loaded: int
     rows_rejected: int
     quality_failed_checks: int
+    core_records_loaded: int
+    core_records_skipped: int
 
 
 def run_raw_ingestion_pipeline(
@@ -59,7 +62,17 @@ def run_raw_ingestion_pipeline(
             sample_dir=sample_dir,
             pipeline_run_id=pipeline_run_id,
         )
-        failed_checks = sum(1 for result in quality_results if result.status != "PASS")
+
+        core_result = transform_raw_to_core(session=session, sample_dir=sample_dir)
+        core_quality_results = run_core_quality_checks(
+            session=session,
+            pipeline_run_id=pipeline_run_id,
+            start_index=len(quality_results) + 1,
+        )
+        session.add_all(core_quality_results)
+
+        all_quality_results = quality_results + core_quality_results
+        failed_checks = sum(1 for result in all_quality_results if result.status != "PASS")
         status = "SUCCESS" if failed_checks == 0 and load_result.rows_rejected == 0 else "PARTIAL_SUCCESS"
 
         pipeline_run.status = status
@@ -76,6 +89,8 @@ def run_raw_ingestion_pipeline(
             rows_loaded=load_result.rows_loaded,
             rows_rejected=load_result.rows_rejected,
             quality_failed_checks=failed_checks,
+            core_records_loaded=_core_records_loaded(core_result),
+            core_records_skipped=core_result.records_skipped,
         )
     except Exception as exc:
         session.rollback()
@@ -105,3 +120,16 @@ def _new_pipeline_run_id() -> str:
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _core_records_loaded(core_result) -> int:
+    return (
+        core_result.departments_loaded
+        + core_result.requesters_loaded
+        + core_result.items_loaded
+        + core_result.vendors_loaded
+        + core_result.purchase_requests_loaded
+        + core_result.purchase_orders_loaded
+        + core_result.receipts_loaded
+        + core_result.stage_events_loaded
+    )

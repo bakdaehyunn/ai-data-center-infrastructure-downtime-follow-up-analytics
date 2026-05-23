@@ -4,6 +4,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.models.core import ProcurementStageEvent, PurchaseOrder, PurchaseRequest, Receipt
 from app.models.ops import DataQualityCheckResult
 from app.pipeline.raw_loader import RAW_SOURCE_SPECS
 from app.sample_data.scenarios import SOURCE_SYSTEM
@@ -84,6 +88,7 @@ class QualityCheck:
 def run_raw_quality_checks(
     records_by_table: dict[str, list[dict[str, Any]]],
     pipeline_run_id: str,
+    start_index: int = 1,
 ) -> list[DataQualityCheckResult]:
     checks: list[QualityCheck] = []
     for spec in RAW_SOURCE_SPECS:
@@ -99,20 +104,24 @@ def run_raw_quality_checks(
 
     checks.extend(_check_missing_source_references(records_by_table))
 
-    return [
-        DataQualityCheckResult(
-            check_result_id=f"DQ-{pipeline_run_id}-{index:03d}",
-            pipeline_run_id=pipeline_run_id,
-            check_name=check.check_name,
-            target_table=check.target_table,
-            severity=check.severity,
-            status=check.status,
-            failed_row_count=len(check.failed_keys),
-            sample_failed_keys=check.failed_keys[:10],
-            message=check.message,
-        )
-        for index, check in enumerate(checks, start=1)
+    return _quality_results_to_models(checks, pipeline_run_id, start_index)
+
+
+def run_core_quality_checks(
+    session: Session,
+    pipeline_run_id: str,
+    start_index: int = 1,
+) -> list[DataQualityCheckResult]:
+    checks = [
+        _check_request_without_stage_event(session),
+        _check_event_timestamp_out_of_order(session),
+        _check_po_without_request(session),
+        _check_receipt_without_po(session),
+        _check_closed_request_without_receipt(session),
+        _check_needed_by_date_before_submitted_at(session),
     ]
+
+    return _quality_results_to_models(checks, pipeline_run_id, start_index)
 
 
 def _check_unknown_source_system(target_table: str, records: list[dict[str, Any]]) -> QualityCheck:
@@ -284,3 +293,142 @@ def _is_valid_iso_datetime_or_date(value: str) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _check_request_without_stage_event(session: Session) -> QualityCheck:
+    request_ids_with_events = {
+        row[0]
+        for row in session.execute(select(ProcurementStageEvent.request_id).distinct())
+    }
+    failed = [
+        request.request_id
+        for request in session.scalars(select(PurchaseRequest))
+        if request.request_id not in request_ids_with_events
+    ]
+    return QualityCheck(
+        check_name="request_without_stage_event",
+        target_table="purchase_requests",
+        severity="ERROR",
+        failed_keys=failed,
+        message="Every core purchase request should have at least one stage event.",
+    )
+
+
+def _check_event_timestamp_out_of_order(session: Session) -> QualityCheck:
+    requests = {
+        request.request_id: request
+        for request in session.scalars(select(PurchaseRequest))
+    }
+    failed = []
+    for event in session.scalars(select(ProcurementStageEvent)):
+        request = requests.get(event.request_id)
+        if request and event.occurred_at < request.submitted_at:
+            failed.append(event.event_id)
+
+    return QualityCheck(
+        check_name="event_timestamp_out_of_order",
+        target_table="procurement_stage_events",
+        severity="ERROR",
+        failed_keys=failed,
+        message="Stage event timestamps should not occur before request submission.",
+    )
+
+
+def _check_po_without_request(session: Session) -> QualityCheck:
+    request_ids = {
+        row[0]
+        for row in session.execute(select(PurchaseRequest.request_id))
+    }
+    failed = [
+        purchase_order.po_id
+        for purchase_order in session.scalars(select(PurchaseOrder))
+        if purchase_order.request_id not in request_ids
+    ]
+    return QualityCheck(
+        check_name="po_without_request",
+        target_table="purchase_orders",
+        severity="CRITICAL",
+        failed_keys=failed,
+        message="Every purchase order should reference an existing core request.",
+    )
+
+
+def _check_receipt_without_po(session: Session) -> QualityCheck:
+    po_ids = {
+        row[0]
+        for row in session.execute(select(PurchaseOrder.po_id))
+    }
+    failed = [
+        receipt.receipt_id
+        for receipt in session.scalars(select(Receipt))
+        if receipt.po_id not in po_ids
+    ]
+    return QualityCheck(
+        check_name="receipt_without_po",
+        target_table="receipts",
+        severity="CRITICAL",
+        failed_keys=failed,
+        message="Every receipt should reference an existing core purchase order.",
+    )
+
+
+def _check_closed_request_without_receipt(session: Session) -> QualityCheck:
+    po_by_request = {
+        purchase_order.request_id: purchase_order.po_id
+        for purchase_order in session.scalars(select(PurchaseOrder))
+    }
+    po_ids_with_receipts = {
+        row[0]
+        for row in session.execute(select(Receipt.po_id).distinct())
+    }
+    failed = []
+    for request in session.scalars(select(PurchaseRequest)):
+        if request.current_status != "CLOSED":
+            continue
+        po_id = po_by_request.get(request.request_id)
+        if po_id not in po_ids_with_receipts:
+            failed.append(request.request_id)
+
+    return QualityCheck(
+        check_name="closed_request_without_receipt",
+        target_table="purchase_requests",
+        severity="ERROR",
+        failed_keys=failed,
+        message="Closed requests should have receipt evidence in V1.",
+    )
+
+
+def _check_needed_by_date_before_submitted_at(session: Session) -> QualityCheck:
+    failed = [
+        request.request_id
+        for request in session.scalars(select(PurchaseRequest))
+        if request.needed_by_date < request.submitted_at.date()
+    ]
+    return QualityCheck(
+        check_name="needed_by_date_before_submitted_at",
+        target_table="purchase_requests",
+        severity="ERROR",
+        failed_keys=failed,
+        message="Needed-by date should not be earlier than submission date.",
+    )
+
+
+def _quality_results_to_models(
+    checks: list[QualityCheck],
+    pipeline_run_id: str,
+    start_index: int,
+) -> list[DataQualityCheckResult]:
+    return [
+        DataQualityCheckResult(
+            check_result_id=f"DQ-{pipeline_run_id}-{index:03d}",
+            pipeline_run_id=pipeline_run_id,
+            check_name=check.check_name,
+            target_table=check.target_table,
+            severity=check.severity,
+            status=check.status,
+            failed_row_count=len(check.failed_keys),
+            sample_failed_keys=check.failed_keys[:10],
+            message=check.message,
+        )
+        for index, check in enumerate(checks, start=start_index)
+    ]

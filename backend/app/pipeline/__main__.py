@@ -37,13 +37,16 @@ def main() -> None:
             )
         print(
             "pipeline_run_id={run_id} status={status} rows_extracted={extracted} "
-            "rows_loaded={loaded} rows_rejected={rejected} failed_checks={failed_checks}".format(
+            "rows_loaded={loaded} rows_rejected={rejected} failed_checks={failed_checks} "
+            "core_records_loaded={core_loaded} core_records_skipped={core_skipped}".format(
                 run_id=result.pipeline_run_id,
                 status=result.status,
                 extracted=result.rows_extracted,
                 loaded=result.rows_loaded,
                 rejected=result.rows_rejected,
                 failed_checks=result.quality_failed_checks,
+                core_loaded=result.core_records_loaded,
+                core_skipped=result.core_records_skipped,
             )
         )
 

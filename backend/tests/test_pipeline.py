@@ -4,6 +4,16 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from app.models import Base
+from app.models.core import (
+    Department,
+    Item,
+    ProcurementStageEvent,
+    PurchaseOrder,
+    PurchaseRequest,
+    Receipt,
+    Requester,
+    Vendor,
+)
 from app.models.ops import DataQualityCheckResult, PipelineRun
 from app.models.raw import (
     RawPurchaseOrder,
@@ -44,7 +54,9 @@ def test_raw_ingestion_pipeline_loads_raw_records_and_quality_results(tmp_path: 
         assert result.rows_extracted == 150
         assert result.rows_loaded == 149
         assert result.rows_rejected == 1
-        assert result.quality_failed_checks == 2
+        assert result.quality_failed_checks == 4
+        assert result.core_records_loaded == 169
+        assert result.core_records_skipped == 1
 
         assert session.scalar(select(PipelineRun).where(PipelineRun.pipeline_run_id == result.pipeline_run_id)) is not None
         assert _count(session, RawPurchaseRequest) == 11
@@ -52,7 +64,23 @@ def test_raw_ingestion_pipeline_loads_raw_records_and_quality_results(tmp_path: 
         assert _count(session, RawVendorUpdate) == 8
         assert _count(session, RawReceipt) == 5
         assert _count(session, RawStageEvent) == 117
-        assert _count(session, DataQualityCheckResult) == 24
+        assert _count(session, Department) == 6
+        assert _count(session, Requester) == 9
+        assert _count(session, Item) == 9
+        assert _count(session, Vendor) == 5
+        assert _count(session, PurchaseRequest) == 10
+        assert _count(session, PurchaseOrder) == 8
+        assert _count(session, Receipt) == 5
+        assert _count(session, ProcurementStageEvent) == 117
+        assert _count(session, DataQualityCheckResult) == 30
+
+        failures = {
+            (result.target_table, result.check_name): result.failed_row_count
+            for result in session.scalars(select(DataQualityCheckResult))
+            if result.status != "PASS"
+        }
+        assert failures[("purchase_requests", "request_without_stage_event")] == 1
+        assert failures[("procurement_stage_events", "event_timestamp_out_of_order")] == 1
 
 
 def test_raw_ingestion_pipeline_is_idempotent_for_existing_source_records(tmp_path: Path) -> None:
@@ -68,6 +96,8 @@ def test_raw_ingestion_pipeline_is_idempotent_for_existing_source_records(tmp_pa
         assert second.rows_rejected == 0
         assert _count(session, RawPurchaseRequest) == 11
         assert _count(session, RawStageEvent) == 117
+        assert _count(session, PurchaseRequest) == 10
+        assert _count(session, ProcurementStageEvent) == 117
 
 
 def _write_sample_data(tmp_path: Path) -> Path:
