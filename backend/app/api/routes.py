@@ -5,7 +5,7 @@ from datetime import date
 from statistics import mean
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,7 +17,7 @@ from app.models.analytics import (
     RequestStageLeadTime,
     VendorDelaySummary,
 )
-from app.models.core import Department, Item, PurchaseOrder, PurchaseRequest, Vendor
+from app.models.core import Department, Item, ProcurementStageEvent, PurchaseOrder, PurchaseRequest, Receipt, Vendor
 from app.models.ops import DataQualityCheckResult, PipelineRun
 from app.sample_data.scenarios import STAGE_FLOW
 from app.schemas.analytics import (
@@ -27,7 +27,12 @@ from app.schemas.analytics import (
     FilterOption,
     OverviewResponse,
     PipelineRunResponse,
+    PurchaseOrderSummaryResponse,
+    ReceiptSummaryResponse,
+    RequestDetailResponse,
+    StageLeadTimeResponse,
     StageBottleneckResponse,
+    TimelineEventResponse,
     VendorBottleneckResponse,
     string_list,
 )
@@ -203,6 +208,41 @@ def list_critical_requests(
     ]
 
 
+@router.get("/requests/{request_id}", response_model=RequestDetailResponse)
+def get_request_detail(request_id: str, db: Session = Depends(get_db)) -> RequestDetailResponse:
+    request = db.get(PurchaseRequest, request_id)
+    if request is None:
+        raise HTTPException(status_code=404, detail=f"Request {request_id} was not found.")
+
+    department = db.get(Department, request.department_id)
+    current = db.get(RequestCurrentStatus, request_id)
+    queue = db.get(CriticalRequestQueue, request_id)
+    lead_times = _stage_lead_times_for_request(db, request_id)
+    timeline = _timeline_for_request(db, request_id)
+    related_po = _purchase_order_summary_for_request(db, request_id)
+    receipt = _receipt_summary_for_purchase_order(db, related_po.po_id if related_po else None)
+
+    return RequestDetailResponse(
+        request=_request_summary(request, department, current, queue),
+        stage_lead_times=lead_times,
+        timeline=timeline,
+        related_po=related_po,
+        receipt=receipt,
+        quality_flags=_quality_flags_for_request(
+            db=db,
+            request_id=request_id,
+            event_ids=[event.event_id for event in timeline],
+        ),
+    )
+
+
+@router.get("/requests/{request_id}/timeline", response_model=list[TimelineEventResponse])
+def get_request_timeline(request_id: str, db: Session = Depends(get_db)) -> list[TimelineEventResponse]:
+    if db.get(PurchaseRequest, request_id) is None:
+        raise HTTPException(status_code=404, detail=f"Request {request_id} was not found.")
+    return _timeline_for_request(db, request_id)
+
+
 @router.get("/pipeline-runs", response_model=list[PipelineRunResponse])
 def list_pipeline_runs(
     limit: int = Query(default=20, ge=1, le=100),
@@ -285,6 +325,167 @@ def get_filter_metadata(db: Session = Depends(get_db)) -> FilterMetadataResponse
         criticality_levels=["LOW", "MEDIUM", "HIGH", "CRITICAL"],
         stages=STAGE_FLOW,
     )
+
+
+def _request_summary(
+    request: PurchaseRequest,
+    department: Optional[Department],
+    current: Optional[RequestCurrentStatus],
+    queue: Optional[CriticalRequestQueue],
+) -> CriticalRequestResponse:
+    return CriticalRequestResponse(
+        priority_rank=queue.priority_rank if queue else 0,
+        request_id=request.request_id,
+        request_number=request.request_number,
+        request_title=request.request_title,
+        department_id=request.department_id,
+        department_name=department.department_name if department else request.department_id,
+        current_stage=current.current_stage if current else request.current_stage,
+        current_status=current.current_status if current else request.current_status,
+        days_in_current_stage=float(current.days_in_current_stage) if current else 0,
+        needed_by_date=request.needed_by_date,
+        criticality_level=request.criticality_level,
+        business_impact=request.business_impact,
+        total_priority_score=float(queue.total_priority_score) if queue else 0,
+        recommended_action=queue.recommended_action if queue else _fallback_recommended_action(request),
+        reason_summary=queue.reason_summary if queue else _fallback_reason_summary(request),
+    )
+
+
+def _stage_lead_times_for_request(db: Session, request_id: str) -> list[StageLeadTimeResponse]:
+    lead_times = db.scalars(
+        select(RequestStageLeadTime)
+        .where(RequestStageLeadTime.request_id == request_id)
+        .order_by(RequestStageLeadTime.entered_at, RequestStageLeadTime.lead_time_id)
+    ).all()
+    return [
+        StageLeadTimeResponse(
+            stage=lead_time.stage,
+            entered_at=lead_time.entered_at,
+            exited_at=lead_time.exited_at,
+            duration_hours=float(lead_time.duration_hours),
+            threshold_hours=float(lead_time.threshold_hours),
+            is_bottleneck=lead_time.is_bottleneck,
+            delay_hours=float(lead_time.delay_hours),
+        )
+        for lead_time in lead_times
+    ]
+
+
+def _timeline_for_request(db: Session, request_id: str) -> list[TimelineEventResponse]:
+    events = db.scalars(
+        select(ProcurementStageEvent)
+        .where(ProcurementStageEvent.request_id == request_id)
+        .order_by(ProcurementStageEvent.occurred_at, ProcurementStageEvent.event_id)
+    ).all()
+    return [
+        TimelineEventResponse(
+            event_id=event.event_id,
+            stage=event.stage,
+            event_type=event.event_type,
+            event_status=event.event_status,
+            occurred_at=event.occurred_at,
+            actor_type=event.actor_type,
+            reason_code=event.reason_code,
+            message=_event_message(event),
+        )
+        for event in events
+    ]
+
+
+def _purchase_order_summary_for_request(
+    db: Session,
+    request_id: str,
+) -> Optional[PurchaseOrderSummaryResponse]:
+    row = db.execute(
+        select(PurchaseOrder, Vendor)
+        .join(Vendor, Vendor.vendor_id == PurchaseOrder.vendor_id)
+        .where(PurchaseOrder.request_id == request_id)
+        .order_by(PurchaseOrder.po_created_at, PurchaseOrder.po_id)
+        .limit(1)
+    ).first()
+    if row is None:
+        return None
+
+    purchase_order, vendor = row
+    return PurchaseOrderSummaryResponse(
+        po_id=purchase_order.po_id,
+        po_number=purchase_order.po_number,
+        vendor_id=purchase_order.vendor_id,
+        vendor_name=vendor.vendor_name,
+        po_status=purchase_order.po_status,
+        expected_delivery_date=purchase_order.expected_delivery_date,
+        actual_delivery_date=purchase_order.actual_delivery_date,
+    )
+
+
+def _receipt_summary_for_purchase_order(
+    db: Session,
+    po_id: Optional[str],
+) -> Optional[ReceiptSummaryResponse]:
+    if po_id is None:
+        return None
+
+    receipt = db.scalar(
+        select(Receipt)
+        .where(Receipt.po_id == po_id)
+        .order_by(Receipt.received_at, Receipt.receipt_id)
+        .limit(1)
+    )
+    if receipt is None:
+        return None
+    return ReceiptSummaryResponse(
+        receipt_id=receipt.receipt_id,
+        received_at=receipt.received_at,
+        inspection_status=receipt.inspection_status,
+        inspection_completed_at=receipt.inspection_completed_at,
+    )
+
+
+def _quality_flags_for_request(
+    db: Session,
+    request_id: str,
+    event_ids: list[str],
+) -> list[str]:
+    latest_run = _latest_pipeline_run(db)
+    if latest_run is None:
+        return []
+
+    search_keys = [request_id] + event_ids
+    failed_results = db.scalars(
+        select(DataQualityCheckResult)
+        .where(
+            DataQualityCheckResult.pipeline_run_id == latest_run.pipeline_run_id,
+            DataQualityCheckResult.status != "PASS",
+        )
+        .order_by(DataQualityCheckResult.target_table, DataQualityCheckResult.check_name)
+    ).all()
+
+    flags = []
+    for result in failed_results:
+        sample_failed_keys = string_list(result.sample_failed_keys)
+        if any(key in sample_key for key in search_keys for sample_key in sample_failed_keys):
+            flags.append(f"{result.target_table}.{result.check_name}: {result.message}")
+    return flags
+
+
+def _event_message(event: ProcurementStageEvent) -> Optional[str]:
+    if not isinstance(event.metadata_json, dict):
+        return None
+    message = event.metadata_json.get("message")
+    return str(message) if message else None
+
+
+def _fallback_recommended_action(request: PurchaseRequest) -> str:
+    if request.current_status == "CLOSED":
+        return "No action required"
+    return "Review request status"
+
+
+def _fallback_reason_summary(request: PurchaseRequest) -> str:
+    if request.current_status == "CLOSED":
+        return f"{request.criticality_level} request is closed."
+    return f"{request.criticality_level} request is currently in {request.current_stage}."
 
 
 def _latest_pipeline_run(db: Session) -> Optional[PipelineRun]:

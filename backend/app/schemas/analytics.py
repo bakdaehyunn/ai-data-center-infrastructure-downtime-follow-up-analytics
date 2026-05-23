@@ -58,6 +58,53 @@ class CriticalRequestResponse(BaseModel):
     reason_summary: str
 
 
+class StageLeadTimeResponse(BaseModel):
+    stage: str
+    entered_at: datetime
+    exited_at: Optional[datetime]
+    duration_hours: float
+    threshold_hours: float
+    is_bottleneck: bool
+    delay_hours: float
+
+
+class TimelineEventResponse(BaseModel):
+    event_id: str
+    stage: str
+    event_type: str
+    event_status: str
+    occurred_at: datetime
+    actor_type: str
+    reason_code: Optional[str]
+    message: Optional[str]
+
+
+class PurchaseOrderSummaryResponse(BaseModel):
+    po_id: str
+    po_number: str
+    vendor_id: str
+    vendor_name: str
+    po_status: str
+    expected_delivery_date: Optional[date]
+    actual_delivery_date: Optional[date]
+
+
+class ReceiptSummaryResponse(BaseModel):
+    receipt_id: str
+    received_at: Optional[datetime]
+    inspection_status: str
+    inspection_completed_at: Optional[datetime]
+
+
+class RequestDetailResponse(BaseModel):
+    request: CriticalRequestResponse
+    stage_lead_times: list[StageLeadTimeResponse]
+    timeline: list[TimelineEventResponse]
+    related_po: Optional[PurchaseOrderSummaryResponse]
+    receipt: Optional[ReceiptSummaryResponse]
+    quality_flags: list[str]
+
+
 class PipelineRunResponse(BaseModel):
     pipeline_run_id: str
     pipeline_name: str

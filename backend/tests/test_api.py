@@ -65,6 +65,66 @@ def test_critical_requests_endpoint_returns_ranked_queue(api_client: TestClient)
     assert data[0]["recommended_action"] == "Escalate vendor confirmation"
 
 
+def test_request_detail_endpoint_returns_state_timeline_and_related_records(api_client: TestClient) -> None:
+    response = api_client.get("/api/requests/REQ-0005")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["request"]["request_id"] == "REQ-0005"
+    assert data["request"]["priority_rank"] == 1
+    assert data["request"]["current_stage"] == "VENDOR_CONFIRMATION"
+    assert data["request"]["recommended_action"] == "Escalate vendor confirmation"
+    assert [stage["stage"] for stage in data["stage_lead_times"]] == [
+        "REQUEST_SUBMITTED",
+        "BUDGET_REVIEW",
+        "PROCUREMENT_REVIEW",
+        "PO_CREATION",
+        "VENDOR_CONFIRMATION",
+    ]
+    assert data["stage_lead_times"][-1]["is_bottleneck"] is True
+    assert data["related_po"]["po_id"] == "PO-0005"
+    assert data["related_po"]["vendor_id"] == "VEN-SIGNAL"
+    assert data["receipt"] is None
+    assert data["quality_flags"] == []
+
+
+def test_request_detail_endpoint_handles_closed_non_queued_request(api_client: TestClient) -> None:
+    response = api_client.get("/api/requests/REQ-0001")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["request"]["priority_rank"] == 0
+    assert data["request"]["current_status"] == "CLOSED"
+    assert data["request"]["recommended_action"] == "No action required"
+    assert data["related_po"]["po_id"] == "PO-0001"
+    assert data["receipt"]["receipt_id"] == "RCPT-0001"
+    assert len(data["timeline"]) == 19
+    assert set(data["quality_flags"]) == {
+        "procurement_stage_events.event_timestamp_out_of_order: Stage event timestamps should not occur before request submission.",
+        "raw_purchase_requests.duplicate_source_record: Duplicate source records are rejected before raw insertion.",
+    }
+
+
+def test_request_timeline_endpoint_returns_sorted_stage_events(api_client: TestClient) -> None:
+    response = api_client.get("/api/requests/REQ-0005/timeline")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 9
+    assert data[0]["stage"] == "REQUEST_SUBMITTED"
+    assert data[0]["event_type"] == "ENTERED_STAGE"
+    assert data[-1]["stage"] == "VENDOR_CONFIRMATION"
+    assert data[-1]["event_type"] == "ENTERED_STAGE"
+
+
+def test_request_detail_and_timeline_return_404_for_unknown_request(api_client: TestClient) -> None:
+    detail_response = api_client.get("/api/requests/REQ-NOT-FOUND")
+    timeline_response = api_client.get("/api/requests/REQ-NOT-FOUND/timeline")
+
+    assert detail_response.status_code == 404
+    assert timeline_response.status_code == 404
+
+
 def test_bottleneck_endpoints_return_stage_and_vendor_summaries(api_client: TestClient) -> None:
     stages_response = api_client.get("/api/bottlenecks/stages")
     vendors_response = api_client.get("/api/bottlenecks/vendors")
