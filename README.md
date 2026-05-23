@@ -6,7 +6,7 @@ The core question:
 
 > Which procurement requests are blocking important work, where are they delayed, and what should operations teams handle first?
 
-This is not a purchase approval CRUD app. It assumes purchase request, purchase order, receipt, and workflow event data already exists, then turns that data into an operational decision layer.
+Critical Procurement Bottleneck Analytics analyzes existing procurement workflow data to identify delayed critical requests, bottleneck stages, and the next operational action.
 
 ## What This Demonstrates
 
@@ -272,6 +272,7 @@ The generated dataset includes:
 Intentionally not included in v1:
 
 - purchase request creation or approval commands
+- procurement transaction workflow execution
 - real ERP integration
 - supplier portal
 - invoice or payment processing
