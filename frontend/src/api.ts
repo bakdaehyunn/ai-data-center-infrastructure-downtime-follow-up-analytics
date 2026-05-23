@@ -1,0 +1,155 @@
+export type Overview = {
+  total_requests: number
+  open_requests: number
+  delayed_requests: number
+  critical_open_requests: number
+  avg_cycle_time_hours: number
+  total_delay_hours: number
+  top_bottleneck_stage: string | null
+  latest_pipeline_run_status: string | null
+  data_quality_status: string
+}
+
+export type CriticalRequest = {
+  priority_rank: number
+  request_id: string
+  request_number: string
+  request_title: string
+  department_id: string
+  department_name: string
+  current_stage: string
+  current_status: string
+  days_in_current_stage: number
+  needed_by_date: string
+  criticality_level: string
+  business_impact: string
+  total_priority_score: number
+  recommended_action: string
+  reason_summary: string
+}
+
+export type StageBottleneck = {
+  stage: string
+  request_count: number
+  delayed_count: number
+  delay_rate: number
+  avg_duration_hours: number
+  p90_duration_hours: number
+  total_delay_hours: number
+}
+
+export type VendorBottleneck = {
+  vendor_id: string
+  vendor_name: string
+  total_po_count: number
+  delayed_po_count: number
+  delay_rate: number
+  avg_confirmation_hours: number
+  avg_delivery_delay_days: number
+  reliability_tier: string
+  total_delay_hours: number
+}
+
+export type DataQualityCheck = {
+  check_result_id: string
+  pipeline_run_id: string
+  check_name: string
+  target_table: string
+  severity: string
+  status: string
+  failed_row_count: number
+  sample_failed_keys: string[]
+  message: string
+  created_at: string
+}
+
+export type StageLeadTime = {
+  stage: string
+  entered_at: string
+  exited_at: string | null
+  duration_hours: number
+  threshold_hours: number
+  is_bottleneck: boolean
+  delay_hours: number
+}
+
+export type TimelineEvent = {
+  event_id: string
+  stage: string
+  event_type: string
+  event_status: string
+  occurred_at: string
+  actor_type: string
+  reason_code: string | null
+  message: string | null
+}
+
+export type PurchaseOrderSummary = {
+  po_id: string
+  po_number: string
+  vendor_id: string
+  vendor_name: string
+  po_status: string
+  expected_delivery_date: string | null
+  actual_delivery_date: string | null
+}
+
+export type ReceiptSummary = {
+  receipt_id: string
+  received_at: string | null
+  inspection_status: string
+  inspection_completed_at: string | null
+}
+
+export type RequestDetail = {
+  request: CriticalRequest
+  stage_lead_times: StageLeadTime[]
+  timeline: TimelineEvent[]
+  related_po: PurchaseOrderSummary | null
+  receipt: ReceiptSummary | null
+  quality_flags: string[]
+}
+
+export type DashboardData = {
+  overview: Overview
+  criticalRequests: CriticalRequest[]
+  stageBottlenecks: StageBottleneck[]
+  vendorBottlenecks: VendorBottleneck[]
+  failedQualityChecks: DataQualityCheck[]
+}
+
+async function getJson<T>(path: string): Promise<T> {
+  const response = await fetch(path)
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}`)
+  }
+  return response.json() as Promise<T>
+}
+
+export async function fetchDashboardData(): Promise<DashboardData> {
+  const [
+    overview,
+    criticalRequests,
+    stageBottlenecks,
+    vendorBottlenecks,
+    failedQualityChecks,
+  ] = await Promise.all([
+    getJson<Overview>('/api/overview'),
+    getJson<CriticalRequest[]>('/api/requests/critical?limit=10'),
+    getJson<StageBottleneck[]>('/api/bottlenecks/stages'),
+    getJson<VendorBottleneck[]>('/api/bottlenecks/vendors'),
+    getJson<DataQualityCheck[]>('/api/data-quality/checks?status=FAILED&limit=8'),
+  ])
+
+  return {
+    overview,
+    criticalRequests,
+    stageBottlenecks,
+    vendorBottlenecks,
+    failedQualityChecks,
+  }
+}
+
+export function fetchRequestDetail(requestId: string): Promise<RequestDetail> {
+  return getJson<RequestDetail>(`/api/requests/${requestId}`)
+}
