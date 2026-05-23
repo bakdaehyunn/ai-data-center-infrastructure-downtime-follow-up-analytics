@@ -8,6 +8,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.models.ops import PipelineRun
+from app.pipeline.analytics_builder import build_analytics
 from app.pipeline.core_transformer import transform_raw_to_core
 from app.pipeline.quality import run_core_quality_checks, run_raw_quality_checks
 from app.pipeline.raw_loader import load_raw_records, read_raw_source_records
@@ -27,6 +28,7 @@ class PipelineResult:
     quality_failed_checks: int
     core_records_loaded: int
     core_records_skipped: int
+    analytics_records_loaded: int
 
 
 def run_raw_ingestion_pipeline(
@@ -70,6 +72,7 @@ def run_raw_ingestion_pipeline(
             start_index=len(quality_results) + 1,
         )
         session.add_all(core_quality_results)
+        analytics_result = build_analytics(session=session)
 
         all_quality_results = quality_results + core_quality_results
         failed_checks = sum(1 for result in all_quality_results if result.status != "PASS")
@@ -91,6 +94,7 @@ def run_raw_ingestion_pipeline(
             quality_failed_checks=failed_checks,
             core_records_loaded=_core_records_loaded(core_result),
             core_records_skipped=core_result.records_skipped,
+            analytics_records_loaded=_analytics_records_loaded(analytics_result),
         )
     except Exception as exc:
         session.rollback()
@@ -132,4 +136,14 @@ def _core_records_loaded(core_result) -> int:
         + core_result.purchase_orders_loaded
         + core_result.receipts_loaded
         + core_result.stage_events_loaded
+    )
+
+
+def _analytics_records_loaded(analytics_result) -> int:
+    return (
+        analytics_result.request_current_status_count
+        + analytics_result.request_stage_lead_times_count
+        + analytics_result.critical_request_queue_count
+        + analytics_result.bottleneck_summary_count
+        + analytics_result.vendor_delay_summary_count
     )

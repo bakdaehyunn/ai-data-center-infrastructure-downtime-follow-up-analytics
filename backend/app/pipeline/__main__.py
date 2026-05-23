@@ -38,7 +38,8 @@ def main() -> None:
         print(
             "pipeline_run_id={run_id} status={status} rows_extracted={extracted} "
             "rows_loaded={loaded} rows_rejected={rejected} failed_checks={failed_checks} "
-            "core_records_loaded={core_loaded} core_records_skipped={core_skipped}".format(
+            "core_records_loaded={core_loaded} core_records_skipped={core_skipped} "
+            "analytics_records_loaded={analytics_loaded}".format(
                 run_id=result.pipeline_run_id,
                 status=result.status,
                 extracted=result.rows_extracted,
@@ -47,6 +48,7 @@ def main() -> None:
                 failed_checks=result.quality_failed_checks,
                 core_loaded=result.core_records_loaded,
                 core_skipped=result.core_records_skipped,
+                analytics_loaded=result.analytics_records_loaded,
             )
         )
 

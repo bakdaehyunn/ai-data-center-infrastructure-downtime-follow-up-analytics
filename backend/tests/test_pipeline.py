@@ -4,6 +4,13 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from app.models import Base
+from app.models.analytics import (
+    BottleneckSummary,
+    CriticalRequestQueue,
+    RequestCurrentStatus,
+    RequestStageLeadTime,
+    VendorDelaySummary,
+)
 from app.models.core import (
     Department,
     Item,
@@ -57,6 +64,7 @@ def test_raw_ingestion_pipeline_loads_raw_records_and_quality_results(tmp_path: 
         assert result.quality_failed_checks == 4
         assert result.core_records_loaded == 169
         assert result.core_records_skipped == 1
+        assert result.analytics_records_loaded == 244
 
         assert session.scalar(select(PipelineRun).where(PipelineRun.pipeline_run_id == result.pipeline_run_id)) is not None
         assert _count(session, RawPurchaseRequest) == 11
@@ -72,6 +80,11 @@ def test_raw_ingestion_pipeline_loads_raw_records_and_quality_results(tmp_path: 
         assert _count(session, PurchaseOrder) == 8
         assert _count(session, Receipt) == 5
         assert _count(session, ProcurementStageEvent) == 117
+        assert _count(session, RequestCurrentStatus) == 9
+        assert _count(session, RequestStageLeadTime) == 60
+        assert _count(session, CriticalRequestQueue) == 6
+        assert _count(session, BottleneckSummary) == 164
+        assert _count(session, VendorDelaySummary) == 5
         assert _count(session, DataQualityCheckResult) == 30
 
         failures = {
@@ -81,6 +94,49 @@ def test_raw_ingestion_pipeline_loads_raw_records_and_quality_results(tmp_path: 
         }
         assert failures[("purchase_requests", "request_without_stage_event")] == 1
         assert failures[("procurement_stage_events", "event_timestamp_out_of_order")] == 1
+
+
+def test_pipeline_builds_critical_request_queue_from_analytics(tmp_path: Path) -> None:
+    sample_dir = _write_sample_data(tmp_path)
+    session_factory = _session_factory()
+
+    with session_factory() as session:
+        run_raw_ingestion_pipeline(session=session, sample_dir=sample_dir)
+
+        top_requests = session.scalars(
+            select(CriticalRequestQueue).order_by(CriticalRequestQueue.priority_rank).limit(3)
+        ).all()
+        top_request_ids = [request.request_id for request in top_requests]
+
+        assert top_request_ids == ["REQ-0005", "REQ-0009", "REQ-0002"]
+        assert top_requests[0].recommended_action == "Escalate vendor confirmation"
+        assert float(top_requests[0].total_priority_score) == 120.0
+
+
+def test_pipeline_builds_stage_and_vendor_bottleneck_summaries(tmp_path: Path) -> None:
+    sample_dir = _write_sample_data(tmp_path)
+    session_factory = _session_factory()
+
+    with session_factory() as session:
+        run_raw_ingestion_pipeline(session=session, sample_dir=sample_dir)
+
+        vendor_confirmation = session.scalar(
+            select(BottleneckSummary).where(
+                BottleneckSummary.dimension_type == "STAGE",
+                BottleneckSummary.dimension_id == "VENDOR_CONFIRMATION",
+                BottleneckSummary.stage == "VENDOR_CONFIRMATION",
+            )
+        )
+        signal_vendor = session.scalar(
+            select(VendorDelaySummary).where(VendorDelaySummary.vendor_id == "VEN-SIGNAL")
+        )
+
+        assert vendor_confirmation is not None
+        assert vendor_confirmation.delayed_count >= 2
+        assert float(vendor_confirmation.total_delay_hours) > 0
+        assert signal_vendor is not None
+        assert signal_vendor.delayed_po_count >= 2
+        assert float(signal_vendor.delay_rate) > 0
 
 
 def test_raw_ingestion_pipeline_is_idempotent_for_existing_source_records(tmp_path: Path) -> None:
@@ -98,6 +154,7 @@ def test_raw_ingestion_pipeline_is_idempotent_for_existing_source_records(tmp_pa
         assert _count(session, RawStageEvent) == 117
         assert _count(session, PurchaseRequest) == 10
         assert _count(session, ProcurementStageEvent) == 117
+        assert _count(session, CriticalRequestQueue) == 6
 
 
 def _write_sample_data(tmp_path: Path) -> Path:

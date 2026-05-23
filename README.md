@@ -72,7 +72,7 @@ source .venv/bin/activate
 python -m app.sample_data.generator --output-dir generated/sample_data
 ```
 
-Run ingestion, core transformation, and data quality checks:
+Run ingestion, core transformation, analytics build, and data quality checks:
 
 ```bash
 cd backend
