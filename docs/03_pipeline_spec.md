@@ -261,22 +261,20 @@ V1 policy:
 Possible commands:
 
 ```bash
-python -m app.pipeline.generate_sample_data
-python -m app.pipeline.run_pipeline
-python -m app.pipeline.run_quality_checks
-python -m app.pipeline.build_analytics
+python -m app.sample_data.generator --output-dir generated/sample_data
+python -m app.pipeline run --sample-dir generated/sample_data
 ```
 
 Preferred integrated command:
 
 ```bash
-python -m app.pipeline run --generate-sample
+python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
 ```
 
-Docker Compose:
+PostgreSQL should be started with Docker Compose before running the pipeline:
 
 ```bash
-docker compose run pipeline python -m app.pipeline run --generate-sample
+docker compose up -d postgres
 ```
 
 ## 11. Verification

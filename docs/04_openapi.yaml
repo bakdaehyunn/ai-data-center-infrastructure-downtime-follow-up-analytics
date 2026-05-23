@@ -82,25 +82,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/VendorBottleneck"
-  /api/bottlenecks/departments:
-    get:
-      tags: [Bottlenecks]
-      summary: Department bottleneck summary
-      parameters:
-        - $ref: "#/components/parameters/FromDate"
-        - $ref: "#/components/parameters/ToDate"
-        - $ref: "#/components/parameters/VendorId"
-        - $ref: "#/components/parameters/ItemCategory"
-        - $ref: "#/components/parameters/CriticalityLevel"
-      responses:
-        "200":
-          description: Department bottlenecks
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/DepartmentBottleneck"
   /api/requests/critical:
     get:
       tags: [Requests]
@@ -174,25 +155,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PipelineRun"
-  /api/pipeline-runs/{pipeline_run_id}:
-    get:
-      tags: [Operations]
-      summary: Pipeline run detail
-      parameters:
-        - name: pipeline_run_id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Pipeline run detail
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PipelineRun"
-        "404":
-          $ref: "#/components/responses/NotFound"
   /api/data-quality/checks:
     get:
       tags: [Operations]
@@ -366,38 +328,25 @@ components:
           type: string
         total_delay_hours:
           type: number
-    DepartmentBottleneck:
-      type: object
-      properties:
-        department_id:
-          type: string
-        department_name:
-          type: string
-        request_count:
-          type: integer
-        delayed_count:
-          type: integer
-        critical_request_count:
-          type: integer
-        avg_cycle_time_hours:
-          type: number
-        return_for_correction_count:
-          type: integer
-        total_delay_hours:
-          type: number
     CriticalRequest:
       type: object
       properties:
+        priority_rank:
+          type: integer
         request_id:
           type: string
         request_number:
           type: string
         request_title:
           type: string
+        department_id:
+          type: string
         department_name:
           type: string
         current_stage:
           $ref: "#/components/schemas/ProcurementStage"
+        current_status:
+          type: string
         days_in_current_stage:
           type: number
         needed_by_date:
@@ -493,6 +442,11 @@ components:
         expected_delivery_date:
           type: string
           format: date
+          nullable: true
+        actual_delivery_date:
+          type: string
+          format: date
+          nullable: true
     ReceiptSummary:
       type: object
       nullable: true

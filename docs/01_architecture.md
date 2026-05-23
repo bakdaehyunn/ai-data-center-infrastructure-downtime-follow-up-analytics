@@ -137,7 +137,6 @@ Expected endpoints:
 GET /api/overview
 GET /api/bottlenecks/stages
 GET /api/bottlenecks/vendors
-GET /api/bottlenecks/departments
 GET /api/requests/critical
 GET /api/requests/{request_id}
 GET /api/requests/{request_id}/timeline
@@ -146,20 +145,22 @@ GET /api/data-quality/checks
 GET /api/metadata/filters
 ```
 
+Department-level bottleneck analysis is a planned extension after the first dashboard foundation.
+
 Complex calculations should be handled by the pipeline and analytics tables where practical.
 
 ### 3.5 React Dashboard
 
 The dashboard helps operators understand what to act on first.
 
-Screens:
+Implemented dashboard sections:
 
-- Operations Overview
-- Bottleneck Analysis
-- Critical Request Queue
-- Request Detail
-- Vendor and Department Analysis
-- Pipeline and Data Quality
+- Operations overview KPIs
+- Stage bottleneck chart
+- Critical request queue
+- Request drilldown panel
+- Vendor delay table
+- Pipeline and data quality status
 
 ## 4. Data Flow
 
@@ -195,21 +196,25 @@ Dagster can be considered later if scheduling, retries, dependency visualization
 
 ## 6. Local Runtime
 
-V1 uses Docker Compose.
+V1 uses Docker Compose for PostgreSQL. The backend and frontend run as local development processes.
 
-Expected services:
+Runtime pieces:
 
 ```text
 postgres
-backend
-frontend
+backend via uvicorn
+frontend via Vite
 ```
 
-Pipeline execution can be handled as a separate script entrypoint:
+Pipeline execution:
 
 ```bash
-docker compose run pipeline python -m app.pipeline run --generate-sample
+cd backend
+python -m alembic upgrade head
+python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
 ```
+
+The frontend development server proxies `/api` calls to `http://127.0.0.1:8000`.
 
 ## 7. V1 Exclusions
 

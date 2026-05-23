@@ -185,7 +185,7 @@ Implement rejected row handling or minimum error logging
 Command:
 
 ```bash
-python -m app.pipeline run --generate-sample
+python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
 ```
 
 Verification:
@@ -252,7 +252,6 @@ Implement /api/health
 Implement /api/overview
 Implement /api/bottlenecks/stages
 Implement /api/bottlenecks/vendors
-Implement /api/bottlenecks/departments
 Implement /api/requests/critical
 Implement /api/requests/{request_id}
 Implement /api/requests/{request_id}/timeline
@@ -260,6 +259,8 @@ Implement /api/pipeline-runs
 Implement /api/data-quality/checks
 Implement /api/metadata/filters
 ```
+
+Department-level bottleneck endpoint can be added after the first real-data dashboard foundation.
 
 Verification:
 

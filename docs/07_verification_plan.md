@@ -81,7 +81,7 @@ rows_extracted, rows_loaded, rows_rejected are recorded
 Expected command:
 
 ```bash
-python -m app.pipeline run --generate-sample
+python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
 ```
 
 Expected result:
@@ -106,11 +106,9 @@ duplicate source record
 missing required field
 event timestamp out of order
 request without stage event
-po without request
-receipt without po
-negative stage duration
-closed request without receipt
 ```
+
+Additional core quality checks exist for purchase order references, receipt references, closed request evidence, and date consistency. In the current seeded dataset these additional checks are expected to pass.
 
 Checks:
 
@@ -163,7 +161,6 @@ GET /api/health
 GET /api/overview
 GET /api/bottlenecks/stages
 GET /api/bottlenecks/vendors
-GET /api/bottlenecks/departments
 GET /api/requests/critical
 GET /api/requests/{request_id}
 GET /api/requests/{request_id}/timeline
@@ -198,8 +195,8 @@ Critical Request Queue displays priority, reason, and recommended action
 Clicking a critical request opens Request Detail
 Request Detail shows timeline
 Bottleneck Analysis chart matches API result
-Vendor / Department Analysis shows repeated delay patterns
-Pipeline & Data Quality shows latest run and checks
+Vendor delay table shows repeated delay patterns
+Pipeline and Data Quality status shows latest failed checks
 Loading, empty, and error states are handled
 ```
 
@@ -208,6 +205,7 @@ Build checks:
 ```text
 frontend build succeeds
 TypeScript check succeeds
+frontend lint succeeds
 ```
 
 Optional smoke test:
@@ -216,9 +214,8 @@ Optional smoke test:
 Open dashboard
 Verify overview rendered
 Click first critical request
-Verify detail page rendered
-Open Pipeline & Data Quality
-Verify latest pipeline run rendered
+Verify drilldown panel rendered
+Verify data quality failures are visible
 ```
 
 ## 9. End-to-End Verification
@@ -231,11 +228,18 @@ Expected flow:
 
 ```bash
 docker compose up -d postgres
-alembic upgrade head
-python -m app.pipeline run --generate-sample
-pytest
+
+cd backend
+source .venv/bin/activate
+python -m alembic upgrade head
+python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
+python -m pytest
+uvicorn app.main:app --reload
+
+cd ../frontend
+npm run lint
 npm run build
-docker compose up
+npm run dev
 ```
 
 End-to-end success criteria:
@@ -248,6 +252,7 @@ API returns analytics data
 frontend displays dashboard
 seeded bottleneck scenario is visible
 data quality results are visible
+clicking a queue row updates the request drilldown
 ```
 
 ## 10. Non-Functional Verification
@@ -289,7 +294,7 @@ Pipeline produces raw, core, analytics, and ops records.
 Data quality checks detect seeded issues.
 Critical request queue ranks high-impact blockers.
 API exposes required dashboard data.
-Frontend renders overview, bottleneck analysis, critical queue, detail, and data quality screens.
+Frontend renders overview, bottleneck analysis, critical queue, request drilldown, vendor delay, and data quality sections.
 Tests cover pipeline, analytics, and API basics.
 The project story connects stateful business workflows to operational bottleneck analysis.
 ```
