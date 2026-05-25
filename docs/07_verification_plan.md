@@ -192,8 +192,13 @@ Manual checks:
 Operations Overview loads KPI values
 Top bottleneck stage is visible
 Critical Request Queue displays priority, reason, and recommended action
+Filter bar narrows the queue by stage, department, vendor, criticality, and item category
+Stage and vendor bottleneck sections reflect supported filters
 Clicking a critical request opens Request Detail
-Request Detail shows timeline
+Request Detail shows priority score breakdown
+Request Detail shows actual duration, threshold duration, and delay hours
+Request Detail shows full timeline
+Request Detail shows related PO, receipt, and quality flag state
 Bottleneck Analysis chart matches API result
 Vendor delay table shows repeated delay patterns
 Pipeline and Data Quality status shows latest failed checks
@@ -213,9 +218,12 @@ Optional smoke test:
 ```text
 Open dashboard
 Verify overview rendered
-Click first critical request
-Verify drilldown panel rendered
+Apply Stage = Budget Review
+Verify the queue narrows to PR-2026-0002
+Click PR-2026-0002
+Verify score breakdown, threshold, delay hours, and full timeline are visible
 Verify data quality failures are visible
+Verify no browser console errors are emitted
 ```
 
 ## 9. End-to-End Verification
@@ -253,6 +261,8 @@ frontend displays dashboard
 seeded bottleneck scenario is visible
 data quality results are visible
 clicking a queue row updates the request drilldown
+filtering changes the critical request queue and supported analytics sections
+request drilldown explains priority score and stage delay thresholds
 ```
 
 ## 10. Non-Functional Verification

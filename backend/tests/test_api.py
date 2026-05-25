@@ -62,7 +62,31 @@ def test_critical_requests_endpoint_returns_ranked_queue(api_client: TestClient)
     assert [row["request_id"] for row in data] == ["REQ-0005", "REQ-0009", "REQ-0002"]
     assert data[0]["priority_rank"] == 1
     assert data[0]["total_priority_score"] == 120.0
+    assert data[0]["criticality_score"] == 30.0
+    assert data[0]["delay_score"] == 30.0
+    assert data[0]["business_impact_score"] == 20.0
+    assert data[0]["needed_by_urgency_score"] == 20.0
+    assert data[0]["vendor_risk_score"] == 20.0
     assert data[0]["recommended_action"] == "Escalate vendor confirmation"
+
+
+def test_critical_requests_endpoint_filters_operational_queue(api_client: TestClient) -> None:
+    stage_response = api_client.get("/api/requests/critical?stage=BUDGET_REVIEW")
+    vendor_response = api_client.get("/api/requests/critical?vendor_id=VEN-SIGNAL")
+    criticality_response = api_client.get("/api/requests/critical?criticality_level=HIGH")
+
+    assert stage_response.status_code == 200
+    assert vendor_response.status_code == 200
+    assert criticality_response.status_code == 200
+
+    stage_data = stage_response.json()
+    vendor_data = vendor_response.json()
+    criticality_data = criticality_response.json()
+
+    assert [row["request_id"] for row in stage_data] == ["REQ-0002"]
+    assert [row["request_id"] for row in vendor_data] == ["REQ-0005", "REQ-0009"]
+    assert criticality_data
+    assert {row["criticality_level"] for row in criticality_data} == {"HIGH"}
 
 
 def test_request_detail_endpoint_returns_state_timeline_and_related_records(api_client: TestClient) -> None:
@@ -74,6 +98,17 @@ def test_request_detail_endpoint_returns_state_timeline_and_related_records(api_
     assert data["request"]["priority_rank"] == 1
     assert data["request"]["current_stage"] == "VENDOR_CONFIRMATION"
     assert data["request"]["recommended_action"] == "Escalate vendor confirmation"
+    component_total = sum(
+        data["request"][field]
+        for field in [
+            "criticality_score",
+            "delay_score",
+            "business_impact_score",
+            "needed_by_urgency_score",
+            "vendor_risk_score",
+        ]
+    )
+    assert component_total == data["request"]["total_priority_score"]
     assert [stage["stage"] for stage in data["stage_lead_times"]] == [
         "REQUEST_SUBMITTED",
         "BUDGET_REVIEW",
@@ -137,6 +172,28 @@ def test_bottleneck_endpoints_return_stage_and_vendor_summaries(api_client: Test
     assert stages[0]["total_delay_hours"] == 317.0
     assert vendors[0]["vendor_id"] == "VEN-SIGNAL"
     assert vendors[0]["delay_rate"] == 1.0
+    assert vendors[0]["delayed_po_count"] == 2
+
+
+def test_bottleneck_endpoints_support_dashboard_filters(api_client: TestClient) -> None:
+    stages_response = api_client.get(
+        "/api/bottlenecks/stages?department_id=DEPT-SAFETY&criticality_level=HIGH&stage=BUDGET_REVIEW"
+    )
+    vendors_response = api_client.get(
+        "/api/bottlenecks/vendors?vendor_id=VEN-SIGNAL&criticality_level=CRITICAL"
+    )
+
+    assert stages_response.status_code == 200
+    assert vendors_response.status_code == 200
+
+    stages = stages_response.json()
+    vendors = vendors_response.json()
+    assert len(stages) == 1
+    assert stages[0]["stage"] == "BUDGET_REVIEW"
+    assert stages[0]["request_count"] == 2
+    assert stages[0]["delayed_count"] == 1
+    assert [vendor["vendor_id"] for vendor in vendors] == ["VEN-SIGNAL"]
+    assert vendors[0]["total_po_count"] == 2
     assert vendors[0]["delayed_po_count"] == 2
 
 

@@ -47,6 +47,16 @@
   border-color: #8a9895;
 }
 
+.icon-button:disabled {
+  color: #8d979c;
+  background: #f3f5f3;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  color: #4c5b63;
+}
+
 .notice,
 .loading-state,
 .loading-inline,
@@ -125,6 +135,69 @@
   color: #2f7a6d;
 }
 
+.filter-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid #dfe4e1;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.filter-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  color: #314a4f;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.filter-controls {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.filter-select {
+  display: grid;
+  gap: 5px;
+}
+
+.filter-select span {
+  color: #68737b;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.filter-select select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #cfd7d4;
+  border-radius: 6px;
+  color: #182128;
+  background: #ffffff;
+  font: inherit;
+  font-size: 13px;
+}
+
+.filter-select select:disabled {
+  color: #8d979c;
+  background: #f3f5f3;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.8fr);
@@ -168,6 +241,12 @@
 .chart-frame {
   height: 328px;
   padding: 12px 14px 12px 4px;
+}
+
+.chart-empty {
+  min-height: 328px;
+  justify-content: center;
+  padding: 0 18px;
 }
 
 .quality-list {
@@ -369,6 +448,8 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #edf0ee;
 }
 
 .lead-time-row span,
@@ -381,19 +462,70 @@
   color: #ad4f43;
 }
 
+.lead-time-stage {
+  font-weight: 700;
+}
+
+.lead-time-row small {
+  display: block;
+  margin-top: 3px;
+  color: #788289;
+  font-size: 12px;
+}
+
+.table-empty {
+  padding: 20px;
+}
+
+.score-breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.score-component {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 1px solid #e2e8e4;
+  border-radius: 6px;
+  background: #fbfcfb;
+}
+
+.score-component span {
+  color: #5f6b72;
+  font-size: 12px;
+}
+
+.score-component strong {
+  color: #1c262e;
+  font-size: 15px;
+}
+
+.score-component.total {
+  border-color: #d7b7ad;
+  background: #fff7f4;
+}
+
 .timeline-list {
   display: grid;
   gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
+  max-height: 360px;
+  overflow-y: auto;
 }
 
 .timeline-list li {
   display: grid;
-  grid-template-columns: 88px minmax(110px, 0.7fr) minmax(0, 1fr);
+  grid-template-columns: 88px minmax(120px, 0.65fr) minmax(0, 1fr);
   gap: 10px;
-  align-items: center;
+  align-items: start;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #edf0ee;
 }
 
 .timeline-list span {
@@ -410,15 +542,60 @@
   margin: 0;
 }
 
+.timeline-list small,
+.timeline-list em {
+  display: block;
+  margin-top: 3px;
+  color: #788289;
+  font-size: 12px;
+  font-style: normal;
+}
+
 .split-section {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
 
-.quality-flags p {
-  margin: 0 0 8px;
+.record-facts {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.record-facts div {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.record-facts dt {
+  color: #768087;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.record-facts dd {
+  margin: 0;
+  color: #29343c;
+  font-size: 13px;
+}
+
+.quality-flags ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quality-flags li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
   color: #8c4935;
+  font-size: 13px;
 }
 
 .vendor-panel {
@@ -438,8 +615,13 @@
   }
 
   .dashboard-grid,
-  .workbench {
+  .workbench,
+  .filter-panel {
     grid-template-columns: 1fr;
+  }
+
+  .filter-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -461,7 +643,13 @@
   }
 
   .timeline-list li,
-  .split-section {
+  .split-section,
+  .score-breakdown,
+  .filter-controls {
     grid-template-columns: 1fr;
+  }
+
+  .filter-actions {
+    flex-wrap: wrap;
   }
 }

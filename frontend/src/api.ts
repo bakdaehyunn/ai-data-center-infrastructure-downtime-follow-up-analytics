@@ -23,6 +23,11 @@ export type CriticalRequest = {
   needed_by_date: string
   criticality_level: string
   business_impact: string
+  criticality_score: number
+  delay_score: number
+  business_impact_score: number
+  needed_by_urgency_score: number
+  vendor_risk_score: number
   total_priority_score: number
   recommended_action: string
   reason_summary: string
@@ -118,6 +123,27 @@ export type DashboardData = {
   failedQualityChecks: DataQualityCheck[]
 }
 
+export type FilterOption = {
+  id: string
+  name: string
+}
+
+export type FilterMetadata = {
+  departments: FilterOption[]
+  vendors: FilterOption[]
+  item_categories: string[]
+  criticality_levels: string[]
+  stages: string[]
+}
+
+export type DashboardFilters = {
+  stage?: string
+  department_id?: string
+  vendor_id?: string
+  criticality_level?: string
+  item_category?: string
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path)
   if (!response.ok) {
@@ -126,7 +152,40 @@ async function getJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export async function fetchDashboardData(): Promise<DashboardData> {
+function buildQuery(params: Record<string, string | number | undefined>) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') {
+      query.set(key, String(value))
+    }
+  }
+  const queryString = query.toString()
+  return queryString ? `?${queryString}` : ''
+}
+
+export async function fetchDashboardData(filters: DashboardFilters = {}): Promise<DashboardData> {
+  const criticalQuery = buildQuery({
+    limit: 10,
+    stage: filters.stage,
+    department_id: filters.department_id,
+    vendor_id: filters.vendor_id,
+    criticality_level: filters.criticality_level,
+    item_category: filters.item_category,
+  })
+  const stageBottleneckQuery = buildQuery({
+    stage: filters.stage,
+    department_id: filters.department_id,
+    vendor_id: filters.vendor_id,
+    criticality_level: filters.criticality_level,
+    item_category: filters.item_category,
+  })
+  const vendorQuery = buildQuery({
+    stage: filters.stage,
+    department_id: filters.department_id,
+    vendor_id: filters.vendor_id,
+    criticality_level: filters.criticality_level,
+    item_category: filters.item_category,
+  })
   const [
     overview,
     criticalRequests,
@@ -135,9 +194,9 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     failedQualityChecks,
   ] = await Promise.all([
     getJson<Overview>('/api/overview'),
-    getJson<CriticalRequest[]>('/api/requests/critical?limit=10'),
-    getJson<StageBottleneck[]>('/api/bottlenecks/stages'),
-    getJson<VendorBottleneck[]>('/api/bottlenecks/vendors'),
+    getJson<CriticalRequest[]>(`/api/requests/critical${criticalQuery}`),
+    getJson<StageBottleneck[]>(`/api/bottlenecks/stages${stageBottleneckQuery}`),
+    getJson<VendorBottleneck[]>(`/api/bottlenecks/vendors${vendorQuery}`),
     getJson<DataQualityCheck[]>('/api/data-quality/checks?status=FAILED&limit=8'),
   ])
 
@@ -148,6 +207,10 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     vendorBottlenecks,
     failedQualityChecks,
   }
+}
+
+export function fetchFilterMetadata(): Promise<FilterMetadata> {
+  return getJson<FilterMetadata>('/api/metadata/filters')
 }
 
 export function fetchRequestDetail(requestId: string): Promise<RequestDetail> {

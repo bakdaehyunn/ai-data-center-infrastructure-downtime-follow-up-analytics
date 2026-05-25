@@ -53,6 +53,11 @@ class CriticalRequestResponse(BaseModel):
     needed_by_date: date
     criticality_level: str
     business_impact: str
+    criticality_score: float
+    delay_score: float
+    business_impact_score: float
+    needed_by_urgency_score: float
+    vendor_risk_score: float
     total_priority_score: float
     recommended_action: str
     reason_summary: str

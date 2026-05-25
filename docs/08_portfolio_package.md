@@ -2,7 +2,7 @@
 
 ## GitHub Repository Description
 
-Operational procurement bottleneck analytics system with a Python pipeline, PostgreSQL analytical model, FastAPI API, and React dashboard.
+Operational procurement bottleneck analytics system with a Python pipeline, PostgreSQL analytical model, FastAPI API, and React dashboard with explainable priority scoring.
 
 ## GitHub Topics
 
@@ -23,7 +23,7 @@ dashboard
 
 ## Pinned Repository Blurb
 
-Critical Procurement Bottleneck Analytics is an operational data system that answers: which procurement requests are blocking important work, where are they delayed, and what should teams handle first? It includes deterministic source data generation, raw/core/analytics PostgreSQL modeling, Python pipeline execution, data quality checks, FastAPI analytics endpoints, and a React dashboard backed by real API data.
+Critical Procurement Bottleneck Analytics is an operational data system that answers: which procurement requests are blocking important work, where are they delayed, and what should teams handle first? It includes deterministic source data generation, raw/core/analytics PostgreSQL modeling, Python pipeline execution, data quality checks, filtered FastAPI analytics endpoints, and a React dashboard backed by real API data.
 
 ## 2-Minute Demo Script
 
@@ -58,8 +58,9 @@ The FastAPI backend is read-only. It exposes analytics endpoints such as:
 - `/api/bottlenecks/stages`
 - `/api/bottlenecks/vendors`
 - `/api/data-quality/checks`
+- `/api/metadata/filters`
 
-The backend does not create purchase requests or approvals. It exposes the operational analysis layer.
+The request queue and bottleneck endpoints support operational filters such as stage, department, vendor, criticality, and item category. The backend does not create purchase requests or approvals. It exposes the operational analysis layer.
 
 ### 4. Dashboard
 
@@ -74,14 +75,17 @@ The first screen shows:
 - top bottleneck stage
 - data quality status
 
+The filter bar lets the operator narrow the dashboard by stage, department, vendor, criticality, and item category.
+
 The critical request queue ranks requests by criticality, delay, urgency, business impact, and vendor risk.
 
 Clicking a row opens the request drilldown, which shows:
 
 - current stage and priority score
+- priority score breakdown by criticality, delay, business impact, urgency, and vendor risk
 - recommended action
-- stage lead times
-- event timeline
+- stage lead times with actual duration, threshold, and delay hours
+- full event timeline
 - related purchase order and receipt state
 - quality flags
 
@@ -112,13 +116,14 @@ python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
 4. Show `/api/overview` or FastAPI docs.
 5. Open the dashboard.
 6. Point to `Vendor Confirmation` as the top bottleneck.
-7. Click `PR-2026-0005`.
-8. Explain the request drilldown: stage lead time, timeline, PO state, quality flags.
-9. Close with the design idea: event history becomes operational priority.
+7. Show that the filter bar can narrow the queue by stage, department, vendor, criticality, or item category.
+8. Click `PR-2026-0005`.
+9. Explain the request drilldown: score breakdown, stage lead time thresholds, full timeline, PO state, and quality flags.
+10. Close with the design idea: event history becomes operational priority.
 
 ## Next Improvements
 
-- Add department bottleneck endpoint and dashboard section.
-- Split the dashboard into routed views.
+- Add data quality drilldown from failed checks to affected records.
+- Add pipeline run history and freshness observability in the dashboard.
 - Add automated browser smoke tests.
 - Add a short demo video or hosted deployment.

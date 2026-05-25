@@ -29,13 +29,6 @@ paths:
     get:
       tags: [Overview]
       summary: Operations overview
-      parameters:
-        - $ref: "#/components/parameters/FromDate"
-        - $ref: "#/components/parameters/ToDate"
-        - $ref: "#/components/parameters/DepartmentId"
-        - $ref: "#/components/parameters/VendorId"
-        - $ref: "#/components/parameters/ItemCategory"
-        - $ref: "#/components/parameters/CriticalityLevel"
       responses:
         "200":
           description: Overview metrics
@@ -50,6 +43,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/FromDate"
         - $ref: "#/components/parameters/ToDate"
+        - $ref: "#/components/parameters/Stage"
         - $ref: "#/components/parameters/DepartmentId"
         - $ref: "#/components/parameters/VendorId"
         - $ref: "#/components/parameters/ItemCategory"
@@ -68,8 +62,8 @@ paths:
       tags: [Bottlenecks]
       summary: Vendor bottleneck summary
       parameters:
-        - $ref: "#/components/parameters/FromDate"
-        - $ref: "#/components/parameters/ToDate"
+        - $ref: "#/components/parameters/VendorId"
+        - $ref: "#/components/parameters/Stage"
         - $ref: "#/components/parameters/DepartmentId"
         - $ref: "#/components/parameters/ItemCategory"
         - $ref: "#/components/parameters/CriticalityLevel"
@@ -146,6 +140,14 @@ paths:
     get:
       tags: [Operations]
       summary: Pipeline run list
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
       responses:
         "200":
           description: Pipeline runs
@@ -176,6 +178,13 @@ paths:
           in: query
           schema:
             type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 500
       responses:
         "200":
           description: Data quality results
@@ -356,6 +365,16 @@ components:
           $ref: "#/components/schemas/CriticalityLevel"
         business_impact:
           type: string
+        criticality_score:
+          type: number
+        delay_score:
+          type: number
+        business_impact_score:
+          type: number
+        needed_by_urgency_score:
+          type: number
+        vendor_risk_score:
+          type: number
         total_priority_score:
           type: number
         recommended_action:
@@ -456,6 +475,7 @@ components:
         received_at:
           type: string
           format: date-time
+          nullable: true
         inspection_status:
           type: string
         inspection_completed_at:

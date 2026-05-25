@@ -22,16 +22,19 @@ They need priority, delay cause, owner, and data trust signals.
 
 ## 3. Navigation Structure
 
-V1 screens:
+V1 is implemented as a single-page operational workbench with these sections:
 
 ```text
-1. Operations Overview
-2. Bottleneck Analysis
-3. Critical Request Queue
-4. Request Detail
-5. Vendor / Department Analysis
-6. Pipeline & Data Quality
+1. Operations Overview KPI strip
+2. Global Filters
+3. Stage Bottleneck Analysis
+4. Pipeline Trust
+5. Critical Request Queue
+6. Request Drilldown
+7. Vendor Delay Pattern
 ```
+
+The broader screen list below remains the product direction, but Phase 8A-1 keeps the experience in one dense dashboard instead of adding routing.
 
 ## 4. Screen 1: Operations Overview
 
@@ -53,19 +56,19 @@ Components:
 KPI cards:
 - Open Requests
 - Delayed Requests
-- Critical Delayed Requests
+- Critical Open Requests
 - Total Delay Hours
-- Average Cycle Time
 - Top Bottleneck Stage
+- Data Quality Status
 
 Primary chart:
 - Stage Bottleneck Bar Chart
 
 Secondary sections:
-- Top 5 Critical Blockers
-- Delay Trend
-- Pipeline Status Badge
-- Data Quality Status Badge
+- Critical Request Queue
+- Request Drilldown
+- Pipeline Trust failed checks
+- Vendor Delay Pattern
 ```
 
 Design rule:
@@ -87,10 +90,8 @@ Main questions:
 
 Components:
 
-- Stage bottleneck table
 - Stage duration chart
 - Delay rate by stage
-- Threshold vs actual duration chart
 - Filters
 
 Table columns:
@@ -125,14 +126,10 @@ Table columns:
 Priority Rank
 Request Number
 Title
-Department
 Current Stage
 Days in Stage
-Needed By
-Criticality
 Priority Score
 Recommended Action
-Reason
 ```
 
 Filters:
@@ -142,16 +139,18 @@ Stage
 Department
 Vendor
 Criticality
-Business Impact
+Item Category
 ```
 
 Interaction:
 
 - Row click opens Request Detail.
+- Empty filter result shows an explicit empty state.
 
 Design rule:
 
 - This is the core screen. It must explain why each request is prioritized.
+- Priority must be explainable through score components, not only a total score.
 
 ## 7. Screen 4: Request Detail
 
@@ -173,9 +172,7 @@ Header:
 Request Number
 Title
 Current Stage
-Current Status
 Criticality
-Needed By Date
 Priority Score
 Recommended Action
 ```
@@ -183,12 +180,32 @@ Recommended Action
 Sections:
 
 ```text
-Stage Timeline
+Priority Score Breakdown
 Stage Lead Time Breakdown
+Full Stage Timeline
 Related PO Summary
-Vendor Info
 Receipt / Inspection Summary
 Quality Flags
+```
+
+Priority score components:
+
+```text
+Criticality Score
+Delay Score
+Business Impact Score
+Needed By Urgency Score
+Vendor Risk Score
+Total Priority Score
+```
+
+Stage lead time row:
+
+```text
+Stage
+Actual Duration
+Threshold Duration
+Delay Hours, when bottlenecked
 ```
 
 Timeline item:
@@ -228,7 +245,9 @@ Reliability Tier
 Total Delay Hours
 ```
 
-Department table:
+Department analysis is not yet a separate dashboard table in Phase 8A-1. Department is available as a global filter and is supported by the filtered bottleneck APIs.
+
+Future department table:
 
 ```text
 Department
@@ -300,18 +319,28 @@ CRITICAL
 
 ## 10. Global Filters
 
-Common filters:
+Implemented filters:
 
 ```text
-Date Range
+Stage
 Department
 Vendor
 Item Category
 Criticality Level
-Stage
 ```
 
-Filters should be preserved in URL query state when practical.
+Date range remains an API capability for selected endpoints but is not yet exposed in the dashboard filter bar.
+
+Filters apply to:
+
+```text
+Critical Request Queue
+Stage Bottleneck Analysis
+Vendor Delay Pattern
+Request Drilldown selection
+```
+
+Filters should be preserved in URL query state in a future routed dashboard.
 
 ## 11. Interaction Rules
 
@@ -320,6 +349,8 @@ Filters should be preserved in URL query state when practical.
 - Clicking a stage chart bar filters Critical Request Queue by stage.
 - Clicking a vendor row applies a vendor filter.
 - Clicking a data quality badge opens Pipeline & Data Quality.
+- Applying the filter bar refreshes the queue and supported analytics sections.
+- When the selected request is no longer in the filtered queue, Request Detail moves to the first filtered request.
 
 ## 12. Visual Design Direction
 
@@ -349,7 +380,9 @@ pipeline failed warning
 
 Examples:
 
-- Empty filter result: "No requests match current filters."
+- Empty critical queue result: "No critical requests match the current filters."
+- Empty stage chart result: "No stage bottlenecks match the current filters."
+- Empty vendor table result: "No vendor delay patterns match the current filters."
 - Failed pipeline: show warning banner on overview.
 - Critical data quality issue: show analytics trust warning.
 
@@ -360,7 +393,8 @@ The UI is successful when:
 - The overview shows the most important procurement blockers.
 - Stage bottlenecks are visually comparable.
 - Critical Request Queue explains priority and reason.
-- Request Detail shows timeline and stage lead time.
-- Vendor and department delay patterns are visible.
+- Request Detail shows score breakdown, full timeline, and actual vs threshold stage lead time.
+- Vendor delay patterns are visible.
+- Department can be used as a filter across the queue and bottleneck analysis.
 - Pipeline and data quality state are visible.
 - The product does not look like a purchase approval CRUD app.

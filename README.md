@@ -63,14 +63,16 @@ React + Vite dashboard
 - Core transformation into normalized procurement domain tables
 - Data quality result logging
 - Stage lead time and delay calculations
-- Critical request priority scoring
-- Bottleneck summaries by stage and vendor
+- Critical request priority scoring with score component breakdowns
+- Bottleneck summaries by stage and vendor, including dashboard filter support
 - Request detail and timeline API
 - Real-data dashboard with:
   - overview KPIs
+  - stage, department, vendor, criticality, and item category filters
   - stage bottleneck chart
   - critical request queue
-  - request drilldown panel
+  - request drilldown panel with priority score explainability
+  - full timeline and actual vs threshold lead time breakdown
   - vendor delay table
   - data quality status
 
@@ -204,6 +206,14 @@ Example:
 curl http://127.0.0.1:8000/api/requests/REQ-0005
 ```
 
+Filter examples:
+
+```bash
+curl 'http://127.0.0.1:8000/api/requests/critical?stage=BUDGET_REVIEW'
+curl 'http://127.0.0.1:8000/api/bottlenecks/stages?department_id=DEPT-SAFETY&criticality_level=HIGH'
+curl 'http://127.0.0.1:8000/api/bottlenecks/vendors?vendor_id=VEN-SIGNAL&criticality_level=CRITICAL'
+```
+
 ## Verification
 
 Backend:
@@ -244,9 +254,11 @@ npm run dev
 Verify in the browser:
 
 - Overview KPIs load.
+- Filters can narrow the operational queue by stage, department, vendor, criticality, and item category.
 - Top bottleneck is `Vendor Confirmation`.
 - Critical queue includes `PR-2026-0005`.
 - Clicking a queue row updates Request Drilldown.
+- Request Drilldown shows priority score components, stage lead time thresholds, timeline, PO/receipt state, and quality flags.
 - Data quality status shows expected seeded failures.
 
 ## Seeded Scenarios
@@ -285,8 +297,8 @@ Intentionally not included in v1:
 
 The project now has a working backend pipeline, API, and real-data frontend dashboard. The next improvements would be:
 
-- add department bottleneck endpoint and dashboard section
-- add cleaner frontend routing for separate screens
+- add data quality drilldown from failed checks to affected records
+- add pipeline run history and freshness observability in the dashboard
 - add automated browser smoke tests
 - add deployment notes or a short demo video
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime, time
 from statistics import mean
 from typing import Optional
 
@@ -88,8 +88,24 @@ def list_stage_bottlenecks(
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
     stage: Optional[str] = None,
+    department_id: Optional[str] = None,
+    vendor_id: Optional[str] = None,
+    item_category: Optional[str] = None,
+    criticality_level: Optional[str] = None,
     db: Session = Depends(get_db),
 ) -> list[StageBottleneckResponse]:
+    if department_id or vendor_id or item_category or criticality_level:
+        return _filtered_stage_bottlenecks(
+            db=db,
+            from_date=from_date,
+            to_date=to_date,
+            stage=stage,
+            department_id=department_id,
+            vendor_id=vendor_id,
+            item_category=item_category,
+            criticality_level=criticality_level,
+        )
+
     stmt = select(BottleneckSummary).where(BottleneckSummary.dimension_type == "STAGE")
     if from_date:
         stmt = stmt.where(BottleneckSummary.summary_date >= from_date)
@@ -120,8 +136,22 @@ def list_stage_bottlenecks(
 @router.get("/bottlenecks/vendors", response_model=list[VendorBottleneckResponse])
 def list_vendor_bottlenecks(
     vendor_id: Optional[str] = None,
+    stage: Optional[str] = None,
+    department_id: Optional[str] = None,
+    item_category: Optional[str] = None,
+    criticality_level: Optional[str] = None,
     db: Session = Depends(get_db),
 ) -> list[VendorBottleneckResponse]:
+    if stage or department_id or item_category or criticality_level:
+        return _filtered_vendor_bottlenecks(
+            db=db,
+            vendor_id=vendor_id,
+            stage=stage,
+            department_id=department_id,
+            item_category=item_category,
+            criticality_level=criticality_level,
+        )
+
     stmt = select(VendorDelaySummary, Vendor).join(
         Vendor,
         Vendor.vendor_id == VendorDelaySummary.vendor_id,
@@ -200,6 +230,11 @@ def list_critical_requests(
             needed_by_date=request.needed_by_date,
             criticality_level=request.criticality_level,
             business_impact=request.business_impact,
+            criticality_score=float(queue.criticality_score),
+            delay_score=float(queue.delay_score),
+            business_impact_score=float(queue.business_impact_score),
+            needed_by_urgency_score=float(queue.needed_by_urgency_score),
+            vendor_risk_score=float(queue.vendor_risk_score),
             total_priority_score=float(queue.total_priority_score),
             recommended_action=queue.recommended_action,
             reason_summary=queue.reason_summary,
@@ -327,6 +362,180 @@ def get_filter_metadata(db: Session = Depends(get_db)) -> FilterMetadataResponse
     )
 
 
+def _filtered_stage_bottlenecks(
+    db: Session,
+    from_date: Optional[date],
+    to_date: Optional[date],
+    stage: Optional[str],
+    department_id: Optional[str],
+    vendor_id: Optional[str],
+    item_category: Optional[str],
+    criticality_level: Optional[str],
+) -> list[StageBottleneckResponse]:
+    stmt = select(RequestStageLeadTime).join(
+        PurchaseRequest,
+        PurchaseRequest.request_id == RequestStageLeadTime.request_id,
+    )
+    if vendor_id:
+        stmt = stmt.join(PurchaseOrder, PurchaseOrder.request_id == PurchaseRequest.request_id)
+    if item_category:
+        stmt = stmt.join(Item, Item.item_id == PurchaseRequest.item_id)
+    if from_date:
+        stmt = stmt.where(RequestStageLeadTime.entered_at >= datetime.combine(from_date, time.min))
+    if to_date:
+        stmt = stmt.where(RequestStageLeadTime.entered_at <= datetime.combine(to_date, time.max))
+    if stage:
+        stmt = stmt.where(RequestStageLeadTime.stage == stage)
+    if department_id:
+        stmt = stmt.where(PurchaseRequest.department_id == department_id)
+    if vendor_id:
+        stmt = stmt.where(PurchaseOrder.vendor_id == vendor_id)
+    if item_category:
+        stmt = stmt.where(Item.item_category == item_category)
+    if criticality_level:
+        stmt = stmt.where(PurchaseRequest.criticality_level == criticality_level)
+
+    lead_times_by_id = {
+        lead_time.lead_time_id: lead_time
+        for lead_time in db.scalars(stmt).all()
+    }
+    grouped: dict[str, list[RequestStageLeadTime]] = defaultdict(list)
+    for lead_time in lead_times_by_id.values():
+        grouped[lead_time.stage].append(lead_time)
+
+    responses = []
+    for stage_name, records in grouped.items():
+        durations = [float(record.duration_hours) for record in records]
+        delay_hours = [float(record.delay_hours) for record in records]
+        request_count = len(records)
+        delayed_count = sum(1 for record in records if record.is_bottleneck)
+        responses.append(
+            StageBottleneckResponse(
+                stage=stage_name,
+                request_count=request_count,
+                delayed_count=delayed_count,
+                delay_rate=round(delayed_count / request_count, 4) if request_count else 0,
+                avg_duration_hours=round(mean(durations), 2) if durations else 0,
+                p90_duration_hours=round(_percentile(durations, 0.9), 2),
+                total_delay_hours=round(sum(delay_hours), 2),
+            )
+        )
+
+    return sorted(
+        responses,
+        key=lambda response: (-response.total_delay_hours, response.stage),
+    )
+
+
+def _filtered_vendor_bottlenecks(
+    db: Session,
+    vendor_id: Optional[str],
+    stage: Optional[str],
+    department_id: Optional[str],
+    item_category: Optional[str],
+    criticality_level: Optional[str],
+) -> list[VendorBottleneckResponse]:
+    stmt = (
+        select(PurchaseOrder, Vendor, PurchaseRequest)
+        .join(Vendor, Vendor.vendor_id == PurchaseOrder.vendor_id)
+        .join(PurchaseRequest, PurchaseRequest.request_id == PurchaseOrder.request_id)
+    )
+    if stage:
+        stmt = stmt.join(RequestCurrentStatus, RequestCurrentStatus.request_id == PurchaseRequest.request_id)
+    if item_category:
+        stmt = stmt.join(Item, Item.item_id == PurchaseRequest.item_id)
+    if vendor_id:
+        stmt = stmt.where(PurchaseOrder.vendor_id == vendor_id)
+    if stage:
+        stmt = stmt.where(RequestCurrentStatus.current_stage == stage)
+    if department_id:
+        stmt = stmt.where(PurchaseRequest.department_id == department_id)
+    if item_category:
+        stmt = stmt.where(Item.item_category == item_category)
+    if criticality_level:
+        stmt = stmt.where(PurchaseRequest.criticality_level == criticality_level)
+
+    order_rows_by_id = {
+        purchase_order.po_id: (purchase_order, vendor, request)
+        for purchase_order, vendor, request in db.execute(stmt).all()
+    }
+    if not order_rows_by_id:
+        return []
+
+    request_ids = [purchase_order.request_id for purchase_order, _, _ in order_rows_by_id.values()]
+    lead_times = db.scalars(
+        select(RequestStageLeadTime).where(RequestStageLeadTime.request_id.in_(request_ids))
+    ).all()
+
+    confirmation_delay_by_request: dict[str, float] = defaultdict(float)
+    delivery_delay_by_request: dict[str, float] = defaultdict(float)
+    confirmation_duration_by_request: dict[str, float] = {}
+    total_delay_by_request: dict[str, float] = defaultdict(float)
+    for lead_time in lead_times:
+        delay_hours = float(lead_time.delay_hours)
+        total_delay_by_request[lead_time.request_id] += delay_hours
+        if lead_time.stage == "VENDOR_CONFIRMATION":
+            confirmation_delay_by_request[lead_time.request_id] += delay_hours
+            confirmation_duration_by_request[lead_time.request_id] = float(lead_time.duration_hours)
+        if lead_time.stage == "DELIVERY":
+            delivery_delay_by_request[lead_time.request_id] += delay_hours
+
+    grouped: dict[str, list[tuple[PurchaseOrder, Vendor, PurchaseRequest]]] = defaultdict(list)
+    for row in order_rows_by_id.values():
+        grouped[row[0].vendor_id].append(row)
+
+    responses = []
+    for grouped_vendor_id, rows in grouped.items():
+        vendor = rows[0][1]
+        orders = [row[0] for row in rows]
+        delayed_count = sum(
+            1
+            for order in orders
+            if confirmation_delay_by_request.get(order.request_id, 0) > 0
+            or delivery_delay_by_request.get(order.request_id, 0) > 0
+        )
+        confirmation_hours = [
+            confirmation_duration_by_request[order.request_id]
+            for order in orders
+            if order.request_id in confirmation_duration_by_request
+        ]
+        delivery_delay_days = [
+            delay_hours / 24
+            for order in orders
+            if (delay_hours := delivery_delay_by_request.get(order.request_id, 0)) > 0
+        ]
+        total_count = len(orders)
+        responses.append(
+            VendorBottleneckResponse(
+                vendor_id=grouped_vendor_id,
+                vendor_name=vendor.vendor_name,
+                total_po_count=total_count,
+                delayed_po_count=delayed_count,
+                delay_rate=round(delayed_count / total_count if total_count else 0, 4),
+                avg_confirmation_hours=round(mean(confirmation_hours) if confirmation_hours else 0, 2),
+                avg_delivery_delay_days=round(mean(delivery_delay_days) if delivery_delay_days else 0, 2),
+                reliability_tier=vendor.reliability_tier,
+                total_delay_hours=round(
+                    sum(total_delay_by_request.get(order.request_id, 0) for order in orders),
+                    2,
+                ),
+            )
+        )
+
+    return sorted(
+        responses,
+        key=lambda response: (-response.delay_rate, -response.delayed_po_count, response.vendor_name),
+    )
+
+
+def _percentile(values: list[float], percentile: float) -> float:
+    if not values:
+        return 0
+    sorted_values = sorted(values)
+    index = int(round((len(sorted_values) - 1) * percentile))
+    return sorted_values[index]
+
+
 def _request_summary(
     request: PurchaseRequest,
     department: Optional[Department],
@@ -346,6 +555,11 @@ def _request_summary(
         needed_by_date=request.needed_by_date,
         criticality_level=request.criticality_level,
         business_impact=request.business_impact,
+        criticality_score=float(queue.criticality_score) if queue else 0,
+        delay_score=float(queue.delay_score) if queue else 0,
+        business_impact_score=float(queue.business_impact_score) if queue else 0,
+        needed_by_urgency_score=float(queue.needed_by_urgency_score) if queue else 0,
+        vendor_risk_score=float(queue.vendor_risk_score) if queue else 0,
         total_priority_score=float(queue.total_priority_score) if queue else 0,
         recommended_action=queue.recommended_action if queue else _fallback_recommended_action(request),
         reason_summary=queue.reason_summary if queue else _fallback_reason_summary(request),

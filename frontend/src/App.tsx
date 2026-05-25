@@ -6,9 +6,11 @@ import {
   CheckCircle2,
   Clock3,
   Database,
+  Filter,
   RefreshCcw,
   ShieldAlert,
   Truck,
+  X,
 } from 'lucide-react'
 import {
   Bar,
@@ -22,9 +24,12 @@ import {
 import {
   type CriticalRequest,
   type DashboardData,
+  type DashboardFilters,
+  type FilterMetadata,
   type RequestDetail,
   type StageBottleneck,
   fetchDashboardData,
+  fetchFilterMetadata,
   fetchRequestDetail,
 } from './api'
 import './App.css'
@@ -42,6 +47,8 @@ const stageColors = [
 
 function App() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
+  const [filterMetadata, setFilterMetadata] = useState<FilterMetadata | null>(null)
+  const [filters, setFilters] = useState<DashboardFilters>({})
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null)
   const [requestDetail, setRequestDetail] = useState<RequestDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -50,13 +57,21 @@ function App() {
     selectedRequestId && requestDetail?.request.request_id !== selectedRequestId,
   )
 
-  async function loadDashboard() {
+  async function loadDashboard(nextFilters: DashboardFilters = filters) {
     setLoading(true)
     setError(null)
     try {
-      const data = await fetchDashboardData()
+      const data = await fetchDashboardData(nextFilters)
       setDashboard(data)
-      const nextSelected = selectedRequestId ?? data.criticalRequests[0]?.request_id ?? null
+      const selectedStillVisible = data.criticalRequests.some(
+        (request) => request.request_id === selectedRequestId,
+      )
+      const nextSelected = selectedStillVisible
+        ? selectedRequestId
+        : data.criticalRequests[0]?.request_id ?? null
+      if (requestDetail?.request.request_id !== nextSelected) {
+        setRequestDetail(null)
+      }
       setSelectedRequestId(nextSelected)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Failed to load dashboard data')
@@ -65,12 +80,19 @@ function App() {
     }
   }
 
+  function resetFilters() {
+    const nextFilters = {}
+    setFilters(nextFilters)
+    void loadDashboard(nextFilters)
+  }
+
   useEffect(() => {
     let cancelled = false
-    fetchDashboardData()
-      .then((data) => {
+    Promise.all([fetchDashboardData(), fetchFilterMetadata()])
+      .then(([data, metadata]) => {
         if (!cancelled) {
           setDashboard(data)
+          setFilterMetadata(metadata)
           setSelectedRequestId(data.criticalRequests[0]?.request_id ?? null)
         }
       })
@@ -125,7 +147,7 @@ function App() {
           <p className="eyebrow">Procurement operations</p>
           <h1>Critical Procurement Bottleneck Analytics</h1>
         </div>
-        <button className="icon-button" type="button" onClick={() => void loadDashboard()}>
+        <button className="icon-button" type="button" onClick={() => void loadDashboard(filters)}>
           <RefreshCcw size={17} aria-hidden="true" />
           Refresh
         </button>
@@ -180,6 +202,14 @@ function App() {
               icon={<Database size={18} aria-hidden="true" />}
             />
           </section>
+
+          <FilterBar
+            metadata={filterMetadata}
+            filters={filters}
+            onChange={setFilters}
+            onApply={() => void loadDashboard(filters)}
+            onReset={resetFilters}
+          />
 
           <section className="dashboard-grid">
             <section className="panel panel-chart" aria-labelledby="stage-bottlenecks-title">
@@ -263,7 +293,128 @@ function PanelTitle({ title, subtitle }: { title: string; subtitle: string }) {
   )
 }
 
+type FilterKey = keyof DashboardFilters
+
+function FilterBar({
+  metadata,
+  filters,
+  onChange,
+  onApply,
+  onReset,
+}: {
+  metadata: FilterMetadata | null
+  filters: DashboardFilters
+  onChange: (filters: DashboardFilters) => void
+  onApply: () => void
+  onReset: () => void
+}) {
+  const isDisabled = metadata === null
+
+  function setFilter(key: FilterKey, value: string) {
+    onChange({
+      ...filters,
+      [key]: value || undefined,
+    })
+  }
+
+  return (
+    <section className="filter-panel" aria-label="Dashboard filters">
+      <div className="filter-title">
+        <Filter size={17} aria-hidden="true" />
+        <span>Filters</span>
+      </div>
+      <div className="filter-controls">
+        <FilterSelect
+          label="Stage"
+          value={filters.stage ?? ''}
+          disabled={isDisabled}
+          options={metadata?.stages.map((stage) => ({ id: stage, name: formatStage(stage) })) ?? []}
+          onChange={(value) => setFilter('stage', value)}
+        />
+        <FilterSelect
+          label="Department"
+          value={filters.department_id ?? ''}
+          disabled={isDisabled}
+          options={metadata?.departments ?? []}
+          onChange={(value) => setFilter('department_id', value)}
+        />
+        <FilterSelect
+          label="Vendor"
+          value={filters.vendor_id ?? ''}
+          disabled={isDisabled}
+          options={metadata?.vendors ?? []}
+          onChange={(value) => setFilter('vendor_id', value)}
+        />
+        <FilterSelect
+          label="Criticality"
+          value={filters.criticality_level ?? ''}
+          disabled={isDisabled}
+          options={
+            metadata?.criticality_levels.map((level) => ({ id: level, name: formatStage(level) })) ??
+            []
+          }
+          onChange={(value) => setFilter('criticality_level', value)}
+        />
+        <FilterSelect
+          label="Category"
+          value={filters.item_category ?? ''}
+          disabled={isDisabled}
+          options={
+            metadata?.item_categories.map((category) => ({
+              id: category,
+              name: formatStage(category),
+            })) ?? []
+          }
+          onChange={(value) => setFilter('item_category', value)}
+        />
+      </div>
+      <div className="filter-actions">
+        <button className="icon-button" type="button" onClick={onApply} disabled={isDisabled}>
+          <Filter size={16} aria-hidden="true" />
+          Apply
+        </button>
+        <button className="icon-button secondary-button" type="button" onClick={onReset}>
+          <X size={16} aria-hidden="true" />
+          Clear
+        </button>
+      </div>
+    </section>
+  )
+}
+
+function FilterSelect({
+  label,
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  label: string
+  value: string
+  options: { id: string; name: string }[]
+  disabled: boolean
+  onChange: (value: string) => void
+}) {
+  return (
+    <label className="filter-select">
+      <span>{label}</span>
+      <select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
+        <option value="">All</option>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 function StageDelayChart({ stages }: { stages: StageBottleneck[] }) {
+  if (!stages.length) {
+    return <div className="empty-state chart-empty">No stage bottlenecks match the current filters</div>
+  }
+
   return (
     <div className="chart-frame">
       <ResponsiveContainer width="100%" height={304}>
@@ -331,6 +482,10 @@ function CriticalQueue({
   selectedRequestId: string | null
   onSelect: (requestId: string) => void
 }) {
+  if (!requests.length) {
+    return <div className="empty-state table-empty">No critical requests match the current filters</div>
+  }
+
   return (
     <div className="table-scroll">
       <table className="ops-table">
@@ -414,14 +569,25 @@ function RequestDetailPanel({
       </section>
 
       <section className="detail-section">
+        <h4>Priority Score Breakdown</h4>
+        <ScoreBreakdown request={detail.request} />
+      </section>
+
+      <section className="detail-section">
         <h4>Stage Lead Times</h4>
         <div className="lead-time-list">
           {detail.stage_lead_times.map((stage) => (
             <div key={`${stage.stage}-${stage.entered_at}`} className="lead-time-row">
-              <span>{formatStage(stage.stage)}</span>
-              <strong className={stage.is_bottleneck ? 'risk-text' : ''}>
-                {formatHours(stage.duration_hours)}
-              </strong>
+              <span className="lead-time-stage">{formatStage(stage.stage)}</span>
+              <div>
+                <strong className={stage.is_bottleneck ? 'risk-text' : ''}>
+                  {formatHours(stage.duration_hours)}
+                </strong>
+                <small>
+                  Threshold {formatHours(stage.threshold_hours)}
+                  {stage.is_bottleneck ? ` · Delay ${formatHours(stage.delay_hours)}` : ''}
+                </small>
+              </div>
             </div>
           ))}
         </div>
@@ -430,11 +596,18 @@ function RequestDetailPanel({
       <section className="detail-section">
         <h4>Timeline</h4>
         <ol className="timeline-list">
-          {detail.timeline.slice(0, 8).map((event) => (
+          {detail.timeline.map((event) => (
             <li key={event.event_id}>
               <span>{formatDateTime(event.occurred_at)}</span>
               <strong>{formatStage(event.stage)}</strong>
-              <p>{event.event_type}</p>
+              <p>
+                {formatStage(event.event_type)}
+                <small>
+                  {formatStage(event.event_status)} · {formatStage(event.actor_type)}
+                  {event.reason_code ? ` · ${formatStage(event.reason_code)}` : ''}
+                </small>
+                {event.message ? <em>{event.message}</em> : null}
+              </p>
             </li>
           ))}
         </ol>
@@ -444,32 +617,106 @@ function RequestDetailPanel({
         <div>
           <h4>Related PO</h4>
           {detail.related_po ? (
-            <p>
-              {detail.related_po.po_number} · {detail.related_po.vendor_name}
-            </p>
+            <dl className="record-facts">
+              <div>
+                <dt>PO</dt>
+                <dd>{detail.related_po.po_number}</dd>
+              </div>
+              <div>
+                <dt>Vendor</dt>
+                <dd>{detail.related_po.vendor_name}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{formatStage(detail.related_po.po_status)}</dd>
+              </div>
+              <div>
+                <dt>Expected</dt>
+                <dd>{formatDate(detail.related_po.expected_delivery_date)}</dd>
+              </div>
+              <div>
+                <dt>Actual</dt>
+                <dd>{formatDate(detail.related_po.actual_delivery_date)}</dd>
+              </div>
+            </dl>
           ) : (
             <p>No purchase order yet</p>
           )}
         </div>
         <div>
           <h4>Receipt</h4>
-          <p>{detail.receipt ? detail.receipt.inspection_status : 'No receipt yet'}</p>
+          {detail.receipt ? (
+            <dl className="record-facts">
+              <div>
+                <dt>Receipt</dt>
+                <dd>{detail.receipt.receipt_id}</dd>
+              </div>
+              <div>
+                <dt>Received</dt>
+                <dd>{formatDateTimeNullable(detail.receipt.received_at)}</dd>
+              </div>
+              <div>
+                <dt>Inspection</dt>
+                <dd>{formatStage(detail.receipt.inspection_status)}</dd>
+              </div>
+              <div>
+                <dt>Completed</dt>
+                <dd>{formatDateTimeNullable(detail.receipt.inspection_completed_at)}</dd>
+              </div>
+            </dl>
+          ) : (
+            <p>No receipt yet</p>
+          )}
         </div>
       </section>
 
       {detail.quality_flags.length ? (
         <section className="detail-section quality-flags">
           <h4>Quality Flags</h4>
-          {detail.quality_flags.map((flag) => (
-            <p key={flag}>{flag}</p>
-          ))}
+          <ul>
+            {detail.quality_flags.map((flag) => (
+              <li key={flag}>
+                <AlertTriangle size={14} aria-hidden="true" />
+                <span>{flag}</span>
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
     </div>
   )
 }
 
+function ScoreBreakdown({ request }: { request: CriticalRequest }) {
+  const components = [
+    { label: 'Criticality', value: request.criticality_score },
+    { label: 'Delay', value: request.delay_score },
+    { label: 'Business impact', value: request.business_impact_score },
+    { label: 'Needed by urgency', value: request.needed_by_urgency_score },
+    { label: 'Vendor risk', value: request.vendor_risk_score },
+  ]
+
+  return (
+    <div className="score-breakdown">
+      {components.map((component) => (
+        <div key={component.label} className="score-component">
+          <span>{component.label}</span>
+          <strong>{component.value.toFixed(0)}</strong>
+        </div>
+      ))}
+      <div className="score-component total">
+        <span>Total</span>
+        <strong>{request.total_priority_score.toFixed(0)}</strong>
+      </div>
+    </div>
+  )
+}
+
 function VendorTable({ vendors }: { vendors: DashboardData['vendorBottlenecks'] }) {
+  if (!vendors.length) {
+    return <div className="empty-state table-empty">No vendor delay patterns match the current filters</div>
+  }
+
   return (
     <div className="table-scroll">
       <table className="ops-table compact-table">
@@ -530,6 +777,17 @@ function formatHours(value: number) {
   return `${formatNumber(value)}h`
 }
 
+function formatDate(value: string | null) {
+  if (!value) {
+    return 'Not set'
+  }
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(value))
+}
+
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
@@ -537,6 +795,10 @@ function formatDateTime(value: string) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value))
+}
+
+function formatDateTimeNullable(value: string | null) {
+  return value ? formatDateTime(value) : 'Not set'
 }
 
 export default App
