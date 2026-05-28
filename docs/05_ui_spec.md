@@ -307,6 +307,8 @@ Message
 Created At
 ```
 
+Phase 8B implemented this inside the dashboard Pipeline Trust panel instead of adding a separate routed screen. Latest-run failed checks are selectable. The selected check shows target table, severity/status, failed row count, pipeline run id, message, sample failed keys, and related request buttons when sampled keys include request ids.
+
 Status badges:
 
 ```text
@@ -396,5 +398,5 @@ The UI is successful when:
 - Request Detail shows score breakdown, full timeline, and actual vs threshold stage lead time.
 - Vendor delay patterns are visible.
 - Department can be used as a filter across the queue and bottleneck analysis.
-- Pipeline and data quality state are visible.
+- Pipeline and data quality state are visible, with failed-check drilldown and request impact links where possible.
 - The product does not look like a purchase approval CRUD app.

@@ -194,6 +194,25 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/DataQualityCheck"
+  /api/data-quality/checks/{check_result_id}:
+    get:
+      tags: [Operations]
+      summary: Data quality check detail
+      parameters:
+        - name: check_result_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Data quality check detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataQualityCheck"
+        "404":
+          description: Data quality check was not found
   /api/metadata/filters:
     get:
       tags: [Metadata]

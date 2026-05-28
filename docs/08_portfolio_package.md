@@ -58,6 +58,7 @@ The FastAPI backend is read-only. It exposes analytics endpoints such as:
 - `/api/bottlenecks/stages`
 - `/api/bottlenecks/vendors`
 - `/api/data-quality/checks`
+- `/api/data-quality/checks/{check_result_id}`
 - `/api/metadata/filters`
 
 The request queue and bottleneck endpoints support operational filters such as stage, department, vendor, criticality, and item category. The backend does not create purchase requests or approvals. It exposes the operational analysis layer.
@@ -89,6 +90,8 @@ Clicking a row opens the request drilldown, which shows:
 - related purchase order and receipt state
 - quality flags
 
+The Pipeline Trust panel lets the operator select a latest-run failed quality check, inspect the target table, severity/status, failed row count, pipeline run id, message, and sample failed keys, then jump to affected request detail when the sampled key contains a request id.
+
 ### 5. Technical Point
 
 The main technical point is stateful operational modeling. The system reconstructs process state from event history, validates data quality, calculates delays against thresholds, and turns that into an action queue.
@@ -119,11 +122,11 @@ python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
 7. Show that the filter bar can narrow the queue by stage, department, vendor, criticality, or item category.
 8. Click `PR-2026-0005`.
 9. Explain the request drilldown: score breakdown, stage lead time thresholds, full timeline, PO state, and quality flags.
-10. Close with the design idea: event history becomes operational priority.
+10. Select a failed Pipeline Trust check and show sample failed keys plus related request navigation.
+11. Close with the design idea: event history becomes operational priority, and data quality remains inspectable.
 
 ## Next Improvements
 
-- Add data quality drilldown from failed checks to affected records.
 - Add pipeline run history and freshness observability in the dashboard.
 - Add automated browser smoke tests.
 - Add a short demo video or hosted deployment.

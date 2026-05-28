@@ -25,10 +25,12 @@ import {
   type CriticalRequest,
   type DashboardData,
   type DashboardFilters,
+  type DataQualityCheck,
   type FilterMetadata,
   type RequestDetail,
   type StageBottleneck,
   fetchDashboardData,
+  fetchDataQualityCheck,
   fetchFilterMetadata,
   fetchRequestDetail,
 } from './api'
@@ -51,6 +53,8 @@ function App() {
   const [filters, setFilters] = useState<DashboardFilters>({})
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null)
   const [requestDetail, setRequestDetail] = useState<RequestDetail | null>(null)
+  const [selectedQualityCheckId, setSelectedQualityCheckId] = useState<string | null>(null)
+  const [selectedQualityCheck, setSelectedQualityCheck] = useState<DataQualityCheck | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const detailLoading = Boolean(
@@ -73,6 +77,16 @@ function App() {
         setRequestDetail(null)
       }
       setSelectedRequestId(nextSelected)
+      const selectedCheckStillVisible = data.failedQualityChecks.some(
+        (check) => check.check_result_id === selectedQualityCheckId,
+      )
+      const nextSelectedCheck = selectedCheckStillVisible
+        ? selectedQualityCheckId
+        : data.failedQualityChecks[0]?.check_result_id ?? null
+      if (selectedQualityCheck?.check_result_id !== nextSelectedCheck) {
+        setSelectedQualityCheck(null)
+      }
+      setSelectedQualityCheckId(nextSelectedCheck)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Failed to load dashboard data')
     } finally {
@@ -94,6 +108,7 @@ function App() {
           setDashboard(data)
           setFilterMetadata(metadata)
           setSelectedRequestId(data.criticalRequests[0]?.request_id ?? null)
+          setSelectedQualityCheckId(data.failedQualityChecks[0]?.check_result_id ?? null)
         }
       })
       .catch((caught) => {
@@ -134,6 +149,29 @@ function App() {
       cancelled = true
     }
   }, [selectedRequestId])
+
+  useEffect(() => {
+    if (!selectedQualityCheckId) {
+      return
+    }
+
+    let cancelled = false
+    fetchDataQualityCheck(selectedQualityCheckId)
+      .then((check) => {
+        if (!cancelled) {
+          setSelectedQualityCheck(check)
+        }
+      })
+      .catch((caught) => {
+        if (!cancelled) {
+          setError(caught instanceof Error ? caught.message : 'Failed to load quality check detail')
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedQualityCheckId])
 
   const topStages = useMemo(
     () => dashboard?.stageBottlenecks.slice(0, 7) ?? [],
@@ -223,9 +261,15 @@ function App() {
             <section className="panel panel-quality" aria-labelledby="quality-title">
               <PanelTitle
                 title="Pipeline Trust"
-                subtitle={`${dashboard.failedQualityChecks.length} failed checks from latest runs`}
+                subtitle={`${dashboard.failedQualityChecks.length} failed checks from latest run`}
               />
-              <QualityList checks={dashboard.failedQualityChecks} />
+              <QualityDrilldown
+                checks={dashboard.failedQualityChecks}
+                selectedCheckId={selectedQualityCheckId}
+                selectedCheck={selectedQualityCheck}
+                onSelect={setSelectedQualityCheckId}
+                onOpenRequest={setSelectedRequestId}
+              />
             </section>
           </section>
 
@@ -447,7 +491,19 @@ function StageDelayChart({ stages }: { stages: StageBottleneck[] }) {
   )
 }
 
-function QualityList({ checks }: { checks: DashboardData['failedQualityChecks'] }) {
+function QualityDrilldown({
+  checks,
+  selectedCheckId,
+  selectedCheck,
+  onSelect,
+  onOpenRequest,
+}: {
+  checks: DashboardData['failedQualityChecks']
+  selectedCheckId: string | null
+  selectedCheck: DataQualityCheck | null
+  onSelect: (checkResultId: string) => void
+  onOpenRequest: (requestId: string) => void
+}) {
   if (!checks.length) {
     return (
       <div className="empty-state">
@@ -458,18 +514,92 @@ function QualityList({ checks }: { checks: DashboardData['failedQualityChecks'] 
   }
 
   return (
-    <ul className="quality-list">
-      {checks.slice(0, 4).map((check) => (
-        <li key={check.check_result_id}>
-          <span className="status-dot"></span>
-          <div>
-            <strong>{check.check_name}</strong>
-            <p>{check.target_table}</p>
+    <div className="quality-drilldown">
+      <ul className="quality-list">
+        {checks.map((check) => (
+          <li key={check.check_result_id}>
+            <button
+              className={`quality-row ${check.check_result_id === selectedCheckId ? 'selected' : ''}`}
+              type="button"
+              onClick={() => onSelect(check.check_result_id)}
+            >
+              <span className="status-dot"></span>
+              <div>
+                <strong>{formatStage(check.check_name)}</strong>
+                <p>{check.target_table}</p>
+              </div>
+              <b>{check.failed_row_count}</b>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <QualityDetail check={selectedCheck} onOpenRequest={onOpenRequest} />
+    </div>
+  )
+}
+
+function QualityDetail({
+  check,
+  onOpenRequest,
+}: {
+  check: DataQualityCheck | null
+  onOpenRequest: (requestId: string) => void
+}) {
+  if (!check) {
+    return <div className="quality-detail empty-state">Select a failed check</div>
+  }
+
+  const impactedRequestIds = extractRequestIds(check)
+
+  return (
+    <div className="quality-detail">
+      <div className="quality-detail-header">
+        <div>
+          <span className="detail-kicker">{check.target_table}</span>
+          <h3>{formatStage(check.check_name)}</h3>
+        </div>
+        <span className={`quality-status ${check.severity.toLowerCase()}`}>
+          {check.status} / {check.severity}
+        </span>
+      </div>
+
+      <dl className="quality-meta-grid">
+        <div>
+          <dt>Failed rows</dt>
+          <dd>{check.failed_row_count}</dd>
+        </div>
+        <div>
+          <dt>Pipeline run</dt>
+          <dd>{check.pipeline_run_id}</dd>
+        </div>
+      </dl>
+
+      <p className="quality-message">{check.message}</p>
+
+      <div className="quality-detail-section">
+        <h4>Sample failed keys</h4>
+        <ul className="quality-key-list">
+          {check.sample_failed_keys.map((key) => (
+            <li key={key}>{key}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="quality-detail-section">
+        <h4>Related requests</h4>
+        {impactedRequestIds.length ? (
+          <div className="quality-request-list">
+            {impactedRequestIds.map((requestId) => (
+              <button key={requestId} type="button" onClick={() => onOpenRequest(requestId)}>
+                {requestId}
+              </button>
+            ))}
           </div>
-          <b>{check.failed_row_count}</b>
-        </li>
-      ))}
-    </ul>
+        ) : (
+          <p>No request id in the sampled failed keys</p>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -763,6 +893,11 @@ function formatStage(stage: string | null) {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+function extractRequestIds(check: DataQualityCheck) {
+  const matches = check.sample_failed_keys.flatMap((key) => key.match(/REQ-\d{4}/g) ?? [])
+  return Array.from(new Set(matches))
 }
 
 function formatNumber(value: number) {

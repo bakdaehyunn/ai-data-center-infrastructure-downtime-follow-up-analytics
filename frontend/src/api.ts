@@ -68,6 +68,18 @@ export type DataQualityCheck = {
   created_at: string
 }
 
+export type PipelineRun = {
+  pipeline_run_id: string
+  pipeline_name: string
+  started_at: string
+  finished_at: string | null
+  status: string
+  rows_extracted: number
+  rows_loaded: number
+  rows_rejected: number
+  error_message: string | null
+}
+
 export type StageLeadTime = {
   stage: string
   entered_at: string
@@ -164,6 +176,8 @@ function buildQuery(params: Record<string, string | number | undefined>) {
 }
 
 export async function fetchDashboardData(filters: DashboardFilters = {}): Promise<DashboardData> {
+  const pipelineRuns = await getJson<PipelineRun[]>('/api/pipeline-runs?limit=1')
+  const latestPipelineRunId = pipelineRuns[0]?.pipeline_run_id
   const criticalQuery = buildQuery({
     limit: 10,
     stage: filters.stage,
@@ -186,6 +200,11 @@ export async function fetchDashboardData(filters: DashboardFilters = {}): Promis
     criticality_level: filters.criticality_level,
     item_category: filters.item_category,
   })
+  const qualityQuery = buildQuery({
+    status: 'FAILED',
+    limit: 8,
+    pipeline_run_id: latestPipelineRunId,
+  })
   const [
     overview,
     criticalRequests,
@@ -197,7 +216,7 @@ export async function fetchDashboardData(filters: DashboardFilters = {}): Promis
     getJson<CriticalRequest[]>(`/api/requests/critical${criticalQuery}`),
     getJson<StageBottleneck[]>(`/api/bottlenecks/stages${stageBottleneckQuery}`),
     getJson<VendorBottleneck[]>(`/api/bottlenecks/vendors${vendorQuery}`),
-    getJson<DataQualityCheck[]>('/api/data-quality/checks?status=FAILED&limit=8'),
+    getJson<DataQualityCheck[]>(`/api/data-quality/checks${qualityQuery}`),
   ])
 
   return {
@@ -215,4 +234,8 @@ export function fetchFilterMetadata(): Promise<FilterMetadata> {
 
 export function fetchRequestDetail(requestId: string): Promise<RequestDetail> {
   return getJson<RequestDetail>(`/api/requests/${requestId}`)
+}
+
+export function fetchDataQualityCheck(checkResultId: string): Promise<DataQualityCheck> {
+  return getJson<DataQualityCheck>(`/api/data-quality/checks/${checkResultId}`)
 }

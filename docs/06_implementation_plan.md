@@ -257,6 +257,7 @@ Implement /api/requests/{request_id}
 Implement /api/requests/{request_id}/timeline
 Implement /api/pipeline-runs
 Implement /api/data-quality/checks
+Implement /api/data-quality/checks/{check_result_id}
 Implement /api/metadata/filters
 ```
 

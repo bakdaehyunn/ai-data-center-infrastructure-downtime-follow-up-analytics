@@ -219,6 +219,44 @@ def test_operations_endpoints_return_pipeline_and_quality_results(api_client: Te
     }
 
 
+def test_data_quality_checks_support_drilldown_filters_and_detail(api_client: TestClient) -> None:
+    filtered_response = api_client.get(
+        "/api/data-quality/checks?target_table=raw_purchase_requests&status=FAILED"
+    )
+    limited_response = api_client.get("/api/data-quality/checks?severity=ERROR&limit=2")
+
+    assert filtered_response.status_code == 200
+    assert limited_response.status_code == 200
+
+    filtered_checks = filtered_response.json()
+    limited_checks = limited_response.json()
+    assert [check["check_name"] for check in filtered_checks] == [
+        "duplicate_source_record",
+        "missing_required_fields",
+    ]
+    assert len(limited_checks) <= 2
+    assert {check["severity"] for check in limited_checks} == {"ERROR"}
+
+    check_result_id = filtered_checks[0]["check_result_id"]
+    detail_response = api_client.get(f"/api/data-quality/checks/{check_result_id}")
+
+    assert detail_response.status_code == 200
+    detail = detail_response.json()
+    assert detail["check_result_id"] == check_result_id
+    assert detail["target_table"] == "raw_purchase_requests"
+    assert detail["status"] == "FAILED"
+    assert detail["failed_row_count"] == 1
+    assert detail["sample_failed_keys"]
+    assert detail["pipeline_run_id"] == filtered_checks[0]["pipeline_run_id"]
+    assert "Duplicate source records" in detail["message"]
+
+
+def test_data_quality_check_detail_returns_404_for_unknown_check(api_client: TestClient) -> None:
+    response = api_client.get("/api/data-quality/checks/DQ-NOT-FOUND")
+
+    assert response.status_code == 404
+
+
 def test_metadata_endpoint_returns_dashboard_filters(api_client: TestClient) -> None:
     response = api_client.get("/api/metadata/filters")
 

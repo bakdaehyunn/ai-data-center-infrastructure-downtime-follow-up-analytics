@@ -142,6 +142,7 @@ GET /api/requests/{request_id}
 GET /api/requests/{request_id}/timeline
 GET /api/pipeline-runs
 GET /api/data-quality/checks
+GET /api/data-quality/checks/{check_result_id}
 GET /api/metadata/filters
 ```
 

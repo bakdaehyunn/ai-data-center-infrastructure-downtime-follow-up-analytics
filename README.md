@@ -197,6 +197,7 @@ GET /api/requests/{request_id}
 GET /api/requests/{request_id}/timeline
 GET /api/pipeline-runs
 GET /api/data-quality/checks
+GET /api/data-quality/checks/{check_result_id}
 GET /api/metadata/filters
 ```
 
@@ -259,7 +260,7 @@ Verify in the browser:
 - Critical queue includes `PR-2026-0005`.
 - Clicking a queue row updates Request Drilldown.
 - Request Drilldown shows priority score components, stage lead time thresholds, timeline, PO/receipt state, and quality flags.
-- Data quality status shows expected seeded failures.
+- Pipeline Trust shows latest-run seeded failures, failed row counts, sample failed keys, and related request links when request ids are available.
 
 ## Seeded Scenarios
 
@@ -297,7 +298,6 @@ Intentionally not included in v1:
 
 The project now has a working backend pipeline, API, and real-data frontend dashboard. The next improvements would be:
 
-- add data quality drilldown from failed checks to affected records
 - add pipeline run history and freshness observability in the dashboard
 - add automated browser smoke tests
 - add deployment notes or a short demo video

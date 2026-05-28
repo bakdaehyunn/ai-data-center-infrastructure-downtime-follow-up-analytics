@@ -324,21 +324,21 @@ def list_data_quality_checks(
     results = db.scalars(
         stmt.order_by(DataQualityCheckResult.created_at.desc(), DataQualityCheckResult.check_result_id).limit(limit)
     ).all()
-    return [
-        DataQualityCheckResponse(
-            check_result_id=result.check_result_id,
-            pipeline_run_id=result.pipeline_run_id,
-            check_name=result.check_name,
-            target_table=result.target_table,
-            severity=result.severity,
-            status=result.status,
-            failed_row_count=result.failed_row_count,
-            sample_failed_keys=string_list(result.sample_failed_keys),
-            message=result.message,
-            created_at=result.created_at,
+    return [_data_quality_check_response(result) for result in results]
+
+
+@router.get("/data-quality/checks/{check_result_id}", response_model=DataQualityCheckResponse)
+def get_data_quality_check(
+    check_result_id: str,
+    db: Session = Depends(get_db),
+) -> DataQualityCheckResponse:
+    result = db.get(DataQualityCheckResult, check_result_id)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Data quality check {check_result_id} was not found.",
         )
-        for result in results
-    ]
+    return _data_quality_check_response(result)
 
 
 @router.get("/metadata/filters", response_model=FilterMetadataResponse)
@@ -681,6 +681,21 @@ def _quality_flags_for_request(
         if any(key in sample_key for key in search_keys for sample_key in sample_failed_keys):
             flags.append(f"{result.target_table}.{result.check_name}: {result.message}")
     return flags
+
+
+def _data_quality_check_response(result: DataQualityCheckResult) -> DataQualityCheckResponse:
+    return DataQualityCheckResponse(
+        check_result_id=result.check_result_id,
+        pipeline_run_id=result.pipeline_run_id,
+        check_name=result.check_name,
+        target_table=result.target_table,
+        severity=result.severity,
+        status=result.status,
+        failed_row_count=result.failed_row_count,
+        sample_failed_keys=string_list(result.sample_failed_keys),
+        message=result.message,
+        created_at=result.created_at,
+    )
 
 
 def _event_message(event: ProcurementStageEvent) -> Optional[str]:
