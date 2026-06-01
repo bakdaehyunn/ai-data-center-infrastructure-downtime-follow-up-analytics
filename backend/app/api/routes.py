@@ -13,20 +13,48 @@ from app.db import get_db
 from app.models.analytics import (
     BottleneckSummary,
     CriticalRequestQueue,
+    CriticalMaintenanceQueue,
+    EquipmentDelaySummary,
+    MaintenanceBottleneckSummary,
+    MaintenanceCurrentStatus,
+    MaintenanceStageLeadTime,
+    PartsWaitingSummary,
+    ProductionLineDelaySummary,
     RequestCurrentStatus,
     RequestStageLeadTime,
     VendorDelaySummary,
 )
 from app.models.core import Department, Item, ProcurementStageEvent, PurchaseOrder, PurchaseRequest, Receipt, Vendor
+from app.models.maintenance import (
+    Equipment,
+    InspectionResult,
+    MaintenanceRequest,
+    MaintenanceStageEvent,
+    MaintenanceWorkOrder,
+    Part,
+    ProductionLine,
+    SensorAlert,
+)
 from app.models.ops import DataQualityCheckResult, PipelineRun
+from app.sample_data.maintenance_scenarios import MAINTENANCE_STAGE_FLOW
 from app.sample_data.scenarios import STAGE_FLOW
 from app.schemas.analytics import (
     CriticalRequestResponse,
     DataQualityCheckResponse,
+    EquipmentDelayResponse,
     FilterMetadataResponse,
     FilterOption,
+    MaintenanceCriticalRequestResponse,
+    MaintenanceFilterMetadataResponse,
+    MaintenanceInspectionResponse,
+    MaintenanceOverviewResponse,
+    MaintenanceRequestDetailResponse,
+    MaintenanceSensorAlertResponse,
+    MaintenanceWorkOrderSummaryResponse,
     OverviewResponse,
+    PartsWaitingResponse,
     PipelineRunResponse,
+    ProductionLineDelayResponse,
     PurchaseOrderSummaryResponse,
     ReceiptSummaryResponse,
     RequestDetailResponse,
@@ -362,6 +390,579 @@ def get_filter_metadata(db: Session = Depends(get_db)) -> FilterMetadataResponse
     )
 
 
+@router.get("/v2/maintenance/overview", response_model=MaintenanceOverviewResponse)
+def get_maintenance_overview(db: Session = Depends(get_db)) -> MaintenanceOverviewResponse:
+    requests = list(db.scalars(select(MaintenanceRequest)))
+    current_statuses = list(db.scalars(select(MaintenanceCurrentStatus)))
+    stage_summaries = list(
+        db.scalars(
+            select(MaintenanceBottleneckSummary).where(MaintenanceBottleneckSummary.dimension_type == "STAGE")
+        )
+    )
+    equipment_summaries = list(db.scalars(select(EquipmentDelaySummary)))
+    parts_summaries = list(db.scalars(select(PartsWaitingSummary)))
+    latest_run = _latest_pipeline_run(db, "maintenance_ingestion")
+
+    top_stage = max(
+        stage_summaries,
+        key=lambda summary: float(summary.total_delay_hours),
+        default=None,
+    )
+    technician_assignment = next(
+        (
+            summary
+            for summary in stage_summaries
+            if summary.stage == "TECHNICIAN_ASSIGNED"
+        ),
+        None,
+    )
+
+    return MaintenanceOverviewResponse(
+        total_requests=len(requests),
+        open_requests=sum(1 for request in requests if request.current_status != "COMPLETED"),
+        delayed_requests=sum(1 for status in current_statuses if status.is_delayed),
+        critical_equipment_delayed=_critical_equipment_delayed_count(db),
+        avg_downtime_hours=round(
+            mean(float(request.actual_downtime_hours or request.estimated_downtime_hours) for request in requests),
+            2,
+        )
+        if requests
+        else 0,
+        top_bottleneck_stage=top_stage.stage if top_stage else None,
+        parts_waiting_delay_hours=round(sum(float(summary.total_wait_hours) for summary in parts_summaries), 2),
+        repeat_failure_equipment_count=sum(
+            1 for summary in equipment_summaries if summary.repeat_failure_count > 0
+        ),
+        technician_assignment_delay_hours=float(technician_assignment.total_delay_hours)
+        if technician_assignment
+        else 0,
+        latest_pipeline_run_status=latest_run.status if latest_run else None,
+        data_quality_status=_data_quality_status(db, latest_run.pipeline_run_id if latest_run else None),
+    )
+
+
+@router.get("/v2/maintenance/bottlenecks/stages", response_model=list[StageBottleneckResponse])
+def list_maintenance_stage_bottlenecks(
+    stage: Optional[str] = None,
+    line_id: Optional[str] = None,
+    equipment_id: Optional[str] = None,
+    equipment_type: Optional[str] = None,
+    technician_team: Optional[str] = None,
+    part_category: Optional[str] = None,
+    priority_level: Optional[str] = None,
+    request_type: Optional[str] = None,
+    failure_mode: Optional[str] = None,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    db: Session = Depends(get_db),
+) -> list[StageBottleneckResponse]:
+    if any([line_id, equipment_id, equipment_type, technician_team, part_category, priority_level, request_type, failure_mode, from_date, to_date]):
+        return _filtered_maintenance_stage_bottlenecks(
+            db=db,
+            stage=stage,
+            line_id=line_id,
+            equipment_id=equipment_id,
+            equipment_type=equipment_type,
+            technician_team=technician_team,
+            part_category=part_category,
+            priority_level=priority_level,
+            request_type=request_type,
+            failure_mode=failure_mode,
+            from_date=from_date,
+            to_date=to_date,
+        )
+
+    stmt = select(MaintenanceBottleneckSummary).where(MaintenanceBottleneckSummary.dimension_type == "STAGE")
+    if stage:
+        stmt = stmt.where(MaintenanceBottleneckSummary.stage == stage)
+    summaries = db.scalars(
+        stmt.order_by(MaintenanceBottleneckSummary.total_delay_hours.desc(), MaintenanceBottleneckSummary.stage)
+    ).all()
+    return [
+        StageBottleneckResponse(
+            stage=summary.stage,
+            request_count=summary.request_count,
+            delayed_count=summary.delayed_count,
+            delay_rate=float(summary.delay_rate),
+            avg_duration_hours=float(summary.avg_duration_hours),
+            p90_duration_hours=float(summary.p90_duration_hours),
+            total_delay_hours=float(summary.total_delay_hours),
+        )
+        for summary in summaries
+    ]
+
+
+@router.get("/v2/maintenance/requests/critical", response_model=list[MaintenanceCriticalRequestResponse])
+def list_critical_maintenance_requests(
+    limit: int = Query(default=25, ge=1, le=100),
+    stage: Optional[str] = None,
+    line_id: Optional[str] = None,
+    equipment_id: Optional[str] = None,
+    equipment_type: Optional[str] = None,
+    technician_team: Optional[str] = None,
+    part_category: Optional[str] = None,
+    priority_level: Optional[str] = None,
+    request_type: Optional[str] = None,
+    failure_mode: Optional[str] = None,
+    db: Session = Depends(get_db),
+) -> list[MaintenanceCriticalRequestResponse]:
+    stmt = (
+        select(CriticalMaintenanceQueue, MaintenanceRequest, Equipment, ProductionLine, MaintenanceCurrentStatus)
+        .join(MaintenanceRequest, MaintenanceRequest.maintenance_request_id == CriticalMaintenanceQueue.maintenance_request_id)
+        .join(Equipment, Equipment.equipment_id == MaintenanceRequest.equipment_id)
+        .join(ProductionLine, ProductionLine.line_id == MaintenanceRequest.line_id)
+        .join(MaintenanceCurrentStatus, MaintenanceCurrentStatus.maintenance_request_id == MaintenanceRequest.maintenance_request_id)
+    )
+    if technician_team or part_category:
+        stmt = stmt.join(
+            MaintenanceWorkOrder,
+            MaintenanceWorkOrder.maintenance_request_id == MaintenanceRequest.maintenance_request_id,
+        )
+    if part_category:
+        stmt = stmt.join(Part, Part.part_id == MaintenanceWorkOrder.required_part_id)
+    if stage:
+        stmt = stmt.where(CriticalMaintenanceQueue.current_stage == stage)
+    if line_id:
+        stmt = stmt.where(MaintenanceRequest.line_id == line_id)
+    if equipment_id:
+        stmt = stmt.where(MaintenanceRequest.equipment_id == equipment_id)
+    if equipment_type:
+        stmt = stmt.where(Equipment.equipment_type == equipment_type)
+    if technician_team:
+        stmt = stmt.where(MaintenanceWorkOrder.assigned_team == technician_team)
+    if part_category:
+        stmt = stmt.where(Part.part_category == part_category)
+    if priority_level:
+        stmt = stmt.where(MaintenanceRequest.priority_level == priority_level)
+    if request_type:
+        stmt = stmt.where(MaintenanceRequest.request_type == request_type)
+    if failure_mode:
+        stmt = stmt.where(MaintenanceRequest.failure_mode == failure_mode)
+
+    rows = db.execute(stmt.order_by(CriticalMaintenanceQueue.priority_rank).limit(limit)).all()
+    return [
+        _maintenance_critical_response(queue, request, equipment, line, current)
+        for queue, request, equipment, line, current in rows
+    ]
+
+
+@router.get("/v2/maintenance/requests/{maintenance_request_id}", response_model=MaintenanceRequestDetailResponse)
+def get_maintenance_request_detail(
+    maintenance_request_id: str,
+    db: Session = Depends(get_db),
+) -> MaintenanceRequestDetailResponse:
+    request = db.get(MaintenanceRequest, maintenance_request_id)
+    if request is None:
+        raise HTTPException(status_code=404, detail=f"Maintenance request {maintenance_request_id} was not found.")
+
+    equipment = db.get(Equipment, request.equipment_id)
+    line = db.get(ProductionLine, request.line_id)
+    current = db.get(MaintenanceCurrentStatus, maintenance_request_id)
+    queue = db.get(CriticalMaintenanceQueue, maintenance_request_id)
+    timeline = _maintenance_timeline_for_request(db, maintenance_request_id)
+
+    return MaintenanceRequestDetailResponse(
+        request=_maintenance_request_summary(request, equipment, line, current, queue),
+        stage_lead_times=_maintenance_stage_lead_times_for_request(db, maintenance_request_id),
+        timeline=timeline,
+        work_orders=_maintenance_work_orders_for_request(db, maintenance_request_id),
+        inspection_results=_maintenance_inspections_for_request(db, maintenance_request_id),
+        sensor_alerts=_maintenance_sensor_alerts_for_request(db, maintenance_request_id),
+        quality_flags=_maintenance_quality_flags_for_request(
+            db=db,
+            maintenance_request_id=maintenance_request_id,
+            event_ids=[event.event_id for event in timeline],
+        ),
+    )
+
+
+@router.get("/v2/maintenance/requests/{maintenance_request_id}/timeline", response_model=list[TimelineEventResponse])
+def get_maintenance_request_timeline(
+    maintenance_request_id: str,
+    db: Session = Depends(get_db),
+) -> list[TimelineEventResponse]:
+    if db.get(MaintenanceRequest, maintenance_request_id) is None:
+        raise HTTPException(status_code=404, detail=f"Maintenance request {maintenance_request_id} was not found.")
+    return _maintenance_timeline_for_request(db, maintenance_request_id)
+
+
+@router.get("/v2/maintenance/equipment/delays", response_model=list[EquipmentDelayResponse])
+def list_equipment_delay_summaries(
+    line_id: Optional[str] = None,
+    equipment_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+) -> list[EquipmentDelayResponse]:
+    stmt = select(EquipmentDelaySummary)
+    if line_id:
+        stmt = stmt.where(EquipmentDelaySummary.line_id == line_id)
+    if equipment_id:
+        stmt = stmt.where(EquipmentDelaySummary.equipment_id == equipment_id)
+    rows = db.scalars(
+        stmt.order_by(EquipmentDelaySummary.delayed_request_count.desc(), EquipmentDelaySummary.total_downtime_hours.desc())
+    ).all()
+    return [_equipment_delay_response(row) for row in rows]
+
+
+@router.get("/v2/maintenance/lines/delays", response_model=list[ProductionLineDelayResponse])
+def list_production_line_delay_summaries(
+    line_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+) -> list[ProductionLineDelayResponse]:
+    stmt = select(ProductionLineDelaySummary)
+    if line_id:
+        stmt = stmt.where(ProductionLineDelaySummary.line_id == line_id)
+    rows = db.scalars(
+        stmt.order_by(ProductionLineDelaySummary.delayed_request_count.desc(), ProductionLineDelaySummary.total_downtime_hours.desc())
+    ).all()
+    return [_production_line_delay_response(row) for row in rows]
+
+
+@router.get("/v2/maintenance/parts/waiting", response_model=list[PartsWaitingResponse])
+def list_parts_waiting_summaries(
+    part_category: Optional[str] = None,
+    db: Session = Depends(get_db),
+) -> list[PartsWaitingResponse]:
+    stmt = select(PartsWaitingSummary)
+    if part_category:
+        stmt = stmt.where(PartsWaitingSummary.part_category == part_category)
+    rows = db.scalars(
+        stmt.order_by(PartsWaitingSummary.total_wait_hours.desc(), PartsWaitingSummary.part_name)
+    ).all()
+    return [_parts_waiting_response(row) for row in rows]
+
+
+@router.get("/v2/maintenance/metadata/filters", response_model=MaintenanceFilterMetadataResponse)
+def get_maintenance_filter_metadata(db: Session = Depends(get_db)) -> MaintenanceFilterMetadataResponse:
+    lines = db.scalars(select(ProductionLine).order_by(ProductionLine.line_name)).all()
+    equipment = db.scalars(select(Equipment).order_by(Equipment.equipment_name)).all()
+    equipment_types = db.scalars(select(Equipment.equipment_type).distinct().order_by(Equipment.equipment_type)).all()
+    technician_teams = db.scalars(
+        select(MaintenanceWorkOrder.assigned_team).distinct().order_by(MaintenanceWorkOrder.assigned_team)
+    ).all()
+    part_categories = db.scalars(select(Part.part_category).distinct().order_by(Part.part_category)).all()
+    priority_levels = db.scalars(select(MaintenanceRequest.priority_level).distinct()).all()
+    request_types = db.scalars(select(MaintenanceRequest.request_type).distinct().order_by(MaintenanceRequest.request_type)).all()
+    failure_modes = db.scalars(select(MaintenanceRequest.failure_mode).distinct().order_by(MaintenanceRequest.failure_mode)).all()
+
+    return MaintenanceFilterMetadataResponse(
+        production_lines=[FilterOption(id=line.line_id, name=line.line_name) for line in lines],
+        equipment=[FilterOption(id=item.equipment_id, name=item.equipment_name) for item in equipment],
+        equipment_types=list(equipment_types),
+        technician_teams=list(technician_teams),
+        part_categories=list(part_categories),
+        priority_levels=sorted(priority_levels, key=lambda level: ["LOW", "MEDIUM", "HIGH", "CRITICAL"].index(level)),
+        request_types=list(request_types),
+        failure_modes=list(failure_modes),
+        stages=MAINTENANCE_STAGE_FLOW,
+    )
+
+
+def _filtered_maintenance_stage_bottlenecks(
+    db: Session,
+    stage: Optional[str],
+    line_id: Optional[str],
+    equipment_id: Optional[str],
+    equipment_type: Optional[str],
+    technician_team: Optional[str],
+    part_category: Optional[str],
+    priority_level: Optional[str],
+    request_type: Optional[str],
+    failure_mode: Optional[str],
+    from_date: Optional[date],
+    to_date: Optional[date],
+) -> list[StageBottleneckResponse]:
+    stmt = (
+        select(MaintenanceStageLeadTime)
+        .join(MaintenanceRequest, MaintenanceRequest.maintenance_request_id == MaintenanceStageLeadTime.maintenance_request_id)
+        .join(Equipment, Equipment.equipment_id == MaintenanceRequest.equipment_id)
+    )
+    if technician_team or part_category:
+        stmt = stmt.join(
+            MaintenanceWorkOrder,
+            MaintenanceWorkOrder.maintenance_request_id == MaintenanceRequest.maintenance_request_id,
+        )
+    if part_category:
+        stmt = stmt.join(Part, Part.part_id == MaintenanceWorkOrder.required_part_id)
+    if stage:
+        stmt = stmt.where(MaintenanceStageLeadTime.stage == stage)
+    if line_id:
+        stmt = stmt.where(MaintenanceRequest.line_id == line_id)
+    if equipment_id:
+        stmt = stmt.where(MaintenanceRequest.equipment_id == equipment_id)
+    if equipment_type:
+        stmt = stmt.where(Equipment.equipment_type == equipment_type)
+    if technician_team:
+        stmt = stmt.where(MaintenanceWorkOrder.assigned_team == technician_team)
+    if part_category:
+        stmt = stmt.where(Part.part_category == part_category)
+    if priority_level:
+        stmt = stmt.where(MaintenanceRequest.priority_level == priority_level)
+    if request_type:
+        stmt = stmt.where(MaintenanceRequest.request_type == request_type)
+    if failure_mode:
+        stmt = stmt.where(MaintenanceRequest.failure_mode == failure_mode)
+    if from_date:
+        stmt = stmt.where(MaintenanceStageLeadTime.entered_at >= datetime.combine(from_date, time.min))
+    if to_date:
+        stmt = stmt.where(MaintenanceStageLeadTime.entered_at <= datetime.combine(to_date, time.max))
+
+    lead_times_by_id = {
+        lead_time.lead_time_id: lead_time
+        for lead_time in db.scalars(stmt).all()
+    }
+    grouped: dict[str, list[MaintenanceStageLeadTime]] = defaultdict(list)
+    for lead_time in lead_times_by_id.values():
+        grouped[lead_time.stage].append(lead_time)
+
+    responses = []
+    for stage_name, records in grouped.items():
+        durations = [float(record.duration_hours) for record in records]
+        delay_hours = [float(record.delay_hours) for record in records]
+        request_count = len(records)
+        delayed_count = sum(1 for record in records if record.is_bottleneck)
+        responses.append(
+            StageBottleneckResponse(
+                stage=stage_name,
+                request_count=request_count,
+                delayed_count=delayed_count,
+                delay_rate=round(delayed_count / request_count, 4) if request_count else 0,
+                avg_duration_hours=round(mean(durations), 2) if durations else 0,
+                p90_duration_hours=round(_percentile(durations, 0.9), 2),
+                total_delay_hours=round(sum(delay_hours), 2),
+            )
+        )
+
+    return sorted(responses, key=lambda response: (-response.total_delay_hours, response.stage))
+
+
+def _maintenance_critical_response(
+    queue: CriticalMaintenanceQueue,
+    request: MaintenanceRequest,
+    equipment: Equipment,
+    line: ProductionLine,
+    current: MaintenanceCurrentStatus,
+) -> MaintenanceCriticalRequestResponse:
+    return MaintenanceCriticalRequestResponse(
+        priority_rank=queue.priority_rank,
+        maintenance_request_id=queue.maintenance_request_id,
+        request_number=request.request_number,
+        request_title=request.request_title,
+        equipment_id=equipment.equipment_id,
+        equipment_name=equipment.equipment_name,
+        line_id=line.line_id,
+        line_name=line.line_name,
+        current_stage=current.current_stage,
+        current_status=current.current_status,
+        hours_in_current_stage=float(current.hours_in_current_stage),
+        needed_by_at=request.needed_by_at,
+        priority_level=request.priority_level,
+        business_impact=request.business_impact,
+        equipment_criticality_score=float(queue.equipment_criticality_score),
+        downtime_score=float(queue.downtime_score),
+        stage_delay_score=float(queue.stage_delay_score),
+        production_line_impact_score=float(queue.production_line_impact_score),
+        needed_by_urgency_score=float(queue.needed_by_urgency_score),
+        repeat_failure_score=float(queue.repeat_failure_score),
+        parts_risk_score=float(queue.parts_risk_score),
+        total_priority_score=float(queue.total_priority_score),
+        recommended_action=queue.recommended_action,
+        reason_summary=queue.reason_summary,
+    )
+
+
+def _maintenance_request_summary(
+    request: MaintenanceRequest,
+    equipment: Optional[Equipment],
+    line: Optional[ProductionLine],
+    current: Optional[MaintenanceCurrentStatus],
+    queue: Optional[CriticalMaintenanceQueue],
+) -> MaintenanceCriticalRequestResponse:
+    return MaintenanceCriticalRequestResponse(
+        priority_rank=queue.priority_rank if queue else 0,
+        maintenance_request_id=request.maintenance_request_id,
+        request_number=request.request_number,
+        request_title=request.request_title,
+        equipment_id=request.equipment_id,
+        equipment_name=equipment.equipment_name if equipment else request.equipment_id,
+        line_id=request.line_id,
+        line_name=line.line_name if line else request.line_id,
+        current_stage=current.current_stage if current else request.current_stage,
+        current_status=current.current_status if current else request.current_status,
+        hours_in_current_stage=float(current.hours_in_current_stage) if current else 0,
+        needed_by_at=request.needed_by_at,
+        priority_level=request.priority_level,
+        business_impact=request.business_impact,
+        equipment_criticality_score=float(queue.equipment_criticality_score) if queue else 0,
+        downtime_score=float(queue.downtime_score) if queue else 0,
+        stage_delay_score=float(queue.stage_delay_score) if queue else 0,
+        production_line_impact_score=float(queue.production_line_impact_score) if queue else 0,
+        needed_by_urgency_score=float(queue.needed_by_urgency_score) if queue else 0,
+        repeat_failure_score=float(queue.repeat_failure_score) if queue else 0,
+        parts_risk_score=float(queue.parts_risk_score) if queue else 0,
+        total_priority_score=float(queue.total_priority_score) if queue else 0,
+        recommended_action=queue.recommended_action if queue else _maintenance_fallback_recommended_action(request),
+        reason_summary=queue.reason_summary if queue else _maintenance_fallback_reason_summary(request),
+    )
+
+
+def _maintenance_stage_lead_times_for_request(
+    db: Session,
+    maintenance_request_id: str,
+) -> list[StageLeadTimeResponse]:
+    lead_times = db.scalars(
+        select(MaintenanceStageLeadTime)
+        .where(MaintenanceStageLeadTime.maintenance_request_id == maintenance_request_id)
+        .order_by(MaintenanceStageLeadTime.entered_at, MaintenanceStageLeadTime.lead_time_id)
+    ).all()
+    return [
+        StageLeadTimeResponse(
+            stage=lead_time.stage,
+            entered_at=lead_time.entered_at,
+            exited_at=lead_time.exited_at,
+            duration_hours=float(lead_time.duration_hours),
+            threshold_hours=float(lead_time.threshold_hours),
+            is_bottleneck=lead_time.is_bottleneck,
+            delay_hours=float(lead_time.delay_hours),
+        )
+        for lead_time in lead_times
+    ]
+
+
+def _maintenance_timeline_for_request(
+    db: Session,
+    maintenance_request_id: str,
+) -> list[TimelineEventResponse]:
+    events = db.scalars(
+        select(MaintenanceStageEvent)
+        .where(MaintenanceStageEvent.maintenance_request_id == maintenance_request_id)
+        .order_by(MaintenanceStageEvent.occurred_at, MaintenanceStageEvent.event_id)
+    ).all()
+    return [
+        TimelineEventResponse(
+            event_id=event.event_id,
+            stage=event.stage,
+            event_type=event.event_type,
+            event_status=event.event_status,
+            occurred_at=event.occurred_at,
+            actor_type=event.actor_type,
+            reason_code=event.reason_code,
+            message=_maintenance_event_message(event),
+        )
+        for event in events
+    ]
+
+
+def _maintenance_work_orders_for_request(
+    db: Session,
+    maintenance_request_id: str,
+) -> list[MaintenanceWorkOrderSummaryResponse]:
+    rows = db.execute(
+        select(MaintenanceWorkOrder, Part)
+        .outerjoin(Part, Part.part_id == MaintenanceWorkOrder.required_part_id)
+        .where(MaintenanceWorkOrder.maintenance_request_id == maintenance_request_id)
+        .order_by(MaintenanceWorkOrder.work_order_id)
+    ).all()
+    return [
+        MaintenanceWorkOrderSummaryResponse(
+            work_order_id=work_order.work_order_id,
+            assigned_team=work_order.assigned_team,
+            assigned_technician_id=work_order.assigned_technician_id,
+            work_order_status=work_order.work_order_status,
+            planned_start_at=work_order.planned_start_at,
+            actual_start_at=work_order.actual_start_at,
+            actual_completed_at=work_order.actual_completed_at,
+            required_part_id=work_order.required_part_id,
+            required_part_name=part.part_name if part else None,
+            stock_status=part.stock_status if part else None,
+        )
+        for work_order, part in rows
+    ]
+
+
+def _maintenance_inspections_for_request(
+    db: Session,
+    maintenance_request_id: str,
+) -> list[MaintenanceInspectionResponse]:
+    inspections = db.scalars(
+        select(InspectionResult)
+        .where(InspectionResult.maintenance_request_id == maintenance_request_id)
+        .order_by(InspectionResult.inspection_started_at, InspectionResult.inspection_id)
+    ).all()
+    return [
+        MaintenanceInspectionResponse(
+            inspection_id=inspection.inspection_id,
+            inspection_status=inspection.inspection_status,
+            inspector_id=inspection.inspector_id,
+            inspection_started_at=inspection.inspection_started_at,
+            inspection_completed_at=inspection.inspection_completed_at,
+            failure_reason=inspection.failure_reason,
+        )
+        for inspection in inspections
+    ]
+
+
+def _maintenance_sensor_alerts_for_request(
+    db: Session,
+    maintenance_request_id: str,
+) -> list[MaintenanceSensorAlertResponse]:
+    alerts = db.scalars(
+        select(SensorAlert)
+        .where(SensorAlert.linked_maintenance_request_id == maintenance_request_id)
+        .order_by(SensorAlert.triggered_at, SensorAlert.sensor_alert_id)
+    ).all()
+    return [
+        MaintenanceSensorAlertResponse(
+            sensor_alert_id=alert.sensor_alert_id,
+            equipment_id=alert.equipment_id,
+            alert_type=alert.alert_type,
+            severity=alert.severity,
+            triggered_at=alert.triggered_at,
+            resolved_at=alert.resolved_at,
+        )
+        for alert in alerts
+    ]
+
+
+def _equipment_delay_response(summary: EquipmentDelaySummary) -> EquipmentDelayResponse:
+    return EquipmentDelayResponse(
+        equipment_id=summary.equipment_id,
+        equipment_name=summary.equipment_name,
+        line_id=summary.line_id,
+        line_name=summary.line_name,
+        request_count=summary.request_count,
+        delayed_request_count=summary.delayed_request_count,
+        repeat_failure_count=summary.repeat_failure_count,
+        total_downtime_hours=float(summary.total_downtime_hours),
+        avg_repair_duration_hours=float(summary.avg_repair_duration_hours),
+        top_failure_mode=summary.top_failure_mode,
+    )
+
+
+def _production_line_delay_response(summary: ProductionLineDelaySummary) -> ProductionLineDelayResponse:
+    return ProductionLineDelayResponse(
+        line_id=summary.line_id,
+        line_name=summary.line_name,
+        open_request_count=summary.open_request_count,
+        delayed_request_count=summary.delayed_request_count,
+        critical_equipment_delayed_count=summary.critical_equipment_delayed_count,
+        total_downtime_hours=float(summary.total_downtime_hours),
+        top_bottleneck_stage=summary.top_bottleneck_stage,
+    )
+
+
+def _parts_waiting_response(summary: PartsWaitingSummary) -> PartsWaitingResponse:
+    return PartsWaitingResponse(
+        part_id=summary.part_id,
+        part_name=summary.part_name,
+        part_category=summary.part_category,
+        waiting_request_count=summary.waiting_request_count,
+        total_wait_hours=float(summary.total_wait_hours),
+        avg_wait_hours=float(summary.avg_wait_hours),
+        critical_spare=summary.critical_spare,
+        stock_status=summary.stock_status,
+    )
+
+
 def _filtered_stage_bottlenecks(
     db: Session,
     from_date: Optional[date],
@@ -683,6 +1284,33 @@ def _quality_flags_for_request(
     return flags
 
 
+def _maintenance_quality_flags_for_request(
+    db: Session,
+    maintenance_request_id: str,
+    event_ids: list[str],
+) -> list[str]:
+    latest_run = _latest_pipeline_run(db, "maintenance_ingestion")
+    if latest_run is None:
+        return []
+
+    search_keys = [maintenance_request_id] + event_ids
+    failed_results = db.scalars(
+        select(DataQualityCheckResult)
+        .where(
+            DataQualityCheckResult.pipeline_run_id == latest_run.pipeline_run_id,
+            DataQualityCheckResult.status != "PASS",
+        )
+        .order_by(DataQualityCheckResult.target_table, DataQualityCheckResult.check_name)
+    ).all()
+
+    flags = []
+    for result in failed_results:
+        sample_failed_keys = string_list(result.sample_failed_keys)
+        if any(key in sample_key for key in search_keys for sample_key in sample_failed_keys):
+            flags.append(f"{result.target_table}.{result.check_name}: {result.message}")
+    return flags
+
+
 def _data_quality_check_response(result: DataQualityCheckResult) -> DataQualityCheckResponse:
     return DataQualityCheckResponse(
         check_result_id=result.check_result_id,
@@ -705,6 +1333,13 @@ def _event_message(event: ProcurementStageEvent) -> Optional[str]:
     return str(message) if message else None
 
 
+def _maintenance_event_message(event: MaintenanceStageEvent) -> Optional[str]:
+    if not isinstance(event.metadata_json, dict):
+        return None
+    message = event.metadata_json.get("message")
+    return str(message) if message else None
+
+
 def _fallback_recommended_action(request: PurchaseRequest) -> str:
     if request.current_status == "CLOSED":
         return "No action required"
@@ -717,8 +1352,23 @@ def _fallback_reason_summary(request: PurchaseRequest) -> str:
     return f"{request.criticality_level} request is currently in {request.current_stage}."
 
 
-def _latest_pipeline_run(db: Session) -> Optional[PipelineRun]:
-    return db.scalar(select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(1))
+def _maintenance_fallback_recommended_action(request: MaintenanceRequest) -> str:
+    if request.current_status == "COMPLETED":
+        return "No action required"
+    return "Review maintenance request status"
+
+
+def _maintenance_fallback_reason_summary(request: MaintenanceRequest) -> str:
+    if request.current_status == "COMPLETED":
+        return f"{request.priority_level} maintenance request is completed."
+    return f"{request.priority_level} maintenance request is currently in {request.current_stage}."
+
+
+def _latest_pipeline_run(db: Session, pipeline_name: Optional[str] = None) -> Optional[PipelineRun]:
+    stmt = select(PipelineRun)
+    if pipeline_name:
+        stmt = stmt.where(PipelineRun.pipeline_name == pipeline_name)
+    return db.scalar(stmt.order_by(PipelineRun.started_at.desc()).limit(1))
 
 
 def _data_quality_status(db: Session, pipeline_run_id: Optional[str]) -> str:
@@ -749,3 +1399,15 @@ def _vendor_total_delay_hours(db: Session) -> dict[str, float]:
     for row in rows:
         delay_by_vendor[row.dimension_id] += float(row.total_delay_hours)
     return dict(delay_by_vendor)
+
+
+def _critical_equipment_delayed_count(db: Session) -> int:
+    rows = db.execute(
+        select(MaintenanceCurrentStatus, Equipment)
+        .join(Equipment, Equipment.equipment_id == MaintenanceCurrentStatus.equipment_id)
+        .where(
+            MaintenanceCurrentStatus.is_delayed.is_(True),
+            Equipment.criticality_level == "CRITICAL",
+        )
+    ).all()
+    return len(rows)

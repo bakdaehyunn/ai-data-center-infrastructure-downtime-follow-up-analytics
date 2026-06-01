@@ -12,6 +12,13 @@
   padding: 10px 0 24px;
 }
 
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: #697178;
@@ -162,6 +169,10 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(130px, 1fr));
   gap: 10px;
+}
+
+.maintenance-filters .filter-controls {
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
 }
 
 .filter-select {
@@ -511,6 +522,13 @@
   white-space: nowrap;
 }
 
+.table-subtext {
+  display: block;
+  margin-top: 3px;
+  color: #61707b;
+  font-size: 12px;
+}
+
 .stage-pill {
   display: inline-flex;
   align-items: center;
@@ -736,6 +754,18 @@
   font-size: 13px;
 }
 
+.mini-card-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.mini-card {
+  padding: 10px;
+  border: 1px solid #e2e8e4;
+  border-radius: 6px;
+  background: #fbfcfb;
+}
+
 .quality-flags ul {
   display: grid;
   gap: 8px;
@@ -778,6 +808,10 @@
   .filter-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .maintenance-filters .filter-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -787,6 +821,10 @@
 
   .app-header {
     flex-direction: column;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
   }
 
   .app-header h1 {
@@ -801,6 +839,10 @@
   .split-section,
   .score-breakdown,
   .filter-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .maintenance-filters .filter-controls {
     grid-template-columns: 1fr;
   }
 

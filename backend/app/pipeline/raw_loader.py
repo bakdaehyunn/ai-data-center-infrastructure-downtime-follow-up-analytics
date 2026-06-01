@@ -9,9 +9,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.raw import (
+    RawInspectionResult,
+    RawMaintenanceRequest,
+    RawMaintenanceStageEvent,
+    RawMaintenanceWorkOrder,
     RawPurchaseOrder,
     RawPurchaseRequest,
     RawReceipt,
+    RawSensorAlert,
     RawStageEvent,
     RawVendorUpdate,
 )
@@ -27,6 +32,11 @@ class RawSourceSpec:
         | RawVendorUpdate
         | RawReceipt
         | RawStageEvent
+        | RawMaintenanceRequest
+        | RawMaintenanceStageEvent
+        | RawMaintenanceWorkOrder
+        | RawInspectionResult
+        | RawSensorAlert
     ]
 
 
@@ -36,6 +46,14 @@ RAW_SOURCE_SPECS = [
     RawSourceSpec("vendor_updates.json", "raw_vendor_updates", RawVendorUpdate),
     RawSourceSpec("receipts.json", "raw_receipts", RawReceipt),
     RawSourceSpec("stage_events.json", "raw_stage_events", RawStageEvent),
+]
+
+MAINTENANCE_RAW_SOURCE_SPECS = [
+    RawSourceSpec("maintenance_requests.json", "raw_maintenance_requests", RawMaintenanceRequest),
+    RawSourceSpec("maintenance_stage_events.json", "raw_maintenance_stage_events", RawMaintenanceStageEvent),
+    RawSourceSpec("maintenance_work_orders.json", "raw_maintenance_work_orders", RawMaintenanceWorkOrder),
+    RawSourceSpec("inspection_results.json", "raw_inspection_results", RawInspectionResult),
+    RawSourceSpec("sensor_alerts.json", "raw_sensor_alerts", RawSensorAlert),
 ]
 
 
@@ -48,9 +66,20 @@ class RawLoadResult:
 
 
 def read_raw_source_records(sample_dir: Path) -> dict[str, list[dict[str, Any]]]:
+    return _read_raw_source_records(sample_dir, RAW_SOURCE_SPECS)
+
+
+def read_maintenance_raw_source_records(sample_dir: Path) -> dict[str, list[dict[str, Any]]]:
+    return _read_raw_source_records(sample_dir, MAINTENANCE_RAW_SOURCE_SPECS)
+
+
+def _read_raw_source_records(
+    sample_dir: Path,
+    source_specs: list[RawSourceSpec],
+) -> dict[str, list[dict[str, Any]]]:
     records_by_table: dict[str, list[dict[str, Any]]] = {}
 
-    for spec in RAW_SOURCE_SPECS:
+    for spec in source_specs:
         path = sample_dir / spec.file_name
         if not path.exists():
             raise FileNotFoundError(f"Missing raw source file: {path}")
@@ -68,12 +97,38 @@ def load_raw_records(
     sample_dir: Path,
     pipeline_run_id: str,
 ) -> RawLoadResult:
-    records_by_table = read_raw_source_records(sample_dir)
+    return _load_raw_records(
+        session=session,
+        records_by_table=read_raw_source_records(sample_dir),
+        pipeline_run_id=pipeline_run_id,
+        source_specs=RAW_SOURCE_SPECS,
+    )
+
+
+def load_maintenance_raw_records(
+    session: Session,
+    sample_dir: Path,
+    pipeline_run_id: str,
+) -> RawLoadResult:
+    return _load_raw_records(
+        session=session,
+        records_by_table=read_maintenance_raw_source_records(sample_dir),
+        pipeline_run_id=pipeline_run_id,
+        source_specs=MAINTENANCE_RAW_SOURCE_SPECS,
+    )
+
+
+def _load_raw_records(
+    session: Session,
+    records_by_table: dict[str, list[dict[str, Any]]],
+    pipeline_run_id: str,
+    source_specs: list[RawSourceSpec],
+) -> RawLoadResult:
     rows_extracted = 0
     rows_loaded = 0
     rejected_keys: list[str] = []
 
-    for spec in RAW_SOURCE_SPECS:
+    for spec in source_specs:
         records = records_by_table[spec.target_table]
         rows_extracted += len(records)
         seen_keys: set[tuple[str, str]] = set()

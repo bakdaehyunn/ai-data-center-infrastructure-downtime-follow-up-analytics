@@ -977,13 +977,21 @@ select a failed quality check
 verify sampled key links to affected request where possible
 ```
 
-## 14. Resolved Design Decisions
+## 14. Open Decisions
 
-This section records the V2 design checkpoint decisions. These decisions should not be reopened during implementation unless a concrete technical conflict appears.
+This section records the V2 design checkpoint decisions that must be approved before implementation starts.
+
+Current recommendation:
+
+```text
+Approve all three core V2 decisions and proceed to Phase V2-2 through /goal.
+```
+
+If approved, these decisions should not be reopened during implementation unless a concrete technical conflict appears.
 
 ### 14.1 Domain Name
 
-Decision:
+Recommended decision:
 
 ```text
 Industrial Maintenance Bottleneck Analytics
@@ -998,7 +1006,7 @@ Reason:
 
 ### 14.2 Workflow Starting Point
 
-Decision:
+Recommended decision:
 
 ```text
 Start from Maintenance Request Submitted.
@@ -1015,7 +1023,7 @@ Reason:
 
 ### 14.3 Repository Strategy
 
-Decision:
+Recommended decision:
 
 ```text
 Extend the existing repository as V2.
@@ -1030,7 +1038,7 @@ Reason:
 
 ### 14.4 Dashboard Strategy
 
-Decision:
+Recommended decision:
 
 ```text
 Add a top-level domain mode switch between Procurement and Maintenance.
@@ -1045,7 +1053,7 @@ Reason:
 
 ### 14.5 Naming in Existing Code
 
-Decision:
+Recommended decision:
 
 ```text
 Keep existing procurement-specific names and add maintenance-specific modules first.
@@ -1063,7 +1071,7 @@ This avoids turning V2 into a framework exercise. The priority is a credible ind
 
 ### 14.6 Implementation Boundary
 
-Decision:
+Recommended decision:
 
 ```text
 V2 implementation should start with schema and deterministic sample data only.
@@ -1079,4 +1087,56 @@ The next implementation goal should be:
 
 ```text
 Phase V2-2: Schema and Sample Data
+```
+
+### 14.7 Recommended /goal Envelope
+
+After design approval, implementation should be delegated with a bounded goal.
+
+Recommended objective:
+
+```text
+Implement Phase V2-2 for Industrial Maintenance Bottleneck Analytics:
+add the maintenance domain schema and deterministic sample data scenarios
+inside the existing critical-procurement-bottleneck-analytics repository.
+```
+
+Approved scope:
+
+```text
+maintenance domain SQLAlchemy models
+Alembic migration for maintenance core tables
+deterministic seeded maintenance scenario definitions
+sample data generator extension if needed for Phase V2-2
+focused backend tests for schema import and deterministic scenario data
+documentation updates only where needed to match Phase V2-2 behavior
+```
+
+Forbidden scope:
+
+```text
+no maintenance analytics builder yet
+no maintenance API endpoints yet
+no dashboard changes yet
+no predictive maintenance ML
+no CMMS write workflow
+no external IoT integration
+no commit or push unless separately approved
+```
+
+Required verification:
+
+```text
+model imports succeed
+Alembic upgrade applies on a clean database
+sample data generation is deterministic with the same seed
+required seeded scenarios are present
+existing procurement tests still pass or any unrelated existing failures are documented
+```
+
+Stop condition:
+
+```text
+Phase V2-2 is complete when schema, migration, deterministic scenario data,
+and focused verification are ready for review without changing V1 behavior.
 ```

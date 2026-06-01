@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from app.db import SessionLocal
-from app.pipeline.runner import run_raw_ingestion_pipeline
+from app.pipeline.runner import run_maintenance_ingestion_pipeline, run_raw_ingestion_pipeline
 
 
 def main() -> None:
@@ -24,17 +24,31 @@ def main() -> None:
         help="Generate deterministic sample data before loading raw records.",
     )
     run_parser.add_argument("--seed", type=int, default=20260523)
+    run_parser.add_argument(
+        "--domain",
+        choices=["procurement", "maintenance"],
+        default="procurement",
+        help="Pipeline domain to run. Defaults to procurement for V1 compatibility.",
+    )
 
     args = parser.parse_args()
 
     if args.command == "run":
         with SessionLocal() as session:
-            result = run_raw_ingestion_pipeline(
-                session=session,
-                sample_dir=args.sample_dir,
-                generate_sample=args.generate_sample,
-                seed=args.seed,
-            )
+            if args.domain == "maintenance":
+                result = run_maintenance_ingestion_pipeline(
+                    session=session,
+                    sample_dir=args.sample_dir,
+                    generate_sample=args.generate_sample,
+                    seed=args.seed,
+                )
+            else:
+                result = run_raw_ingestion_pipeline(
+                    session=session,
+                    sample_dir=args.sample_dir,
+                    generate_sample=args.generate_sample,
+                    seed=args.seed,
+                )
         print(
             "pipeline_run_id={run_id} status={status} rows_extracted={extracted} "
             "rows_loaded={loaded} rows_rejected={rejected} failed_checks={failed_checks} "

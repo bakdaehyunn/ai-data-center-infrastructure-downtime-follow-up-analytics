@@ -69,3 +69,53 @@ class RawStageEvent(RawIngestionMixin, Base):
     )
 
     raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+
+class RawMaintenanceRequest(RawIngestionMixin, Base):
+    __tablename__ = "raw_maintenance_requests"
+    __table_args__ = (
+        UniqueConstraint("source_system", "source_record_id", name="uq_raw_maintenance_request_source_record"),
+        Index("ix_raw_maintenance_request_pipeline_source", "pipeline_run_id", "source_system"),
+    )
+
+    raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+
+class RawMaintenanceStageEvent(RawIngestionMixin, Base):
+    __tablename__ = "raw_maintenance_stage_events"
+    __table_args__ = (
+        UniqueConstraint("source_system", "source_record_id", name="uq_raw_maintenance_stage_event_source_record"),
+        Index("ix_raw_maintenance_stage_event_pipeline_source", "pipeline_run_id", "source_system"),
+    )
+
+    raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+
+class RawMaintenanceWorkOrder(RawIngestionMixin, Base):
+    __tablename__ = "raw_maintenance_work_orders"
+    __table_args__ = (
+        UniqueConstraint("source_system", "source_record_id", name="uq_raw_maintenance_work_order_source_record"),
+        Index("ix_raw_maintenance_work_order_pipeline_source", "pipeline_run_id", "source_system"),
+    )
+
+    raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+
+class RawInspectionResult(RawIngestionMixin, Base):
+    __tablename__ = "raw_inspection_results"
+    __table_args__ = (
+        UniqueConstraint("source_system", "source_record_id", name="uq_raw_inspection_result_source_record"),
+        Index("ix_raw_inspection_result_pipeline_source", "pipeline_run_id", "source_system"),
+    )
+
+    raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+
+class RawSensorAlert(RawIngestionMixin, Base):
+    __tablename__ = "raw_sensor_alerts"
+    __table_args__ = (
+        UniqueConstraint("source_system", "source_record_id", name="uq_raw_sensor_alert_source_record"),
+        Index("ix_raw_sensor_alert_pipeline_source", "pipeline_run_id", "source_system"),
+    )
+
+    raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

@@ -127,11 +127,137 @@ export type RequestDetail = {
   quality_flags: string[]
 }
 
+export type MaintenanceOverview = {
+  total_requests: number
+  open_requests: number
+  delayed_requests: number
+  critical_equipment_delayed: number
+  avg_downtime_hours: number
+  top_bottleneck_stage: string | null
+  parts_waiting_delay_hours: number
+  repeat_failure_equipment_count: number
+  technician_assignment_delay_hours: number
+  latest_pipeline_run_status: string | null
+  data_quality_status: string
+}
+
+export type MaintenanceCriticalRequest = {
+  priority_rank: number
+  maintenance_request_id: string
+  request_number: string
+  request_title: string
+  equipment_id: string
+  equipment_name: string
+  line_id: string
+  line_name: string
+  current_stage: string
+  current_status: string
+  hours_in_current_stage: number
+  needed_by_at: string
+  priority_level: string
+  business_impact: string
+  equipment_criticality_score: number
+  downtime_score: number
+  stage_delay_score: number
+  production_line_impact_score: number
+  needed_by_urgency_score: number
+  repeat_failure_score: number
+  parts_risk_score: number
+  total_priority_score: number
+  recommended_action: string
+  reason_summary: string
+}
+
+export type MaintenanceWorkOrder = {
+  work_order_id: string
+  assigned_team: string
+  assigned_technician_id: string | null
+  work_order_status: string
+  planned_start_at: string | null
+  actual_start_at: string | null
+  actual_completed_at: string | null
+  required_part_id: string | null
+  required_part_name: string | null
+  stock_status: string | null
+}
+
+export type MaintenanceInspection = {
+  inspection_id: string
+  inspection_status: string
+  inspector_id: string | null
+  inspection_started_at: string | null
+  inspection_completed_at: string | null
+  failure_reason: string | null
+}
+
+export type MaintenanceSensorAlert = {
+  sensor_alert_id: string
+  equipment_id: string
+  alert_type: string
+  severity: string
+  triggered_at: string
+  resolved_at: string | null
+}
+
+export type MaintenanceRequestDetail = {
+  request: MaintenanceCriticalRequest
+  stage_lead_times: StageLeadTime[]
+  timeline: TimelineEvent[]
+  work_orders: MaintenanceWorkOrder[]
+  inspection_results: MaintenanceInspection[]
+  sensor_alerts: MaintenanceSensorAlert[]
+  quality_flags: string[]
+}
+
+export type EquipmentDelay = {
+  equipment_id: string
+  equipment_name: string
+  line_id: string
+  line_name: string
+  request_count: number
+  delayed_request_count: number
+  repeat_failure_count: number
+  total_downtime_hours: number
+  avg_repair_duration_hours: number
+  top_failure_mode: string
+}
+
+export type ProductionLineDelay = {
+  line_id: string
+  line_name: string
+  open_request_count: number
+  delayed_request_count: number
+  critical_equipment_delayed_count: number
+  total_downtime_hours: number
+  top_bottleneck_stage: string
+}
+
+export type PartsWaiting = {
+  part_id: string
+  part_name: string
+  part_category: string
+  waiting_request_count: number
+  total_wait_hours: number
+  avg_wait_hours: number
+  critical_spare: boolean
+  stock_status: string
+}
+
 export type DashboardData = {
   overview: Overview
   criticalRequests: CriticalRequest[]
   stageBottlenecks: StageBottleneck[]
   vendorBottlenecks: VendorBottleneck[]
+  failedQualityChecks: DataQualityCheck[]
+}
+
+export type MaintenanceDashboardData = {
+  overview: MaintenanceOverview
+  criticalRequests: MaintenanceCriticalRequest[]
+  stageBottlenecks: StageBottleneck[]
+  equipmentDelays: EquipmentDelay[]
+  lineDelays: ProductionLineDelay[]
+  partsWaiting: PartsWaiting[]
   failedQualityChecks: DataQualityCheck[]
 }
 
@@ -148,12 +274,36 @@ export type FilterMetadata = {
   stages: string[]
 }
 
+export type MaintenanceFilterMetadata = {
+  production_lines: FilterOption[]
+  equipment: FilterOption[]
+  equipment_types: string[]
+  technician_teams: string[]
+  part_categories: string[]
+  priority_levels: string[]
+  request_types: string[]
+  failure_modes: string[]
+  stages: string[]
+}
+
 export type DashboardFilters = {
   stage?: string
   department_id?: string
   vendor_id?: string
   criticality_level?: string
   item_category?: string
+}
+
+export type MaintenanceDashboardFilters = {
+  stage?: string
+  line_id?: string
+  equipment_id?: string
+  equipment_type?: string
+  technician_team?: string
+  part_category?: string
+  priority_level?: string
+  request_type?: string
+  failure_mode?: string
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -228,12 +378,90 @@ export async function fetchDashboardData(filters: DashboardFilters = {}): Promis
   }
 }
 
+export async function fetchMaintenanceDashboardData(
+  filters: MaintenanceDashboardFilters = {},
+): Promise<MaintenanceDashboardData> {
+  const criticalQuery = buildQuery({
+    limit: 10,
+    stage: filters.stage,
+    line_id: filters.line_id,
+    equipment_id: filters.equipment_id,
+    equipment_type: filters.equipment_type,
+    technician_team: filters.technician_team,
+    part_category: filters.part_category,
+    priority_level: filters.priority_level,
+    request_type: filters.request_type,
+    failure_mode: filters.failure_mode,
+  })
+  const stageBottleneckQuery = buildQuery({
+    stage: filters.stage,
+    line_id: filters.line_id,
+    equipment_id: filters.equipment_id,
+    equipment_type: filters.equipment_type,
+    technician_team: filters.technician_team,
+    part_category: filters.part_category,
+    priority_level: filters.priority_level,
+    request_type: filters.request_type,
+    failure_mode: filters.failure_mode,
+  })
+  const equipmentQuery = buildQuery({
+    line_id: filters.line_id,
+    equipment_id: filters.equipment_id,
+  })
+  const lineQuery = buildQuery({
+    line_id: filters.line_id,
+  })
+  const partsQuery = buildQuery({
+    part_category: filters.part_category,
+  })
+  const qualityQuery = buildQuery({
+    status: 'FAILED',
+    limit: 8,
+  })
+
+  const [
+    overview,
+    criticalRequests,
+    stageBottlenecks,
+    equipmentDelays,
+    lineDelays,
+    partsWaiting,
+    failedQualityChecks,
+  ] = await Promise.all([
+    getJson<MaintenanceOverview>('/api/v2/maintenance/overview'),
+    getJson<MaintenanceCriticalRequest[]>(`/api/v2/maintenance/requests/critical${criticalQuery}`),
+    getJson<StageBottleneck[]>(`/api/v2/maintenance/bottlenecks/stages${stageBottleneckQuery}`),
+    getJson<EquipmentDelay[]>(`/api/v2/maintenance/equipment/delays${equipmentQuery}`),
+    getJson<ProductionLineDelay[]>(`/api/v2/maintenance/lines/delays${lineQuery}`),
+    getJson<PartsWaiting[]>(`/api/v2/maintenance/parts/waiting${partsQuery}`),
+    getJson<DataQualityCheck[]>(`/api/data-quality/checks${qualityQuery}`),
+  ])
+
+  return {
+    overview,
+    criticalRequests,
+    stageBottlenecks,
+    equipmentDelays,
+    lineDelays,
+    partsWaiting,
+    failedQualityChecks,
+  }
+}
+
 export function fetchFilterMetadata(): Promise<FilterMetadata> {
   return getJson<FilterMetadata>('/api/metadata/filters')
 }
 
+export function fetchMaintenanceFilterMetadata(): Promise<MaintenanceFilterMetadata> {
+  return getJson<MaintenanceFilterMetadata>('/api/v2/maintenance/metadata/filters')
+}
+
 export function fetchRequestDetail(requestId: string): Promise<RequestDetail> {
   return getJson<RequestDetail>(`/api/requests/${requestId}`)
+}
+
+export function fetchMaintenanceRequestDetail(requestId: string): Promise<MaintenanceRequestDetail> {
+  return getJson<MaintenanceRequestDetail>(`/api/v2/maintenance/requests/${requestId}`)
 }
 
 export function fetchDataQualityCheck(checkResultId: string): Promise<DataQualityCheck> {

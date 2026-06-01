@@ -2,7 +2,7 @@ from app.models import Base
 
 
 def test_v1_schema_tables_are_registered() -> None:
-    expected_tables = {
+    expected_v1_tables = {
         "raw_purchase_requests",
         "raw_purchase_orders",
         "raw_vendor_updates",
@@ -25,7 +25,35 @@ def test_v1_schema_tables_are_registered() -> None:
         "data_quality_check_results",
     }
 
-    assert set(Base.metadata.tables) == expected_tables
+    assert expected_v1_tables.issubset(set(Base.metadata.tables))
+
+
+def test_v2_maintenance_schema_tables_are_registered() -> None:
+    expected_v2_tables = {
+        "raw_maintenance_requests",
+        "raw_maintenance_stage_events",
+        "raw_maintenance_work_orders",
+        "raw_inspection_results",
+        "raw_sensor_alerts",
+        "maintenance_current_status",
+        "maintenance_stage_lead_times",
+        "critical_maintenance_queue",
+        "maintenance_bottleneck_summary",
+        "equipment_delay_summary",
+        "production_line_delay_summary",
+        "parts_waiting_summary",
+        "production_lines",
+        "equipment",
+        "technicians",
+        "parts",
+        "maintenance_requests",
+        "maintenance_stage_events",
+        "maintenance_work_orders",
+        "inspection_results",
+        "sensor_alerts",
+    }
+
+    assert expected_v2_tables.issubset(set(Base.metadata.tables))
 
 
 def test_stage_events_support_timeline_queries() -> None:
@@ -35,5 +63,16 @@ def test_stage_events_support_timeline_queries() -> None:
     assert "occurred_at" in stage_events.c
     assert any(
         index.name == "ix_procurement_stage_events_request_time"
+        for index in stage_events.indexes
+    )
+
+
+def test_maintenance_stage_events_support_timeline_queries() -> None:
+    stage_events = Base.metadata.tables["maintenance_stage_events"]
+
+    assert "maintenance_request_id" in stage_events.c
+    assert "occurred_at" in stage_events.c
+    assert any(
+        index.name == "ix_maintenance_stage_events_request_time"
         for index in stage_events.indexes
     )

@@ -12,8 +12,12 @@ from sqlalchemy.pool import StaticPool
 from app.db import get_db
 from app.main import app
 from app.models import Base
-from app.pipeline.runner import run_raw_ingestion_pipeline
-from app.sample_data.generator import generate_sample_dataset, write_sample_dataset
+from app.pipeline.runner import run_maintenance_ingestion_pipeline, run_raw_ingestion_pipeline
+from app.sample_data.generator import (
+    generate_maintenance_sample_dataset,
+    generate_sample_dataset,
+    write_sample_dataset,
+)
 
 
 @pytest.fixture()
@@ -29,6 +33,30 @@ def api_client(tmp_path: Path) -> Generator[TestClient, None, None]:
     write_sample_dataset(generate_sample_dataset(), sample_dir)
     with session_factory() as session:
         run_raw_ingestion_pipeline(session=session, sample_dir=sample_dir)
+
+    def override_get_db() -> Generator[Session, None, None]:
+        with session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def maintenance_api_client(tmp_path: Path) -> Generator[TestClient, None, None]:
+    engine = create_engine(
+        "sqlite+pysqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine)
+    sample_dir = tmp_path / "maintenance_sample_data"
+    write_sample_dataset(generate_maintenance_sample_dataset(), sample_dir)
+    with session_factory() as session:
+        run_maintenance_ingestion_pipeline(session=session, sample_dir=sample_dir)
 
     def override_get_db() -> Generator[Session, None, None]:
         with session_factory() as session:
@@ -267,3 +295,124 @@ def test_metadata_endpoint_returns_dashboard_filters(api_client: TestClient) -> 
     assert "IT_EQUIPMENT" in data["item_categories"]
     assert data["criticality_levels"] == ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
     assert "VENDOR_CONFIRMATION" in data["stages"]
+
+
+def test_maintenance_overview_endpoint_returns_operational_summary(
+    maintenance_api_client: TestClient,
+) -> None:
+    response = maintenance_api_client.get("/api/v2/maintenance/overview")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_requests"] == 11
+    assert data["open_requests"] == 8
+    assert data["delayed_requests"] == 8
+    assert data["critical_equipment_delayed"] == 3
+    assert data["top_bottleneck_stage"] == "TECHNICIAN_ASSIGNED"
+    assert data["parts_waiting_delay_hours"] == 148.0
+    assert data["repeat_failure_equipment_count"] == 1
+    assert data["latest_pipeline_run_status"] == "PARTIAL_SUCCESS"
+    assert data["data_quality_status"] == "FAILED"
+
+
+def test_maintenance_critical_queue_endpoint_returns_ranked_requests(
+    maintenance_api_client: TestClient,
+) -> None:
+    response = maintenance_api_client.get("/api/v2/maintenance/requests/critical?limit=3")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [row["maintenance_request_id"] for row in data] == ["MREQ-0004", "MREQ-0007", "MREQ-0006"]
+    assert data[0]["priority_rank"] == 1
+    assert data[0]["current_stage"] == "PARTS_WAITING"
+    assert data[0]["total_priority_score"] == 151.73
+    assert data[0]["recommended_action"] == "Expedite required part or approve substitute"
+
+
+def test_maintenance_critical_queue_endpoint_supports_filters(
+    maintenance_api_client: TestClient,
+) -> None:
+    stage_response = maintenance_api_client.get("/api/v2/maintenance/requests/critical?stage=PARTS_WAITING")
+    line_response = maintenance_api_client.get("/api/v2/maintenance/requests/critical?line_id=LINE-UTIL-01")
+    part_response = maintenance_api_client.get("/api/v2/maintenance/requests/critical?part_category=MOTOR")
+
+    assert stage_response.status_code == 200
+    assert line_response.status_code == 200
+    assert part_response.status_code == 200
+    assert [row["maintenance_request_id"] for row in stage_response.json()] == ["MREQ-0004", "MREQ-0007"]
+    assert [row["maintenance_request_id"] for row in line_response.json()] == ["MREQ-0007"]
+    assert [row["maintenance_request_id"] for row in part_response.json()] == ["MREQ-0004"]
+
+
+def test_maintenance_request_detail_endpoint_returns_drilldown(
+    maintenance_api_client: TestClient,
+) -> None:
+    response = maintenance_api_client.get("/api/v2/maintenance/requests/MREQ-0004")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["request"]["maintenance_request_id"] == "MREQ-0004"
+    assert data["request"]["priority_rank"] == 1
+    assert data["request"]["equipment_id"] == "EQ-PKG-001"
+    assert data["request"]["current_stage"] == "PARTS_WAITING"
+    assert [stage["stage"] for stage in data["stage_lead_times"]] == [
+        "MAINTENANCE_REQUEST_SUBMITTED",
+        "MAINTENANCE_REVIEW",
+        "TECHNICIAN_ASSIGNED",
+        "PARTS_WAITING",
+    ]
+    assert data["stage_lead_times"][-1]["is_bottleneck"] is True
+    assert data["work_orders"][0]["required_part_id"] == "PART-SERVO-7KW"
+    assert data["work_orders"][0]["stock_status"] == "OUT_OF_STOCK"
+    assert data["sensor_alerts"][0]["alert_type"] == "DRIVE_FAULT"
+
+
+def test_maintenance_request_timeline_and_detail_return_404_for_unknown_request(
+    maintenance_api_client: TestClient,
+) -> None:
+    detail_response = maintenance_api_client.get("/api/v2/maintenance/requests/MREQ-NOT-FOUND")
+    timeline_response = maintenance_api_client.get("/api/v2/maintenance/requests/MREQ-NOT-FOUND/timeline")
+
+    assert detail_response.status_code == 404
+    assert timeline_response.status_code == 404
+
+
+def test_maintenance_bottleneck_and_parts_endpoints_match_seeded_analytics(
+    maintenance_api_client: TestClient,
+) -> None:
+    bottlenecks_response = maintenance_api_client.get("/api/v2/maintenance/bottlenecks/stages?stage=PARTS_WAITING")
+    parts_response = maintenance_api_client.get("/api/v2/maintenance/parts/waiting")
+
+    assert bottlenecks_response.status_code == 200
+    assert parts_response.status_code == 200
+    bottlenecks = bottlenecks_response.json()
+    parts = parts_response.json()
+    assert bottlenecks[0]["stage"] == "PARTS_WAITING"
+    assert bottlenecks[0]["delayed_count"] == 2
+    assert bottlenecks[0]["total_delay_hours"] == 100.0
+    assert parts[0]["part_id"] == "PART-SERVO-7KW"
+    assert parts[0]["total_wait_hours"] == 85.0
+    assert parts[1]["part_id"] == "PART-FILTER-CMP"
+    assert parts[1]["total_wait_hours"] == 63.0
+
+
+def test_maintenance_equipment_line_and_metadata_endpoints(
+    maintenance_api_client: TestClient,
+) -> None:
+    equipment_response = maintenance_api_client.get("/api/v2/maintenance/equipment/delays?equipment_id=EQ-CNV-001")
+    lines_response = maintenance_api_client.get("/api/v2/maintenance/lines/delays?line_id=LINE-PKG-01")
+    metadata_response = maintenance_api_client.get("/api/v2/maintenance/metadata/filters")
+
+    assert equipment_response.status_code == 200
+    assert lines_response.status_code == 200
+    assert metadata_response.status_code == 200
+    equipment = equipment_response.json()
+    lines = lines_response.json()
+    metadata = metadata_response.json()
+    assert equipment[0]["equipment_id"] == "EQ-CNV-001"
+    assert equipment[0]["repeat_failure_count"] == 2
+    assert lines[0]["line_id"] == "LINE-PKG-01"
+    assert lines[0]["delayed_request_count"] == 3
+    assert len(metadata["production_lines"]) == 5
+    assert "PARTS_WAITING" in metadata["stages"]
+    assert "MOTOR" in metadata["part_categories"]
