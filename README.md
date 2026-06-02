@@ -1,12 +1,19 @@
-# Critical Procurement Bottleneck Analytics
+# Industrial Operations Bottleneck Analytics
 
-Operational data system for finding bottlenecks in critical procurement workflows.
+Project slug: `industrial-operations-bottleneck-analytics`
+
+Operational data system for finding bottlenecks across business and industrial workflows.
 
 The core question:
 
-> Which procurement requests are blocking important work, where are they delayed, and what should operations teams handle first?
+> Which operational requests are delayed, where is the bottleneck, and what should teams handle next?
 
-Critical Procurement Bottleneck Analytics analyzes existing procurement workflow data to identify delayed critical requests, bottleneck stages, and the next operational action.
+Industrial Operations Bottleneck Analytics analyzes workflow event data to identify delayed requests, bottleneck stages, quality issues, and the next recommended operational action.
+
+Implemented domains:
+
+- Procurement bottleneck analytics
+- Industrial maintenance bottleneck analytics
 
 ## What This Demonstrates
 
@@ -14,24 +21,26 @@ Critical Procurement Bottleneck Analytics analyzes existing procurement workflow
 - Raw to core to analytics data pipeline design
 - PostgreSQL schema design for operational analytics
 - Data quality checks and pipeline run observability
-- FastAPI read-only analytics API
+- FastAPI read-only analytics APIs
 - React dashboard backed by real API data
 - Practical decision support: priority queue, bottlenecks, recommended action, and drilldown
 
 ## Screenshots
 
-Dashboard overview:
+Procurement dashboard overview:
 
 ![Dashboard overview](docs/assets/dashboard-overview.png)
 
-Request drilldown:
+Procurement request drilldown:
 
 ![Request drilldown](docs/assets/request-drilldown.png)
 
 ## Architecture
 
 ```text
-Deterministic sample procurement source data
+Deterministic sample source data
+  - procurement requests
+  - maintenance requests
         |
         v
 Python pipeline
@@ -49,32 +58,38 @@ PostgreSQL
   - ops tables
         |
         v
-FastAPI read-only analytics API
+FastAPI read-only analytics APIs
         |
         v
 React + Vite dashboard
+  - procurement mode
+  - maintenance mode
 ```
 
 ## Implemented Features
 
-- Deterministic sample data generator with seeded delay and quality scenarios
+Procurement analytics:
+
+- Deterministic procurement sample data generator with seeded delay and quality scenarios
 - PostgreSQL schema managed by Alembic
 - Raw ingestion pipeline with idempotent reruns
 - Core transformation into normalized procurement domain tables
 - Data quality result logging
 - Stage lead time and delay calculations
 - Critical request priority scoring with score component breakdowns
-- Bottleneck summaries by stage and vendor, including dashboard filter support
+- Bottleneck summaries by stage and vendor
 - Request detail and timeline API
-- Real-data dashboard with:
-  - overview KPIs
-  - stage, department, vendor, criticality, and item category filters
-  - stage bottleneck chart
-  - critical request queue
-  - request drilldown panel with priority score explainability
-  - full timeline and actual vs threshold lead time breakdown
-  - vendor delay table
-  - data quality status
+- Procurement dashboard with overview KPIs, filters, stage bottleneck chart, critical queue, request drilldown, vendor delay table, and data quality status
+
+Industrial maintenance analytics:
+
+- Deterministic maintenance sample scenarios for review delay, technician assignment delay, parts waiting, repair delay, inspection delay, repeat failures, and quality issues
+- Maintenance domain models for equipment, production lines, requests, stage events, technicians, parts, work orders, inspections, and sensor alerts
+- Raw and core maintenance loading through the existing pipeline
+- Maintenance data quality checks recorded in the shared quality results table
+- Maintenance current status, stage lead time, bottleneck summaries, critical queue, equipment delay, production line delay, and parts waiting analytics
+- Read-only `/api/v2/maintenance` endpoints
+- Maintenance dashboard mode with KPIs, bottleneck chart, critical queue, request drilldown, parts waiting, equipment delay, and line delay panels
 
 ## Stack
 
@@ -112,6 +127,7 @@ docs/
   06_implementation_plan.md
   07_verification_plan.md
   08_portfolio_package.md
+  09_industrial_maintenance_v2_design.md
 
 docker-compose.yml
 ```
@@ -147,22 +163,19 @@ python -m pip install -r requirements.txt
 python -m alembic upgrade head
 ```
 
-Generate data and run the full pipeline:
+Run the procurement pipeline:
 
 ```bash
-python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
+python -m app.pipeline run --domain procurement --generate-sample --sample-dir generated/sample_data
 ```
 
-Expected result for the seeded dataset:
+Run the maintenance pipeline:
 
-```text
-status=PARTIAL_SUCCESS
-rows_extracted=150
-failed_checks=4
-analytics_records_loaded=244
+```bash
+python -m app.pipeline run --domain maintenance --generate-sample --sample-dir generated/maintenance_sample_data
 ```
 
-`PARTIAL_SUCCESS` is expected because the sample data intentionally includes quality issues.
+`PARTIAL_SUCCESS` is expected for the seeded datasets because the sample data intentionally includes quality issues.
 
 Start the backend API:
 
@@ -188,6 +201,8 @@ The Vite dev server proxies `/api` requests to `http://127.0.0.1:8000`.
 
 ## Useful API Endpoints
 
+Procurement:
+
 ```text
 GET /api/overview
 GET /api/bottlenecks/stages
@@ -201,10 +216,24 @@ GET /api/data-quality/checks/{check_result_id}
 GET /api/metadata/filters
 ```
 
-Example:
+Maintenance:
+
+```text
+GET /api/v2/maintenance/overview
+GET /api/v2/maintenance/bottlenecks/stages
+GET /api/v2/maintenance/requests/critical
+GET /api/v2/maintenance/requests/{maintenance_request_id}
+GET /api/v2/maintenance/equipment/delays
+GET /api/v2/maintenance/lines/delays
+GET /api/v2/maintenance/parts/waiting
+GET /api/v2/maintenance/metadata/filters
+```
+
+Examples:
 
 ```bash
 curl http://127.0.0.1:8000/api/requests/REQ-0005
+curl http://127.0.0.1:8000/api/v2/maintenance/requests/MREQ-0004
 ```
 
 Filter examples:
@@ -212,7 +241,8 @@ Filter examples:
 ```bash
 curl 'http://127.0.0.1:8000/api/requests/critical?stage=BUDGET_REVIEW'
 curl 'http://127.0.0.1:8000/api/bottlenecks/stages?department_id=DEPT-SAFETY&criticality_level=HIGH'
-curl 'http://127.0.0.1:8000/api/bottlenecks/vendors?vendor_id=VEN-SIGNAL&criticality_level=CRITICAL'
+curl 'http://127.0.0.1:8000/api/v2/maintenance/requests/critical?stage=PARTS_WAITING'
+curl 'http://127.0.0.1:8000/api/v2/maintenance/parts/waiting?part_category=MOTOR'
 ```
 
 ## Verification
@@ -241,7 +271,8 @@ docker compose up -d postgres
 cd backend
 source .venv/bin/activate
 python -m alembic upgrade head
-python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
+python -m app.pipeline run --domain procurement --generate-sample --sample-dir generated/sample_data
+python -m app.pipeline run --domain maintenance --generate-sample --sample-dir generated/maintenance_sample_data
 uvicorn app.main:app --reload
 ```
 
@@ -254,52 +285,10 @@ npm run dev
 
 Verify in the browser:
 
-- Overview KPIs load.
-- Filters can narrow the operational queue by stage, department, vendor, criticality, and item category.
-- Top bottleneck is `Vendor Confirmation`.
-- Critical queue includes `PR-2026-0005`.
-- Clicking a queue row updates Request Drilldown.
-- Request Drilldown shows priority score components, stage lead time thresholds, timeline, PO/receipt state, and quality flags.
-- Pipeline Trust shows latest-run seeded failures, failed row counts, sample failed keys, and related request links when request ids are available.
-
-## Seeded Scenarios
-
-The generated dataset includes:
-
-- normal completed request
-- budget review delay
-- procurement review correction
-- PO creation delay
-- vendor confirmation delay
-- delivery delay
-- receiving delay
-- inspection delay
-- critical request delayed
-- duplicate source record
-- missing required fields
-- request without stage event
-- event timestamp out of order
-
-## V1 Exclusions
-
-Intentionally not included in v1:
-
-- purchase request creation or approval commands
-- procurement transaction workflow execution
-- real ERP integration
-- supplier portal
-- invoice or payment processing
-- authentication and authorization
-- streaming infrastructure
-- Kubernetes
-- AI, LLM, or ML prediction
-
-## Current Portfolio Status
-
-The project now has a working backend pipeline, API, and real-data frontend dashboard. The next improvements would be:
-
-- add pipeline run history and freshness observability in the dashboard
-- add automated browser smoke tests
-- add deployment notes or a short demo video
-
-For repo description, pinned-project copy, and a short demo talk track, see [docs/08_portfolio_package.md](docs/08_portfolio_package.md).
+- Procurement dashboard KPIs load.
+- Procurement filters can narrow the operational queue by stage, department, vendor, criticality, and item category.
+- Procurement critical queue includes `PR-2026-0005`.
+- Maintenance dashboard mode loads.
+- Maintenance critical queue includes `MR-2026-0004`.
+- Maintenance parts waiting panel shows `7kW Servo Motor` and `Compressor Intake Filter`.
+- Maintenance request drilldown opens with timeline, lead times, work orders, parts, inspection, sensor alerts, and quality flags.
