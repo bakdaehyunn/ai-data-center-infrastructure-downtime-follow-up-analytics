@@ -27,13 +27,21 @@ Implemented domains:
 
 ## Screenshots
 
-Procurement dashboard overview:
+Procurement dashboard:
 
 ![Dashboard overview](docs/assets/dashboard-overview.png)
 
 Procurement request drilldown:
 
 ![Request drilldown](docs/assets/request-drilldown.png)
+
+Maintenance dashboard:
+
+![Maintenance dashboard overview](docs/assets/maintenance-dashboard-overview.png)
+
+Maintenance request drilldown:
+
+![Maintenance request drilldown](docs/assets/maintenance-request-drilldown.png)
 
 ## Architecture
 
