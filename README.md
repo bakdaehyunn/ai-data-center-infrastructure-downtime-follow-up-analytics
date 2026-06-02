@@ -1,302 +1,159 @@
-# Industrial Operations Bottleneck Analytics
+# Maintenance Downtime Follow-up Analytics
 
-Project slug: `industrial-operations-bottleneck-analytics`
+Maintenance Downtime Follow-up Analytics is a portfolio project about operational visibility for delayed maintenance work.
 
-Operational data system for finding bottlenecks across business and industrial workflows.
+It answers one practical question:
 
-The core question:
+> Which maintenance requests are delaying equipment return-to-service, where is the blocker, and what should the team follow up next?
 
-> Which operational requests are delayed, where is the bottleneck, and what should teams handle next?
+## Why This Project Exists
 
-Industrial Operations Bottleneck Analytics analyzes workflow event data to identify delayed requests, bottleneck stages, quality issues, and the next recommended operational action.
+In a production environment, downtime follow-up rarely lives in one clean table. The evidence is split across maintenance requests, workflow stage events, work orders, spare parts, inspection results, sensor alerts, equipment master data, and production line context.
 
-Implemented domains:
+That creates a common operational problem: teams can see that work is open, but they cannot quickly tell which request is hurting production, why it is stuck, whether the issue is waiting on parts or people, and which follow-up should happen first.
 
-- Procurement bottleneck analytics
-- Industrial maintenance bottleneck analytics
+This project builds an analytics layer for that problem. It reconstructs the current state from event history, measures how long requests wait in each stage, checks whether the data can be trusted, and produces a ranked follow-up queue for maintenance supervisors, planners, reliability engineers, and operations teams.
 
-## What This Demonstrates
+## Operating Scenario
 
-- Event-based business process modeling
-- Raw to core to analytics data pipeline design
-- PostgreSQL schema design for operational analytics
-- Data quality checks and pipeline run observability
-- FastAPI read-only analytics APIs
-- React dashboard backed by real API data
-- Practical decision support: priority queue, bottlenecks, recommended action, and drilldown
+The modeled maintenance workflow is:
 
-## Screenshots
+```text
+Maintenance Request Submitted
+-> Maintenance Review
+-> Technician Assigned
+-> Parts Waiting
+-> Maintenance In Progress
+-> Inspection
+-> Completed
+```
 
-Procurement dashboard:
+The key point is not the workflow labels themselves. The key point is that every stage transition becomes analytical evidence:
 
-![Dashboard overview](docs/assets/dashboard-overview.png)
+- how long the request waited
+- where delay accumulated
+- whether the delay is still actionable
+- which asset or line is affected
+- what follow-up action is most useful now
 
-Procurement request drilldown:
+## What It Analyzes
 
-![Request drilldown](docs/assets/request-drilldown.png)
-
-Maintenance dashboard:
-
-![Maintenance dashboard overview](docs/assets/maintenance-dashboard-overview.png)
-
-Maintenance request drilldown:
-
-![Maintenance request drilldown](docs/assets/maintenance-request-drilldown.png)
+- Open maintenance requests and delayed requests
+- Current stage and hours in current stage
+- Stage lead time compared with stage thresholds
+- Actionable bottlenecks, excluding terminal completed work from bottleneck charts
+- Downtime concentration by equipment and production line
+- Parts waiting impact and stock risk
+- Repeat failure signals
+- Technician assignment and inspection delays
+- Data quality issues that affect trust in the analytics
+- Ranked downtime follow-up queue with recommended actions
 
 ## Architecture
 
 ```text
-Deterministic sample source data
-  - procurement requests
-  - maintenance requests
-        |
-        v
-Python pipeline
-  - raw ingestion
-  - raw data quality checks
-  - core transformation
-  - core data quality checks
-  - analytics build
-        |
-        v
-PostgreSQL
-  - raw tables
-  - core tables
-  - analytics tables
-  - ops tables
-        |
-        v
-FastAPI read-only analytics APIs
-        |
-        v
-React + Vite dashboard
-  - procurement mode
-  - maintenance mode
+scattered maintenance source records
+  -> raw maintenance tables
+  -> core maintenance tables
+  -> analytics tables
+  -> read-only FastAPI endpoints
+  -> React dashboard
 ```
 
-## Implemented Features
+The pipeline computes analytics before API reads. The API stays read-only because the product goal is operational decision support: surface what needs attention, explain why, and let existing maintenance systems remain the system of record.
 
-Procurement analytics:
+## Data Layers
 
-- Deterministic procurement sample data generator with seeded delay and quality scenarios
-- PostgreSQL schema managed by Alembic
-- Raw ingestion pipeline with idempotent reruns
-- Core transformation into normalized procurement domain tables
-- Data quality result logging
-- Stage lead time and delay calculations
-- Critical request priority scoring with score component breakdowns
-- Bottleneck summaries by stage and vendor
-- Request detail and timeline API
-- Procurement dashboard with overview KPIs, filters, stage bottleneck chart, critical queue, request drilldown, vendor delay table, and data quality status
+- `raw_*`: source-shaped records with source IDs and pipeline run IDs for ingestion traceability
+- core tables: normalized maintenance entities such as equipment, production lines, requests, stage events, work orders, parts, inspections, and sensor alerts
+- analytics tables: current status, stage lead times, follow-up queue, bottleneck summary, equipment delay summary, line delay summary, and parts waiting summary
+- ops tables: pipeline run observability and data quality check results
 
-Industrial maintenance analytics:
+## Backend Responsibilities
 
-- Deterministic maintenance sample scenarios for review delay, technician assignment delay, parts waiting, repair delay, inspection delay, repeat failures, and quality issues
-- Maintenance domain models for equipment, production lines, requests, stage events, technicians, parts, work orders, inspections, and sensor alerts
-- Raw and core maintenance loading through the existing pipeline
-- Maintenance data quality checks recorded in the shared quality results table
-- Maintenance current status, stage lead time, bottleneck summaries, critical queue, equipment delay, production line delay, and parts waiting analytics
-- Read-only `/api/v2/maintenance` endpoints
-- Maintenance dashboard mode with KPIs, bottleneck chart, critical queue, request drilldown, parts waiting, equipment delay, and line delay panels
+- Generate deterministic maintenance sample data
+- Load source-shaped raw records with duplicate rejection
+- Run raw and core data quality checks
+- Reconstruct current request state from maintenance stage events
+- Calculate stage lead time and delay hours
+- Build downtime, bottleneck, equipment, line, and parts summaries
+- Score follow-up priority using operational signals
+- Expose read-only analytics endpoints
 
-## Stack
-
-- Backend: Python, FastAPI, SQLAlchemy, Alembic, Pydantic
-- Database: PostgreSQL
-- Pipeline: Python scripts
-- Frontend: React, TypeScript, Vite, Recharts, lucide-react
-- Local infra: Docker Compose for PostgreSQL
-- Tests: pytest, frontend lint/build
-
-## Project Structure
-
-```text
-backend/
-  app/
-    api/              FastAPI route layer
-    models/           SQLAlchemy raw/core/analytics/ops models
-    pipeline/         ingestion, quality, transformation, analytics build
-    sample_data/      deterministic source data generator
-  alembic/            database migrations
-  tests/
-
-frontend/
-  src/
-    api.ts            typed API client
-    App.tsx           dashboard shell and interactions
-
-docs/
-  00_project_brief.md
-  01_architecture.md
-  02_data_model.md
-  03_pipeline_spec.md
-  04_openapi.yaml
-  05_ui_spec.md
-  06_implementation_plan.md
-  07_verification_plan.md
-  08_portfolio_package.md
-  09_industrial_maintenance_v2_design.md
-
-docker-compose.yml
-```
-
-## Local Setup
-
-Prerequisites:
-
-- Docker Desktop
-- Python 3.9+
-- Node.js and npm
-
-Copy environment values if needed:
-
-```bash
-cp .env.example .env
-```
-
-Start PostgreSQL:
-
-```bash
-docker compose up -d postgres
-```
-
-Set up backend:
+Run backend checks:
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-python -m alembic upgrade head
+.venv/bin/python -m pytest
 ```
 
-Run the procurement pipeline:
+Run the pipeline locally after PostgreSQL is available:
 
 ```bash
-python -m app.pipeline run --domain procurement --generate-sample --sample-dir generated/sample_data
+cd backend
+.venv/bin/python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
 ```
 
-Run the maintenance pipeline:
+## API Surface
 
-```bash
-python -m app.pipeline run --domain maintenance --generate-sample --sample-dir generated/maintenance_sample_data
-```
-
-`PARTIAL_SUCCESS` is expected for the seeded datasets because the sample data intentionally includes quality issues.
-
-Start the backend API:
-
-```bash
-uvicorn app.main:app --reload
-```
-
-Set up and start the frontend in another terminal:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open:
-
-- API health: http://127.0.0.1:8000/api/health
-- API docs: http://127.0.0.1:8000/docs
-- Dashboard: http://127.0.0.1:5173
-
-The Vite dev server proxies `/api` requests to `http://127.0.0.1:8000`.
-
-## Useful API Endpoints
-
-Procurement:
+Primary read-only endpoints:
 
 ```text
 GET /api/overview
-GET /api/bottlenecks/stages
-GET /api/bottlenecks/vendors
-GET /api/requests/critical
-GET /api/requests/{request_id}
-GET /api/requests/{request_id}/timeline
+GET /api/follow-ups
+GET /api/follow-ups/{maintenance_request_id}
+GET /api/follow-ups/{maintenance_request_id}/timeline
+GET /api/downtime/stages
+GET /api/equipment/delays
+GET /api/lines/delays
+GET /api/parts/waiting
+GET /api/metadata/filters
 GET /api/pipeline-runs
 GET /api/data-quality/checks
 GET /api/data-quality/checks/{check_result_id}
-GET /api/metadata/filters
 ```
 
-Maintenance:
+## Dashboard
 
-```text
-GET /api/v2/maintenance/overview
-GET /api/v2/maintenance/bottlenecks/stages
-GET /api/v2/maintenance/requests/critical
-GET /api/v2/maintenance/requests/{maintenance_request_id}
-GET /api/v2/maintenance/equipment/delays
-GET /api/v2/maintenance/lines/delays
-GET /api/v2/maintenance/parts/waiting
-GET /api/v2/maintenance/metadata/filters
-```
+The React dashboard is built for follow-up decisions:
 
-Examples:
+- KPI summary for open work, delayed work, critical delayed equipment, parts wait hours, and data quality status
+- Filterable downtime follow-up queue
+- Request drilldown with stage history, score components, work order context, part context, and quality flags
+- Stage bottleneck chart focused on active delay stages
+- Equipment and production line impact summaries
+- Parts waiting and data trust panels
 
-```bash
-curl http://127.0.0.1:8000/api/requests/REQ-0005
-curl http://127.0.0.1:8000/api/v2/maintenance/requests/MREQ-0004
-```
-
-Filter examples:
-
-```bash
-curl 'http://127.0.0.1:8000/api/requests/critical?stage=BUDGET_REVIEW'
-curl 'http://127.0.0.1:8000/api/bottlenecks/stages?department_id=DEPT-SAFETY&criticality_level=HIGH'
-curl 'http://127.0.0.1:8000/api/v2/maintenance/requests/critical?stage=PARTS_WAITING'
-curl 'http://127.0.0.1:8000/api/v2/maintenance/parts/waiting?part_category=MOTOR'
-```
-
-## Verification
-
-Backend:
-
-```bash
-cd backend
-source .venv/bin/activate
-python -m compileall -q app tests
-python -m pytest
-```
-
-Frontend:
+Run the frontend build:
 
 ```bash
 cd frontend
-npm run lint
 npm run build
 ```
 
-End-to-end smoke path:
+## Tech Stack
 
-```bash
-docker compose up -d postgres
-cd backend
-source .venv/bin/activate
-python -m alembic upgrade head
-python -m app.pipeline run --domain procurement --generate-sample --sample-dir generated/sample_data
-python -m app.pipeline run --domain maintenance --generate-sample --sample-dir generated/maintenance_sample_data
-uvicorn app.main:app --reload
-```
+- Python
+- FastAPI
+- SQLAlchemy
+- Alembic
+- PostgreSQL
+- React
+- TypeScript
+- Vite
+- Recharts
+- Docker Compose
+- pytest
 
-Then run the frontend:
+## Portfolio Signal
 
-```bash
-cd frontend
-npm run dev
-```
+This project is designed to show backend and operational data-platform judgment:
 
-Verify in the browser:
-
-- Procurement dashboard KPIs load.
-- Procurement filters can narrow the operational queue by stage, department, vendor, criticality, and item category.
-- Procurement critical queue includes `PR-2026-0005`.
-- Maintenance dashboard mode loads.
-- Maintenance critical queue includes `MR-2026-0004`.
-- Maintenance parts waiting panel shows `7kW Servo Motor` and `Compressor Intake Filter`.
-- Maintenance request drilldown opens with timeline, lead times, work orders, parts, inspection, sensor alerts, and quality flags.
+- Workflow and state modeling from event history
+- SQLAlchemy data modeling across raw, core, analytics, and ops layers
+- Pipeline observability and repeatable analytics builds
+- Data quality checks that protect trust in metrics
+- Read-only analytics API design
+- Operational prioritization logic
+- Frontend drilldown for decision support
+- Ability to turn scattered workflow data into useful operational follow-up

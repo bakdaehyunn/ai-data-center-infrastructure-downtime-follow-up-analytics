@@ -1,1 +1,1 @@
-"""Backend package for Critical Procurement Bottleneck Analytics."""
+"""Backend package for Maintenance Downtime Follow-up Analytics."""

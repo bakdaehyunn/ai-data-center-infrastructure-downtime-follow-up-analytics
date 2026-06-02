@@ -13,12 +13,7 @@ from app.models.raw import (
     RawMaintenanceRequest,
     RawMaintenanceStageEvent,
     RawMaintenanceWorkOrder,
-    RawPurchaseOrder,
-    RawPurchaseRequest,
-    RawReceipt,
     RawSensorAlert,
-    RawStageEvent,
-    RawVendorUpdate,
 )
 
 
@@ -27,12 +22,7 @@ class RawSourceSpec:
     file_name: str
     target_table: str
     model: Type[
-        RawPurchaseRequest
-        | RawPurchaseOrder
-        | RawVendorUpdate
-        | RawReceipt
-        | RawStageEvent
-        | RawMaintenanceRequest
+        RawMaintenanceRequest
         | RawMaintenanceStageEvent
         | RawMaintenanceWorkOrder
         | RawInspectionResult
@@ -41,14 +31,6 @@ class RawSourceSpec:
 
 
 RAW_SOURCE_SPECS = [
-    RawSourceSpec("purchase_requests.json", "raw_purchase_requests", RawPurchaseRequest),
-    RawSourceSpec("purchase_orders.json", "raw_purchase_orders", RawPurchaseOrder),
-    RawSourceSpec("vendor_updates.json", "raw_vendor_updates", RawVendorUpdate),
-    RawSourceSpec("receipts.json", "raw_receipts", RawReceipt),
-    RawSourceSpec("stage_events.json", "raw_stage_events", RawStageEvent),
-]
-
-MAINTENANCE_RAW_SOURCE_SPECS = [
     RawSourceSpec("maintenance_requests.json", "raw_maintenance_requests", RawMaintenanceRequest),
     RawSourceSpec("maintenance_stage_events.json", "raw_maintenance_stage_events", RawMaintenanceStageEvent),
     RawSourceSpec("maintenance_work_orders.json", "raw_maintenance_work_orders", RawMaintenanceWorkOrder),
@@ -66,20 +48,9 @@ class RawLoadResult:
 
 
 def read_raw_source_records(sample_dir: Path) -> dict[str, list[dict[str, Any]]]:
-    return _read_raw_source_records(sample_dir, RAW_SOURCE_SPECS)
-
-
-def read_maintenance_raw_source_records(sample_dir: Path) -> dict[str, list[dict[str, Any]]]:
-    return _read_raw_source_records(sample_dir, MAINTENANCE_RAW_SOURCE_SPECS)
-
-
-def _read_raw_source_records(
-    sample_dir: Path,
-    source_specs: list[RawSourceSpec],
-) -> dict[str, list[dict[str, Any]]]:
     records_by_table: dict[str, list[dict[str, Any]]] = {}
 
-    for spec in source_specs:
+    for spec in RAW_SOURCE_SPECS:
         path = sample_dir / spec.file_name
         if not path.exists():
             raise FileNotFoundError(f"Missing raw source file: {path}")
@@ -97,38 +68,12 @@ def load_raw_records(
     sample_dir: Path,
     pipeline_run_id: str,
 ) -> RawLoadResult:
-    return _load_raw_records(
-        session=session,
-        records_by_table=read_raw_source_records(sample_dir),
-        pipeline_run_id=pipeline_run_id,
-        source_specs=RAW_SOURCE_SPECS,
-    )
-
-
-def load_maintenance_raw_records(
-    session: Session,
-    sample_dir: Path,
-    pipeline_run_id: str,
-) -> RawLoadResult:
-    return _load_raw_records(
-        session=session,
-        records_by_table=read_maintenance_raw_source_records(sample_dir),
-        pipeline_run_id=pipeline_run_id,
-        source_specs=MAINTENANCE_RAW_SOURCE_SPECS,
-    )
-
-
-def _load_raw_records(
-    session: Session,
-    records_by_table: dict[str, list[dict[str, Any]]],
-    pipeline_run_id: str,
-    source_specs: list[RawSourceSpec],
-) -> RawLoadResult:
+    records_by_table = read_raw_source_records(sample_dir)
     rows_extracted = 0
     rows_loaded = 0
     rejected_keys: list[str] = []
 
-    for spec in source_specs:
+    for spec in RAW_SOURCE_SPECS:
         records = records_by_table[spec.target_table]
         rows_extracted += len(records)
         seen_keys: set[tuple[str, str]] = set()
@@ -143,20 +88,14 @@ def _load_raw_records(
             source_system = record.get("source_system")
             source_record_id = record.get("source_record_id")
             payload = record.get("payload")
-            source_key = (source_system, source_record_id)
-
-            if (
-                not source_system
-                or not source_record_id
-                or not isinstance(payload, dict)
-                or source_key in seen_keys
-            ):
+            key = (source_system, source_record_id)
+            if not source_system or not source_record_id or not isinstance(payload, dict):
+                rejected_keys.append(f"{spec.target_table}:missing_source_or_payload")
+                continue
+            if key in seen_keys or key in existing_keys:
                 rejected_keys.append(f"{spec.target_table}:{source_system}:{source_record_id}")
                 continue
-            if source_key in existing_keys:
-                continue
-
-            seen_keys.add(source_key)
+            seen_keys.add(key)
             session.add(
                 spec.model(
                     source_record_id=source_record_id,
@@ -167,6 +106,7 @@ def _load_raw_records(
             )
             rows_loaded += 1
 
+    session.flush()
     return RawLoadResult(
         rows_extracted=rows_extracted,
         rows_loaded=rows_loaded,
