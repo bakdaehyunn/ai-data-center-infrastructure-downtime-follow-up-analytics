@@ -1,17 +1,17 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: procurement-postgres
+    container_name: maintenance-downtime-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-procurement}
-      POSTGRES_USER: ${POSTGRES_USER:-procurement}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-procurement}
+      POSTGRES_DB: ${POSTGRES_DB:-maintenance}
+      POSTGRES_USER: ${POSTGRES_USER:-maintenance}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-maintenance}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-procurement} -d ${POSTGRES_DB:-procurement}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-maintenance} -d ${POSTGRES_DB:-maintenance}"]
       interval: 5s
       timeout: 5s
       retries: 10

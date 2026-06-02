@@ -21,56 +21,6 @@ class RawIngestionMixin:
     pipeline_run_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
 
 
-class RawPurchaseRequest(RawIngestionMixin, Base):
-    __tablename__ = "raw_purchase_requests"
-    __table_args__ = (
-        UniqueConstraint("source_system", "source_record_id", name="uq_raw_pr_source_record"),
-        Index("ix_raw_pr_pipeline_source", "pipeline_run_id", "source_system"),
-    )
-
-    raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-
-
-class RawPurchaseOrder(RawIngestionMixin, Base):
-    __tablename__ = "raw_purchase_orders"
-    __table_args__ = (
-        UniqueConstraint("source_system", "source_record_id", name="uq_raw_po_source_record"),
-        Index("ix_raw_po_pipeline_source", "pipeline_run_id", "source_system"),
-    )
-
-    raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-
-
-class RawVendorUpdate(RawIngestionMixin, Base):
-    __tablename__ = "raw_vendor_updates"
-    __table_args__ = (
-        UniqueConstraint("source_system", "source_record_id", name="uq_raw_vendor_update_source_record"),
-        Index("ix_raw_vendor_update_pipeline_source", "pipeline_run_id", "source_system"),
-    )
-
-    raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-
-
-class RawReceipt(RawIngestionMixin, Base):
-    __tablename__ = "raw_receipts"
-    __table_args__ = (
-        UniqueConstraint("source_system", "source_record_id", name="uq_raw_receipt_source_record"),
-        Index("ix_raw_receipt_pipeline_source", "pipeline_run_id", "source_system"),
-    )
-
-    raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-
-
-class RawStageEvent(RawIngestionMixin, Base):
-    __tablename__ = "raw_stage_events"
-    __table_args__ = (
-        UniqueConstraint("source_system", "source_record_id", name="uq_raw_stage_event_source_record"),
-        Index("ix_raw_stage_event_pipeline_source", "pipeline_run_id", "source_system"),
-    )
-
-    raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-
-
 class RawMaintenanceRequest(RawIngestionMixin, Base):
     __tablename__ = "raw_maintenance_requests"
     __table_args__ = (
