@@ -47,6 +47,7 @@ The workflow labels are not the main value. The value is turning every transitio
 - Downtime concentration by infrastructure asset and facility zone
 - Spare/vendor waiting impact and stock risk
 - Capacity-at-risk, affected GPU, redundancy-loss, thermal-breach, vendor ETA, and mitigation context
+- Impact confidence status that separates trusted, warning, and unverified impact context
 - Repeat failure signals
 - Facilities engineer assignment and validation delays
 - Latest-run data quality and reconciliation issues
@@ -82,6 +83,7 @@ The pipeline computes analytics before API reads. The API is read-only because t
 - Calculate stage lead time and delay hours
 - Build downtime, bottleneck, asset, zone, and spare summaries
 - Detect reconciliation issues between core state, event history, and analytics outputs
+- Detect impact-context trust issues such as missing snapshots, stale snapshots, vendor ETA mismatch, mitigation evidence gaps, and unexplained thermal or capacity risk
 - Score follow-up priority using downtime, criticality, urgency, repeat failure, spare/vendor risk, capacity risk, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit
 - Expose read-only analytics endpoints
 
@@ -126,11 +128,11 @@ Compatibility routes for the earlier naming are still available for asset, zone,
 The React dashboard is built for follow-up decisions:
 
 - KPI summary for open incidents, delayed incidents, critical delayed assets, capacity at risk, affected GPUs, redundancy loss, missed vendor ETA, spare/vendor wait hours, and latest-run data trust
-- Filterable downtime follow-up queue with compact impact badges
-- Incident drilldown with stage history, score components, work order context, spare context, impact snapshot context, telemetry evidence, vendor/mitigation status, and quality flags
+- Filterable downtime follow-up queue with compact impact and confidence badges
+- Incident drilldown with stage history, score components, work order context, spare context, impact snapshot context, telemetry evidence, vendor/mitigation status, impact trust flags, and quality flags
 - Stage bottleneck chart focused on active delay stages
 - Asset and zone impact summaries
-- Spare/vendor waiting and data trust panels
+- Spare/vendor waiting, impact summary, and data trust panels
 
 Run the frontend build:
 

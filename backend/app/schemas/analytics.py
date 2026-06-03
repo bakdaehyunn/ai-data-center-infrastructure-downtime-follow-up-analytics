@@ -69,6 +69,8 @@ class FollowUpItemResponse(BaseModel):
     estimated_capacity_risk_kw: float = 0
     mitigation_status: Optional[str] = None
     vendor_status: Optional[str] = None
+    impact_confidence_status: str = "UNVERIFIED"
+    impact_trust_issue_count: int = 0
 
 
 class StageLeadTimeResponse(BaseModel):
@@ -151,6 +153,13 @@ class InfrastructureImpactSnapshotResponse(BaseModel):
     telemetry_readings: list[ImpactTelemetryReadingResponse] = Field(default_factory=list)
 
 
+class ImpactTrustFlagResponse(BaseModel):
+    issue_type: str
+    severity: str
+    message: str
+    evidence: dict[str, Any] = Field(default_factory=dict)
+
+
 class ImpactSummaryResponse(BaseModel):
     incident_count: int
     capacity_risk_kw: float
@@ -160,6 +169,9 @@ class ImpactSummaryResponse(BaseModel):
     vendor_eta_missed_count: int
     mitigated_incidents: int
     thermal_breach_minutes: int
+    trusted_impact_count: int
+    warning_impact_count: int
+    unverified_impact_count: int
 
 
 class RequestDetailResponse(BaseModel):
@@ -171,6 +183,8 @@ class RequestDetailResponse(BaseModel):
     telemetry_alerts: list[TelemetryAlertResponse]
     impact_snapshot: Optional[InfrastructureImpactSnapshotResponse]
     quality_flags: list[str]
+    impact_confidence_status: str
+    impact_trust_flags: list[ImpactTrustFlagResponse]
 
 
 class InfrastructureAssetDelayResponse(BaseModel):

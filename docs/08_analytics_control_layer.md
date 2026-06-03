@@ -9,7 +9,7 @@ It connects four concerns:
 - source preservation
 - canonical core modeling
 - event-based state reconstruction
-- reconciliation checks for trusted analytics outputs
+- reconciliation checks for trusted analytics and impact-context outputs
 
 ## Scattered Evidence
 
@@ -79,7 +79,7 @@ Current stage output is materialized into `incident_current_status`. Stage durat
 
 The follow-up queue excludes `RESTORED` incidents and scores active incidents using asset criticality, estimated downtime, current stage delay, zone impact, needed-by urgency, repeat failure, spare risk, capacity risk, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit.
 
-V1.1 impact context uses the latest `infrastructure_impact_snapshots` row per incident and materializes these score components into `downtime_follow_up_queue`:
+Impact context uses the latest `infrastructure_impact_snapshots` row per incident and materializes these score components into `downtime_follow_up_queue`:
 
 - `capacity_risk_score`
 - `redundancy_risk_score`
@@ -120,7 +120,7 @@ Impact snapshots are loaded after incident, asset, and zone references exist. Sn
 
 `reconciler.run_reconciliation_checks()` runs after analytics materialization. It persists issues in `infrastructure_reconciliation_issues` and scopes them to the pipeline run.
 
-Current issue types:
+State and workflow issue types:
 
 - `state_reconstruction_missing_stage_event`
 - `state_reconstruction_stage_mismatch`
@@ -131,15 +131,34 @@ Current issue types:
 - `validation_without_completed_work`
 - `analytics_output_missing_current_status`
 
+Impact-context issue types:
+
+- `impact_snapshot_missing_for_active_high_impact_incident`
+- `impact_snapshot_stale_after_latest_impact_event`
+- `impact_redundancy_event_snapshot_mismatch`
+- `impact_vendor_eta_event_snapshot_mismatch`
+- `impact_vendor_eta_past_not_missed`
+- `impact_mitigation_without_event_evidence`
+- `impact_thermal_context_missing_evidence`
+- `impact_capacity_risk_zero_for_critical_gpu_incident`
+
 Examples from the seeded data:
 
 - `INC-QA-NO-STAGE` creates a missing-stage-event issue and a missing-current-status analytics issue.
 - `INC-0004` creates `spare_waiting_missing_required_spare` because `MWO-QA-NO-PART` is waiting on a spare/vendor without a required spare.
+- `INC-0004` also creates `impact_vendor_eta_past_not_missed` because the vendor ETA is older than the analytics `as_of` time but the latest impact snapshot still says the vendor is waiting for dispatch.
+- `INC-0007` creates `impact_mitigation_without_event_evidence` because the snapshot says the incident is running degraded but no matching mitigation event exists before the snapshot.
 - `INC-0002` creates `validation_without_completed_work` because a validation record exists before completed work evidence.
 
 ## API Exposure
 
-Drilldown quality flags combine latest-run failed data quality checks and latest-run open reconciliation issues.
+Drilldown quality flags combine latest-run failed data quality checks and latest-run open non-impact reconciliation issues.
+
+Impact trust is exposed separately:
+
+- follow-up rows include `impact_confidence_status` and `impact_trust_issue_count`
+- drilldown includes `impact_confidence_status` and structured `impact_trust_flags`
+- impact summary includes trusted, warning, and unverified impact counts
 
 Drilldown also exposes the latest impact snapshot and its telemetry readings. This makes the follow-up row explain both the workflow blocker and the operational exposure attached to that blocker.
 
@@ -150,6 +169,10 @@ Drilldown also exposes the latest impact snapshot and its telemetry readings. Th
 - `State reconstruction gap`
 - `Validation sequence mismatch`
 
+Impact trust flags preserve structured evidence from `infrastructure_reconciliation_issues.evidence_json`. For example, a stale vendor ETA flag includes the snapshot vendor status, `vendor_eta_at`, and analytics `as_of` time.
+
 ## Trust Boundary
 
 The analytics output should be treated as trusted only after raw checks, core checks, impact snapshot loading, analytics build, and reconciliation checks have run for the same pipeline run.
+
+An impact snapshot should be treated as decision-ready only when its confidence is `TRUSTED`. A `WARNING` row can still be operationally important, but the dashboard is telling the operator to verify the source evidence before relying on the impact context.

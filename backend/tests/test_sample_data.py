@@ -78,6 +78,10 @@ def test_sample_dataset_contains_ai_infrastructure_impact_context() -> None:
         record["payload"]["incident_id"]: record["payload"]
         for record in dataset["infrastructure_impact_snapshots"]
     }
+    expected_trust_issues = {
+        (issue["incident_id"], issue["issue_type"])
+        for issue in dataset["manifest"]["expected_impact_trust_issues"]
+    }
     evidence_event_types = {
         record["payload"]["event_type"]
         for record in dataset["incident_stage_events"]
@@ -95,6 +99,11 @@ def test_sample_dataset_contains_ai_infrastructure_impact_context() -> None:
         "LOAD_SHIFTED",
         "MITIGATION_APPLIED",
     }.issubset(evidence_event_types)
+    assert {
+        ("INC-0003", "impact_mitigation_without_event_evidence"),
+        ("INC-0004", "impact_vendor_eta_past_not_missed"),
+        ("INC-0007", "impact_mitigation_without_event_evidence"),
+    } == expected_trust_issues
 
 
 def test_write_sample_dataset_creates_expected_files(tmp_path) -> None:

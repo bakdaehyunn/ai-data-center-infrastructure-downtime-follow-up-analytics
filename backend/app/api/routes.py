@@ -37,6 +37,7 @@ from app.schemas.analytics import (
     ImpactSummaryResponse,
     InfrastructureImpactSnapshotResponse,
     ImpactTelemetryReadingResponse,
+    ImpactTrustFlagResponse,
     ValidationResponse,
     OverviewResponse,
     SpareWaitingResponse,
@@ -57,12 +58,37 @@ router = APIRouter(prefix="/api")
 RECONCILIATION_FLAG_LABELS = {
     "analytics_output_missing_current_status": "Analytics output gap",
     "event_sequence_before_request": "Event timeline mismatch",
+    "impact_capacity_risk_zero_for_critical_gpu_incident": "Impact capacity gap",
+    "impact_mitigation_without_event_evidence": "Impact mitigation evidence gap",
+    "impact_redundancy_event_snapshot_mismatch": "Impact redundancy mismatch",
+    "impact_snapshot_missing_for_active_high_impact_incident": "Impact snapshot gap",
+    "impact_snapshot_stale_after_latest_impact_event": "Impact snapshot stale",
+    "impact_thermal_context_missing_evidence": "Impact thermal evidence gap",
+    "impact_vendor_eta_event_snapshot_mismatch": "Impact vendor ETA mismatch",
+    "impact_vendor_eta_past_not_missed": "Impact vendor ETA stale",
     "validation_without_completed_work": "Validation sequence mismatch",
     "spare_waiting_missing_required_spare": "Spare or vendor evidence mismatch",
     "state_reconstruction_active_with_completion_event": "State reconstruction mismatch",
     "state_reconstruction_missing_completion_event": "State reconstruction gap",
     "state_reconstruction_missing_stage_event": "State reconstruction gap",
     "state_reconstruction_stage_mismatch": "State reconstruction mismatch",
+}
+IMPACT_RECONCILIATION_ISSUE_TYPES = {
+    "impact_capacity_risk_zero_for_critical_gpu_incident",
+    "impact_mitigation_without_event_evidence",
+    "impact_redundancy_event_snapshot_mismatch",
+    "impact_snapshot_missing_for_active_high_impact_incident",
+    "impact_snapshot_stale_after_latest_impact_event",
+    "impact_thermal_context_missing_evidence",
+    "impact_vendor_eta_event_snapshot_mismatch",
+    "impact_vendor_eta_past_not_missed",
+}
+HIGH_IMPACT_MARKERS = {
+    "CAPACITY",
+    "COOLING",
+    "GPU",
+    "POWER",
+    "REDUNDANCY",
 }
 
 
@@ -158,9 +184,20 @@ def list_follow_ups(
         stmt = stmt.where(DowntimeFollowUpQueue.current_stage == stage)
 
     rows = db.execute(stmt.order_by(DowntimeFollowUpQueue.priority_rank).limit(limit)).all()
+    impact_issues_by_incident = _impact_issues_by_incident(
+        db,
+        [request.incident_id for _, request, _, _, _ in rows],
+    )
     return [
-        _follow_up_response(queue, request, equipment, line, current)
-        for queue, request, equipment, line, current in rows
+        _follow_up_response(
+            queue,
+            request,
+            asset,
+            zone,
+            current,
+            impact_issues_by_incident.get(request.incident_id, []),
+        )
+        for queue, request, asset, zone, current in rows
     ]
 
 
@@ -173,11 +210,11 @@ def get_follow_up_detail(
     if request is None:
         raise HTTPException(status_code=404, detail="Infrastructure incident not found")
 
-    equipment = db.get(InfrastructureAsset, request.asset_id)
-    line = db.get(InfrastructureZone, request.zone_id)
+    asset = db.get(InfrastructureAsset, request.asset_id)
+    zone = db.get(InfrastructureZone, request.zone_id)
     current = db.get(IncidentCurrentStatus, incident_id)
     queue = db.get(DowntimeFollowUpQueue, incident_id)
-    if equipment is None or line is None or current is None:
+    if asset is None or zone is None or current is None:
         raise HTTPException(status_code=404, detail="Infrastructure analytics not found for incident")
 
     stage_lead_times = db.scalars(
@@ -201,14 +238,16 @@ def get_follow_up_detail(
         .order_by(ValidationResult.validation_id)
     ).all()
     impact_snapshot = _latest_impact_for_incident(db, incident_id)
+    impact_issues = _impact_issues_by_incident(db, [incident_id]).get(incident_id, [])
 
     return RequestDetailResponse(
         request=_follow_up_response(
             queue or _empty_queue_row(request, current),
             request,
-            equipment,
-            line,
+            asset,
+            zone,
             current,
+            impact_issues,
         ),
         stage_lead_times=[_stage_lead_time_response(row) for row in stage_lead_times],
         timeline=[_timeline_event_response(event) for event in timeline],
@@ -217,6 +256,8 @@ def get_follow_up_detail(
         telemetry_alerts=[_telemetry_alert_response(alert) for alert in request.telemetry_alerts],
         impact_snapshot=_impact_snapshot_response(impact_snapshot) if impact_snapshot else None,
         quality_flags=_quality_flags_for_request(db, incident_id),
+        impact_confidence_status=_impact_confidence_status(impact_snapshot, impact_issues),
+        impact_trust_flags=[_impact_trust_flag_response(issue) for issue in impact_issues],
     )
 
 
@@ -226,10 +267,30 @@ def get_impact_summary(db: Session = Depends(get_db)) -> ImpactSummaryResponse:
         request.incident_id: request
         for request in db.scalars(select(InfrastructureIncident))
     }
+    active_requests = [request for request in requests.values() if request.current_status != "RESTORED"]
+    impact_issues_by_incident = _impact_issues_by_incident(
+        db,
+        [request.incident_id for request in active_requests],
+    )
     impacts = [
         impact
         for incident_id, impact in _latest_impact_by_incident(db).items()
         if requests.get(incident_id) and requests[incident_id].current_status != "RESTORED"
+    ]
+    impact_by_incident = {impact.incident_id: impact for impact in impacts}
+    impact_confidence_requests = [
+        request
+        for request in active_requests
+        if request.incident_id in impact_by_incident
+        or request.incident_id in impact_issues_by_incident
+        or _is_high_impact_request(request)
+    ]
+    confidence_statuses = [
+        _impact_confidence_status(
+            impact_by_incident.get(request.incident_id),
+            impact_issues_by_incident.get(request.incident_id, []),
+        )
+        for request in impact_confidence_requests
     ]
     return ImpactSummaryResponse(
         incident_count=len(impacts),
@@ -244,6 +305,9 @@ def get_impact_summary(db: Session = Depends(get_db)) -> ImpactSummaryResponse:
         vendor_eta_missed_count=sum(1 for impact in impacts if impact.vendor_status == "ETA_MISSED"),
         mitigated_incidents=sum(1 for impact in impacts if impact.mitigation_status != "NONE"),
         thermal_breach_minutes=sum(impact.thermal_breach_minutes for impact in impacts),
+        trusted_impact_count=sum(1 for status in confidence_statuses if status == "TRUSTED"),
+        warning_impact_count=sum(1 for status in confidence_statuses if status == "WARNING"),
+        unverified_impact_count=sum(1 for status in confidence_statuses if status == "UNVERIFIED"),
     )
 
 
@@ -332,20 +396,20 @@ def list_spares_waiting(db: Session = Depends(get_db)) -> list[SpareWaitingRespo
 
 @router.get("/metadata/filters", response_model=FilterMetadataResponse)
 def get_filter_metadata(db: Session = Depends(get_db)) -> FilterMetadataResponse:
-    lines = db.scalars(select(InfrastructureZone).order_by(InfrastructureZone.zone_name)).all()
+    zones = db.scalars(select(InfrastructureZone).order_by(InfrastructureZone.zone_name)).all()
     assets = db.scalars(select(InfrastructureAsset).order_by(InfrastructureAsset.asset_name)).all()
     work_orders = db.scalars(select(FacilityWorkOrder)).all()
-    parts = db.scalars(select(CriticalSpare)).all()
+    spares = db.scalars(select(CriticalSpare)).all()
     requests = db.scalars(select(InfrastructureIncident)).all()
     follow_up_stages = db.scalars(
         select(DowntimeFollowUpQueue.current_stage).distinct().order_by(DowntimeFollowUpQueue.current_stage)
     ).all()
     return FilterMetadataResponse(
-        infrastructure_zones=[FilterOption(id=line.zone_id, name=line.zone_name) for line in lines],
+        infrastructure_zones=[FilterOption(id=zone.zone_id, name=zone.zone_name) for zone in zones],
         assets=[FilterOption(id=item.asset_id, name=item.asset_name) for item in assets],
         asset_types=sorted({item.asset_type for item in assets}),
         facilities_teams=sorted({work_order.assigned_team for work_order in work_orders}),
-        spare_categories=sorted({part.spare_category for part in parts}),
+        spare_categories=sorted({spare.spare_category for spare in spares}),
         priority_levels=sorted({request.priority_level for request in requests}),
         request_types=sorted({request.request_type for request in requests}),
         failure_modes=sorted({request.failure_mode for request in requests}),
@@ -395,9 +459,10 @@ def get_data_quality_check(check_result_id: str, db: Session = Depends(get_db)) 
 def _follow_up_response(
     queue: DowntimeFollowUpQueue,
     request: InfrastructureIncident,
-    equipment: InfrastructureAsset,
-    line: InfrastructureZone,
+    asset: InfrastructureAsset,
+    zone: InfrastructureZone,
     current: IncidentCurrentStatus,
+    impact_issues: list[InfrastructureReconciliationIssue],
 ) -> FollowUpItemResponse:
     impact = _latest_impact_from_request(request)
     return FollowUpItemResponse(
@@ -405,10 +470,10 @@ def _follow_up_response(
         incident_id=request.incident_id,
         request_number=request.request_number,
         request_title=request.request_title,
-        asset_id=equipment.asset_id,
-        asset_name=equipment.asset_name,
-        zone_id=line.zone_id,
-        zone_name=line.zone_name,
+        asset_id=asset.asset_id,
+        asset_name=asset.asset_name,
+        zone_id=zone.zone_id,
+        zone_name=zone.zone_name,
         current_stage=request.current_stage,
         current_status=request.current_status,
         hours_in_current_stage=float(current.hours_in_current_stage),
@@ -435,6 +500,8 @@ def _follow_up_response(
         estimated_capacity_risk_kw=float(impact.estimated_capacity_risk_kw) if impact else 0,
         mitigation_status=impact.mitigation_status if impact else None,
         vendor_status=impact.vendor_status if impact else None,
+        impact_confidence_status=_impact_confidence_status(impact, impact_issues),
+        impact_trust_issue_count=len(impact_issues),
     )
 
 
@@ -621,6 +688,7 @@ def _quality_flags_for_request(db: Session, incident_id: str) -> list[str]:
     flags.extend(
         _reconciliation_quality_flag(issue)
         for issue in reconciliation_issues
+        if issue.issue_type not in IMPACT_RECONCILIATION_ISSUE_TYPES
     )
     return flags
 
@@ -628,6 +696,61 @@ def _quality_flags_for_request(db: Session, incident_id: str) -> list[str]:
 def _reconciliation_quality_flag(issue: InfrastructureReconciliationIssue) -> str:
     label = RECONCILIATION_FLAG_LABELS.get(issue.issue_type, "Reconciliation issue")
     return f"{label}: {issue.message}"
+
+
+def _impact_issues_by_incident(
+    db: Session,
+    incident_ids: list[str],
+) -> dict[str, list[InfrastructureReconciliationIssue]]:
+    if not incident_ids:
+        return {}
+    latest_run = _latest_pipeline_run(db)
+    if latest_run is None:
+        return {}
+    issues = db.scalars(
+        select(InfrastructureReconciliationIssue)
+        .where(
+            InfrastructureReconciliationIssue.pipeline_run_id == latest_run.pipeline_run_id,
+            InfrastructureReconciliationIssue.incident_id.in_(incident_ids),
+            InfrastructureReconciliationIssue.issue_type.in_(IMPACT_RECONCILIATION_ISSUE_TYPES),
+            InfrastructureReconciliationIssue.status == "OPEN",
+        )
+        .order_by(InfrastructureReconciliationIssue.severity, InfrastructureReconciliationIssue.issue_type)
+    ).all()
+    grouped: dict[str, list[InfrastructureReconciliationIssue]] = {}
+    for issue in issues:
+        if issue.incident_id is None:
+            continue
+        grouped.setdefault(issue.incident_id, []).append(issue)
+    return grouped
+
+
+def _impact_confidence_status(
+    impact: InfrastructureImpactSnapshot | None,
+    issues: list[InfrastructureReconciliationIssue],
+) -> str:
+    if impact is None:
+        return "UNVERIFIED"
+    if issues:
+        return "WARNING"
+    return "TRUSTED"
+
+
+def _impact_trust_flag_response(issue: InfrastructureReconciliationIssue) -> ImpactTrustFlagResponse:
+    evidence = issue.evidence_json if isinstance(issue.evidence_json, dict) else {}
+    return ImpactTrustFlagResponse(
+        issue_type=issue.issue_type,
+        severity=issue.severity,
+        message=issue.message,
+        evidence=evidence,
+    )
+
+
+def _is_high_impact_request(request: InfrastructureIncident) -> bool:
+    if request.priority_level in {"CRITICAL", "HIGH"}:
+        return True
+    business_impact = request.business_impact.upper()
+    return any(marker in business_impact for marker in HIGH_IMPACT_MARKERS)
 
 
 def _latest_pipeline_run(db: Session) -> PipelineRun | None:

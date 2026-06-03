@@ -39,6 +39,14 @@ Impact snapshots are loaded after core incidents, assets, and zones are known. I
 - Spare/vendor wait lacks required spare evidence
 - Validation exists before completed work
 - Core incident missing generated current-status analytics row
+- Active high-impact incident missing impact snapshot
+- Material impact event newer than latest impact snapshot
+- Redundancy event and impact snapshot disagree
+- Vendor ETA event and impact snapshot disagree
+- Vendor ETA is past but not marked missed
+- Mitigation status lacks matching event evidence
+- Thermal breach lacks abnormal telemetry evidence
+- Critical GPU/capacity incident has unexplained zero impact
 
 ## Terminal Stage Behavior
 
@@ -57,6 +65,16 @@ The latest impact snapshot per incident is used during follow-up scoring. The qu
 - mitigation credit for load shifting, degraded operation, or verified normal state
 
 The final priority score increases when capacity, redundancy, thermal, or vendor risk is high and decreases when mitigation evidence reduces immediate exposure.
+
+## Impact Confidence
+
+Impact confidence is derived from latest-run reconciliation issues:
+
+- `TRUSTED`: latest impact snapshot exists and no open impact reconciliation issue exists for the incident
+- `WARNING`: latest impact snapshot exists, but one or more impact reconciliation issues are open
+- `UNVERIFIED`: active incident has no usable impact snapshot
+
+The dashboard uses this confidence state to separate the operational priority score from the trustworthiness of the impact evidence behind that score.
 
 ## Latest-Run Scoping
 

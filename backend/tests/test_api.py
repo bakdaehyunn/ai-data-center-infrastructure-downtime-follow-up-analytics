@@ -73,6 +73,9 @@ def test_follow_ups_endpoint_returns_ranked_queue(api_client: TestClient) -> Non
     assert data[0]["redundancy_state"] == "N-1"
     assert data[0]["affected_gpu_count"] == 320
     assert data[0]["vendor_status"] == "ETA_MISSED"
+    assert data[0]["impact_confidence_status"] == "WARNING"
+    assert data[0]["impact_trust_issue_count"] == 1
+    assert data[2]["impact_confidence_status"] == "TRUSTED"
 
 
 def test_follow_ups_endpoint_filters_queue(api_client: TestClient) -> None:
@@ -114,6 +117,19 @@ def test_follow_up_detail_returns_state_timeline_and_related_records(api_client:
     assert data["impact_snapshot"]["estimated_capacity_risk_kw"] == 620.0
     assert data["impact_snapshot"]["cooling_redundancy_lost"] is True
     assert data["impact_snapshot"]["telemetry_readings"][0]["metric"] == "supply_water_temp_c"
+    assert data["impact_confidence_status"] == "WARNING"
+    assert data["impact_trust_flags"] == [
+        {
+            "issue_type": "impact_vendor_eta_past_not_missed",
+            "severity": "WARNING",
+            "message": "The vendor ETA is older than the analytics as-of time, but the impact snapshot has not marked the ETA as missed.",
+            "evidence": {
+                "vendor_status": "WAITING_VENDOR_DISPATCH",
+                "vendor_eta_at": "2026-01-07T16:00:00",
+                "analytics_as_of": "2026-01-10T03:00:00",
+            },
+        }
+    ]
     assert any(
         flag == "Spare or vendor evidence mismatch: A work order is waiting on a spare or vendor, but no required spare is linked."
         for flag in data["quality_flags"]
@@ -130,6 +146,8 @@ def test_follow_up_detail_handles_completed_non_queued_request(api_client: TestC
     assert data["request"]["recommended_action"] == "No follow-up required"
     assert len(data["timeline"]) == 15
     assert data["impact_snapshot"]["mitigation_status"] == "VERIFIED_NORMAL"
+    assert data["impact_confidence_status"] == "TRUSTED"
+    assert data["impact_trust_flags"] == []
     assert data["quality_flags"] == []
 
 
@@ -169,6 +187,9 @@ def test_downtime_and_impact_endpoints_return_analytics(api_client: TestClient) 
         "vendor_eta_missed_count": 1,
         "mitigated_incidents": 6,
         "thermal_breach_minutes": 219,
+        "trusted_impact_count": 4,
+        "warning_impact_count": 3,
+        "unverified_impact_count": 0,
     }
 
 
@@ -249,6 +270,7 @@ def test_overview_and_quality_checks_use_latest_pipeline_run(api_client: TestCli
     assert "stale_table" not in {row["target_table"] for row in failed_response.json()}
     assert "stale_table" in {row["target_table"] for row in all_failed_response.json()}
     assert detail_response.json()["quality_flags"] == []
+    assert detail_response.json()["impact_trust_flags"] == []
 
 
 def test_filter_metadata_endpoint_returns_infrastructure_options(api_client: TestClient) -> None:

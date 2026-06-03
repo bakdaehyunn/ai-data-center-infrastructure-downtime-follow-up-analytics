@@ -8,6 +8,7 @@ import {
   Filter,
   RefreshCcw,
   ShieldAlert,
+  ShieldCheck,
   Wrench,
   Zap,
 } from 'lucide-react'
@@ -149,7 +150,7 @@ function App() {
       </section>
 
       <section className="kpi-grid">
-        <Kpi icon={<Wrench size={18} />} label="Open requests" value={dashboard?.overview.open_requests ?? 0} />
+        <Kpi icon={<Wrench size={18} />} label="Open incidents" value={dashboard?.overview.open_requests ?? 0} />
         <Kpi icon={<Clock3 size={18} />} label="Delayed requests" value={dashboard?.overview.delayed_requests ?? 0} tone="warning" />
         <Kpi icon={<AlertTriangle size={18} />} label="Critical delayed" value={dashboard?.overview.critical_asset_delayed ?? 0} tone="danger" />
         <Kpi icon={<Zap size={18} />} label="Capacity at risk" value={`${(dashboard?.overview.capacity_risk_kw ?? 0).toFixed(0)} kW`} tone="danger" />
@@ -212,6 +213,8 @@ function App() {
                 { id: 'gpu', label: 'Affected GPUs', value: `${dashboard?.impactSummary.affected_gpu_count ?? 0}` },
                 { id: 'mitigation', label: 'Mitigated incidents', value: `${dashboard?.impactSummary.mitigated_incidents ?? 0}` },
                 { id: 'thermal', label: 'Thermal breach', value: `${dashboard?.impactSummary.thermal_breach_minutes ?? 0}m` },
+                { id: 'warning', label: 'Impact warnings', value: `${dashboard?.impactSummary.warning_impact_count ?? 0}` },
+                { id: 'unverified', label: 'Unverified impact', value: `${dashboard?.impactSummary.unverified_impact_count ?? 0}` },
               ]}
               getKey={(row) => row.id}
               left={(row) => row.label}
@@ -299,6 +302,7 @@ function FollowUpTable({ rows, selectedId, onSelect }: { rows: FollowUpItem[]; s
             <th>Impact</th>
             <th>Delay</th>
             <th>Action</th>
+            <th>Trust</th>
             <th>Score</th>
           </tr>
         </thead>
@@ -321,6 +325,9 @@ function FollowUpTable({ rows, selectedId, onSelect }: { rows: FollowUpItem[]; s
               </td>
               <td>{formatHours(row.hours_in_current_stage)}</td>
               <td>{row.recommended_action}</td>
+              <td>
+                <TrustBadge status={row.impact_confidence_status} count={row.impact_trust_issue_count} />
+              </td>
               <td>{row.total_priority_score.toFixed(1)}</td>
             </tr>
           ))}
@@ -387,6 +394,21 @@ function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
           </div>
         </div>
       ) : null}
+      <div className="impact-trust">
+        <strong className="detail-section-title">Impact Trust</strong>
+        <div className={`trust-summary ${trustTone(detail.impact_confidence_status)}`}>
+          {detail.impact_confidence_status === 'TRUSTED' ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
+          <strong>{formatStage(detail.impact_confidence_status)}</strong>
+          <span>{detail.impact_trust_flags.length ? `${detail.impact_trust_flags.length} issue${detail.impact_trust_flags.length === 1 ? '' : 's'}` : 'Impact context matches latest-run evidence'}</span>
+        </div>
+        {detail.impact_trust_flags.map((flag) => (
+          <div className="impact-trust-flag" key={`${flag.issue_type}-${flag.message}`}>
+            <strong>{formatStage(flag.issue_type)}</strong>
+            <span>{flag.message}</span>
+            {Object.keys(flag.evidence).length ? <small>{formatEvidence(flag.evidence)}</small> : null}
+          </div>
+        ))}
+      </div>
       {detail.impact_snapshot?.telemetry_readings.length ? (
         <div className="telemetry-evidence">
           {detail.impact_snapshot.telemetry_readings.map((reading) => (
@@ -427,6 +449,15 @@ function Score({ label, value }: { label: string; value: number }) {
   )
 }
 
+function TrustBadge({ status, count }: { status: string; count: number }) {
+  return (
+    <span className={`trust-badge ${trustTone(status)}`}>
+      {formatStage(status)}
+      {count ? ` ${count}` : ''}
+    </span>
+  )
+}
+
 function CompactRows<T>({ rows, getKey, left, right }: { rows: T[]; getKey: (row: T) => string; left: (row: T) => string; right: (row: T) => string }) {
   if (!rows.length) {
     return <div className="empty-state">No records</div>
@@ -462,6 +493,19 @@ function impactLabel(row: FollowUpItem) {
     row.mitigation_status ? formatStage(row.mitigation_status) : null,
   ].filter(Boolean)
   return labels.length ? labels.join(' / ') : 'No impact context'
+}
+
+function trustTone(status: string) {
+  if (status === 'TRUSTED') return 'trusted'
+  if (status === 'WARNING') return 'warning'
+  return 'unverified'
+}
+
+function formatEvidence(evidence: Record<string, unknown>) {
+  return Object.entries(evidence)
+    .slice(0, 4)
+    .map(([key, value]) => `${formatStage(key)}: ${String(value)}`)
+    .join(' · ')
 }
 
 export default App

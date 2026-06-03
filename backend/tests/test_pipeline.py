@@ -69,7 +69,7 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert result.core_records_loaded == 180
         assert result.core_records_skipped == 1
         assert result.analytics_records_loaded == 348
-        assert result.reconciliation_issues_created == 5
+        assert result.reconciliation_issues_created == 8
 
         pipeline_run = session.scalar(select(PipelineRun).where(PipelineRun.pipeline_run_id == result.pipeline_run_id))
         assert pipeline_run is not None
@@ -97,7 +97,7 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert _count(session, ZoneDelaySummary) == 5
         assert _count(session, SpareWaitingSummary) == 2
         assert _count(session, DataQualityCheckResult) == 30
-        assert _count(session, InfrastructureReconciliationIssue) == 5
+        assert _count(session, InfrastructureReconciliationIssue) == 8
 
         failures = {
             (result.target_table, result.check_name): result.failed_row_count
@@ -117,10 +117,25 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert {
             "analytics_output_missing_current_status",
             "event_sequence_before_request",
+            "impact_mitigation_without_event_evidence",
+            "impact_vendor_eta_past_not_missed",
             "validation_without_completed_work",
             "spare_waiting_missing_required_spare",
             "state_reconstruction_missing_stage_event",
         } == reconciliation_issue_types
+        impact_reconciliation_issues = {
+            (issue.incident_id, issue.issue_type)
+            for issue in session.scalars(
+                select(InfrastructureReconciliationIssue).where(
+                    InfrastructureReconciliationIssue.issue_type.like("impact_%")
+                )
+            )
+        }
+        assert {
+            ("INC-0003", "impact_mitigation_without_event_evidence"),
+            ("INC-0004", "impact_vendor_eta_past_not_missed"),
+            ("INC-0007", "impact_mitigation_without_event_evidence"),
+        } == impact_reconciliation_issues
         spare_reconciliation_issue = session.scalar(
             select(InfrastructureReconciliationIssue).where(
                 InfrastructureReconciliationIssue.incident_id == "INC-0004",
@@ -207,6 +222,39 @@ def test_pipeline_idempotently_rejects_duplicate_raw_records(tmp_path: Path) -> 
         assert _count(session, IncidentStageEvent) == 108
         assert _count(session, InfrastructureImpactSnapshot) == 10
         assert _count(session, DowntimeFollowUpQueue) == 7
+
+
+def test_reconciliation_detects_impact_context_evidence_issues(tmp_path: Path) -> None:
+    sample_dir = _write_sample_data(tmp_path)
+    session_factory = _session_factory()
+
+    with session_factory() as session:
+        run_ingestion_pipeline(session=session, sample_dir=sample_dir)
+
+        vendor_issue = session.scalar(
+            select(InfrastructureReconciliationIssue).where(
+                InfrastructureReconciliationIssue.incident_id == "INC-0004",
+                InfrastructureReconciliationIssue.issue_type == "impact_vendor_eta_past_not_missed",
+            )
+        )
+        mitigation_issue = session.scalar(
+            select(InfrastructureReconciliationIssue).where(
+                InfrastructureReconciliationIssue.incident_id == "INC-0007",
+                InfrastructureReconciliationIssue.issue_type == "impact_mitigation_without_event_evidence",
+            )
+        )
+
+        assert vendor_issue is not None
+        assert vendor_issue.severity == "WARNING"
+        assert vendor_issue.evidence_json["vendor_status"] == "WAITING_VENDOR_DISPATCH"
+        assert vendor_issue.evidence_json["vendor_eta_at"] == "2026-01-07T16:00:00"
+        assert mitigation_issue is not None
+        assert mitigation_issue.evidence_json == {
+            "mitigation_status": "RUNNING_DEGRADED",
+            "expected_event_type": "MITIGATION_APPLIED",
+            "latest_snapshot_id": "IMPACT-0007",
+            "latest_snapshot_at": "2026-01-09T22:00:00",
+        }
 
 
 def _write_sample_data(tmp_path: Path) -> Path:

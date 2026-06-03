@@ -53,6 +53,8 @@ export type FollowUpItem = {
   estimated_capacity_risk_kw: number
   mitigation_status: string | null
   vendor_status: string | null
+  impact_confidence_status: string
+  impact_trust_issue_count: number
 }
 
 export type StageBottleneck = {
@@ -121,6 +123,9 @@ export type ImpactSummary = {
   vendor_eta_missed_count: number
   mitigated_incidents: number
   thermal_breach_minutes: number
+  trusted_impact_count: number
+  warning_impact_count: number
+  unverified_impact_count: number
 }
 
 export type StageLeadTime = {
@@ -204,6 +209,13 @@ export type RequestDetail = {
     }[]
   } | null
   quality_flags: string[]
+  impact_confidence_status: string
+  impact_trust_flags: {
+    issue_type: string
+    severity: string
+    message: string
+    evidence: Record<string, unknown>
+  }[]
 }
 
 export type FilterOption = {

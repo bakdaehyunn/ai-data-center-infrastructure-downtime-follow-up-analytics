@@ -184,7 +184,7 @@ select {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 980px;
+  min-width: 1080px;
 }
 
 th,
@@ -246,6 +246,7 @@ tbody tr.selected {
 .detail-quality-flags,
 .score-grid,
 .impact-context,
+.impact-trust,
 .telemetry-evidence,
 .timeline,
 .work-order,
@@ -271,6 +272,11 @@ tbody tr.selected {
   color: #59656d;
   font-size: 0.88rem;
   line-height: 1.45;
+}
+
+.detail-section-title {
+  color: #172026;
+  font-size: 0.9rem;
 }
 
 .detail-quality-flags {
@@ -330,6 +336,75 @@ tbody tr.selected {
 .timeline-row.bottleneck {
   border-color: #efc8c3;
   background: #fff6f5;
+}
+
+.trust-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.trust-badge.trusted,
+.trust-summary.trusted {
+  border-color: #b8dbc0;
+  background: #eef8f0;
+  color: #2c6f3b;
+}
+
+.trust-badge.warning,
+.trust-summary.warning,
+.impact-trust-flag {
+  border-color: #efd49a;
+  background: #fff8e8;
+  color: #8a5a0f;
+}
+
+.trust-badge.unverified,
+.trust-summary.unverified {
+  border-color: #d7e4ec;
+  background: #f6fafc;
+  color: #52616b;
+}
+
+.impact-trust {
+  gap: 8px;
+}
+
+.trust-summary,
+.impact-trust-flag {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid;
+  border-radius: 8px;
+}
+
+.trust-summary {
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+}
+
+.trust-summary span,
+.impact-trust-flag span,
+.impact-trust-flag small {
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.impact-trust-flag strong,
+.impact-trust-flag span,
+.impact-trust-flag small {
+  overflow-wrap: anywhere;
+}
+
+.impact-trust-flag small {
+  color: #6e5b31;
 }
 
 .impact-context {

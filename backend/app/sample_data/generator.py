@@ -190,6 +190,20 @@ def generate_sample_dataset(
             "source_system": INFRASTRUCTURE_SOURCE_SYSTEM,
             "scenarios": scenario_summaries,
             "expected_quality_issues": expected_quality_issues,
+            "expected_impact_trust_issues": [
+                {
+                    "incident_id": "INC-0003",
+                    "issue_type": "impact_mitigation_without_event_evidence",
+                },
+                {
+                    "incident_id": "INC-0004",
+                    "issue_type": "impact_vendor_eta_past_not_missed",
+                },
+                {
+                    "incident_id": "INC-0007",
+                    "issue_type": "impact_mitigation_without_event_evidence",
+                },
+            ],
         },
         **masters,
         "infrastructure_incidents": infrastructure_incidents,
