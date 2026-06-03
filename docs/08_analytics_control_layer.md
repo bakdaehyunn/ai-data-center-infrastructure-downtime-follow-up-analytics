@@ -161,9 +161,9 @@ If the underlying data is incomplete or inconsistent, the analytics output shoul
 
 ## Conflict and Reliability Rules
 
-Current implementation handles basic reliability rules.
+Current implementation handles both data quality rules and reconciliation rules.
 
-Examples:
+Data quality examples:
 
 - duplicate raw source records are rejected
 - missing required payload fields are skipped
@@ -177,11 +177,33 @@ Implementation example:
 - `analytics_builder._build_downtime_follow_up_queue_rows()` skips requests where `request.current_status == "COMPLETED"`.
 - This keeps the follow-up queue focused on actionable maintenance work.
 
+Reconciliation examples:
+
+- `reconciler.run_reconciliation_checks()` compares core requests, event history, work orders, inspections, and generated analytics rows.
+- Reconciliation issues are persisted in `maintenance_reconciliation_issues` with pipeline run ID, request ID, equipment ID, issue type, severity, status, message, and evidence JSON.
+- Existing reconciliation issues for the same pipeline run are deleted before re-inserting, so the check is idempotent for a run.
+- Request-level reconciliation issues are exposed in the drilldown `quality_flags` response.
+
+Current reconciliation issue types:
+
+- `state_reconstruction_missing_stage_event`: a request has no entered-stage event, so current state cannot be reconstructed from event history.
+- `state_reconstruction_stage_mismatch`: the core current stage does not match the latest entered-stage event.
+- `state_reconstruction_missing_completion_event`: a request is marked completed but has no completion event.
+- `state_reconstruction_active_with_completion_event`: a request is active but event history contains a completion event.
+- `event_sequence_before_request`: a stage event occurred before the maintenance request was reported.
+- `parts_waiting_missing_required_part`: a work order is waiting for parts but has no required part.
+- `inspection_without_completed_work`: an inspection result exists before completed maintenance work is available.
+- `analytics_output_missing_current_status`: analytics did not produce a current-status row for a core maintenance request.
+
+API example:
+
+- `routes._quality_flags_for_request()` reads latest-run failed data quality checks and latest-run open reconciliation issues for the selected request.
+- Reconciliation issue types are translated into operator-facing labels such as `Parts data mismatch` and `State reconstruction mismatch`.
+
 Future realistic extensions:
 
 - source priority rules
 - late-arriving event handling
-- current-status versus event-history mismatch detection
 - confidence score per reconstructed state
 - rejected/dead-letter message table
 
@@ -226,6 +248,7 @@ Current dashboard/API outputs:
 - equipment and line impact
 - parts waiting
 - latest-run data quality checks
+- latest-run reconciliation flags
 
 Implementation example:
 
@@ -249,10 +272,13 @@ Current project implements:
 - raw preservation
 - core normalization
 - event-based state reconstruction
+- reconciliation issue persistence
+- state, event sequence, work order, inspection, and analytics output reconciliation checks
 - lead time calculation
 - bottleneck grouping
 - priority scoring
 - data quality checks
+- request-level quality flags from data quality and reconciliation results
 - pipeline observability
 - read-only analytics API
 
@@ -262,6 +288,6 @@ Future enhancements could include:
 - canonical event mapping table
 - identity resolution table
 - late event reprocessing
-- conflict resolution rules
 - analytics lineage back to raw source records
 - event confidence scoring
+- automated issue disposition workflow
