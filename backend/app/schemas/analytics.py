@@ -16,6 +16,10 @@ class OverviewResponse(BaseModel):
     spare_waiting_delay_hours: float
     repeat_failure_asset_count: int
     engineer_assignment_delay_hours: float
+    capacity_risk_kw: float
+    affected_gpu_count: int
+    redundancy_lost_incidents: int
+    vendor_eta_missed_count: int
     latest_pipeline_run_status: Optional[str]
     data_quality_status: str
 
@@ -52,9 +56,19 @@ class FollowUpItemResponse(BaseModel):
     needed_by_urgency_score: float
     repeat_failure_score: float
     spare_risk_score: float
+    capacity_risk_score: float
+    redundancy_risk_score: float
+    thermal_risk_score: float
+    vendor_eta_risk_score: float
+    mitigation_credit_score: float
     total_priority_score: float
     recommended_action: str
     reason_summary: str
+    redundancy_state: Optional[str] = None
+    affected_gpu_count: int = 0
+    estimated_capacity_risk_kw: float = 0
+    mitigation_status: Optional[str] = None
+    vendor_status: Optional[str] = None
 
 
 class StageLeadTimeResponse(BaseModel):
@@ -109,6 +123,45 @@ class TelemetryAlertResponse(BaseModel):
     resolved_at: Optional[datetime]
 
 
+class ImpactTelemetryReadingResponse(BaseModel):
+    metric: str
+    value: float
+    unit: str
+    status: str
+
+
+class InfrastructureImpactSnapshotResponse(BaseModel):
+    impact_snapshot_id: str
+    incident_id: str
+    asset_id: str
+    zone_id: str
+    snapshot_at: datetime
+    redundancy_state: str
+    affected_rack_count: int
+    affected_gpu_count: int
+    estimated_capacity_risk_kw: float
+    estimated_gpu_capacity_risk_pct: float
+    thermal_breach_minutes: int
+    power_redundancy_lost: bool
+    cooling_redundancy_lost: bool
+    mitigation_status: str
+    vendor_eta_at: Optional[datetime]
+    vendor_status: str
+    source_system: str
+    telemetry_readings: list[ImpactTelemetryReadingResponse] = Field(default_factory=list)
+
+
+class ImpactSummaryResponse(BaseModel):
+    incident_count: int
+    capacity_risk_kw: float
+    affected_rack_count: int
+    affected_gpu_count: int
+    redundancy_lost_incidents: int
+    vendor_eta_missed_count: int
+    mitigated_incidents: int
+    thermal_breach_minutes: int
+
+
 class RequestDetailResponse(BaseModel):
     request: FollowUpItemResponse
     stage_lead_times: list[StageLeadTimeResponse]
@@ -116,6 +169,7 @@ class RequestDetailResponse(BaseModel):
     work_orders: list[WorkOrderSummaryResponse]
     validation_results: list[ValidationResponse]
     telemetry_alerts: list[TelemetryAlertResponse]
+    impact_snapshot: Optional[InfrastructureImpactSnapshotResponse]
     quality_flags: list[str]
 
 

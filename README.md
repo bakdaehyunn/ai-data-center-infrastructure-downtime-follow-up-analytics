@@ -8,9 +8,9 @@ It answers one practical question:
 
 ## Why This Exists
 
-AI data center downtime evidence rarely lives in one clean system. Incident records, workflow events, facility work orders, critical spares, vendor waits, validation results, telemetry alerts, infrastructure assets, and facility zones are often scattered across different operational tools.
+AI data center downtime evidence rarely lives in one clean system. Incident records, workflow events, facility work orders, critical spares, vendor waits, validation results, telemetry alerts, impact snapshots, infrastructure assets, and facility zones are often scattered across different operational tools.
 
-That creates a real follow-up problem: teams may know that work is open, but they cannot quickly tell whether GPU capacity risk is blocked by triage, engineer assignment, a spare/vendor wait, repair execution, validation, or unreliable source data.
+That creates a real follow-up problem: teams may know that work is open, but they cannot quickly tell whether GPU capacity risk is blocked by triage, engineer assignment, a spare/vendor wait, repair execution, validation, missed vendor ETA, lost redundancy, or unreliable source data.
 
 This project builds an analytics layer for that problem. It preserves raw source records, normalizes them into a data center infrastructure model, reconstructs state from event history, checks trust issues, and produces a ranked follow-up queue.
 
@@ -34,6 +34,7 @@ The workflow labels are not the main value. The value is turning every transitio
 - where delay accumulated
 - whether the delay is still actionable
 - which asset and zone are affected
+- how much rack, GPU, power, thermal, redundancy, and vendor exposure is attached to the incident
 - whether the evidence is trustworthy
 - what follow-up action is most useful now
 
@@ -45,6 +46,7 @@ The workflow labels are not the main value. The value is turning every transitio
 - Actionable bottlenecks, excluding terminal restored work from bottleneck charts
 - Downtime concentration by infrastructure asset and facility zone
 - Spare/vendor waiting impact and stock risk
+- Capacity-at-risk, affected GPU, redundancy-loss, thermal-breach, vendor ETA, and mitigation context
 - Repeat failure signals
 - Facilities engineer assignment and validation delays
 - Latest-run data quality and reconciliation issues
@@ -67,8 +69,8 @@ The pipeline computes analytics before API reads. The API is read-only because t
 ## Data Layers
 
 - `raw_*`: source-shaped records with source IDs and pipeline run IDs for ingestion traceability
-- core tables: `infrastructure_zones`, `infrastructure_assets`, `infrastructure_incidents`, `incident_stage_events`, `facilities_engineers`, `critical_spares`, `facility_work_orders`, `validation_results`, and `telemetry_alerts`
-- analytics tables: current status, stage lead times, follow-up queue, bottleneck summary, asset delay summary, zone delay summary, and spare waiting summary
+- core tables: `infrastructure_zones`, `infrastructure_assets`, `infrastructure_incidents`, `incident_stage_events`, `facilities_engineers`, `critical_spares`, `facility_work_orders`, `validation_results`, `telemetry_alerts`, and `infrastructure_impact_snapshots`
+- analytics tables: current status, stage lead times, follow-up queue with impact score components, bottleneck summary, asset delay summary, zone delay summary, and spare waiting summary
 - ops tables: pipeline runs, data quality check results, and reconciliation issues
 
 ## Backend Responsibilities
@@ -80,7 +82,7 @@ The pipeline computes analytics before API reads. The API is read-only because t
 - Calculate stage lead time and delay hours
 - Build downtime, bottleneck, asset, zone, and spare summaries
 - Detect reconciliation issues between core state, event history, and analytics outputs
-- Score follow-up priority using downtime, criticality, urgency, repeat failure, and spare/vendor risk
+- Score follow-up priority using downtime, criticality, urgency, repeat failure, spare/vendor risk, capacity risk, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit
 - Expose read-only analytics endpoints
 
 Run backend checks:
@@ -106,6 +108,7 @@ GET /api/overview
 GET /api/follow-ups
 GET /api/follow-ups/{incident_id}
 GET /api/follow-ups/{incident_id}/timeline
+GET /api/impact/summary
 GET /api/downtime/stages
 GET /api/assets/delays
 GET /api/zones/delays
@@ -122,9 +125,9 @@ Compatibility routes for the earlier naming are still available for asset, zone,
 
 The React dashboard is built for follow-up decisions:
 
-- KPI summary for open incidents, delayed incidents, critical delayed assets, spare/vendor wait hours, and latest-run data trust
-- Filterable downtime follow-up queue
-- Incident drilldown with stage history, score components, work order context, spare context, telemetry context, and quality flags
+- KPI summary for open incidents, delayed incidents, critical delayed assets, capacity at risk, affected GPUs, redundancy loss, missed vendor ETA, spare/vendor wait hours, and latest-run data trust
+- Filterable downtime follow-up queue with compact impact badges
+- Incident drilldown with stage history, score components, work order context, spare context, impact snapshot context, telemetry evidence, vendor/mitigation status, and quality flags
 - Stage bottleneck chart focused on active delay stages
 - Asset and zone impact summaries
 - Spare/vendor waiting and data trust panels

@@ -3,10 +3,13 @@ import {
   AlertTriangle,
   Boxes,
   Clock3,
+  Cpu,
   Database,
   Filter,
   RefreshCcw,
+  ShieldAlert,
   Wrench,
+  Zap,
 } from 'lucide-react'
 import {
   Bar,
@@ -149,6 +152,10 @@ function App() {
         <Kpi icon={<Wrench size={18} />} label="Open requests" value={dashboard?.overview.open_requests ?? 0} />
         <Kpi icon={<Clock3 size={18} />} label="Delayed requests" value={dashboard?.overview.delayed_requests ?? 0} tone="warning" />
         <Kpi icon={<AlertTriangle size={18} />} label="Critical delayed" value={dashboard?.overview.critical_asset_delayed ?? 0} tone="danger" />
+        <Kpi icon={<Zap size={18} />} label="Capacity at risk" value={`${(dashboard?.overview.capacity_risk_kw ?? 0).toFixed(0)} kW`} tone="danger" />
+        <Kpi icon={<Cpu size={18} />} label="Affected GPUs" value={dashboard?.overview.affected_gpu_count ?? 0} tone="warning" />
+        <Kpi icon={<ShieldAlert size={18} />} label="Redundancy lost" value={dashboard?.overview.redundancy_lost_incidents ?? 0} tone="danger" />
+        <Kpi icon={<Clock3 size={18} />} label="Missed vendor ETA" value={dashboard?.overview.vendor_eta_missed_count ?? 0} tone="warning" />
         <Kpi icon={<Boxes size={18} />} label="Spare/vendor wait" value={formatHours(dashboard?.overview.spare_waiting_delay_hours ?? 0)} />
         <Kpi icon={<Database size={18} />} label="Latest-run trust" value={dashboard?.overview.data_quality_status ?? 'UNKNOWN'} tone={dashboard?.overview.data_quality_status === 'PASS' ? 'ok' : 'danger'} />
       </section>
@@ -156,7 +163,7 @@ function App() {
       <section className="layout">
         <div className="primary-column">
           <section className="panel">
-            <PanelHeader title="Follow-up Queue" subtitle="Incidents ranked by return-to-service delay, blocker stage, zone impact, urgency, repeat failure, and spare risk" />
+            <PanelHeader title="Follow-up Queue" subtitle="Incidents ranked by delay, stage blocker, capacity exposure, redundancy state, vendor ETA, mitigation, and source trust" />
             {loading ? <div className="empty-state">Loading follow-up queue</div> : <FollowUpTable rows={dashboard?.followUps ?? []} selectedId={selectedId} onSelect={setSelectedId} />}
           </section>
 
@@ -195,6 +202,21 @@ function App() {
           <section className="panel">
             <PanelHeader title="Spares and Vendor Waiting" subtitle="Follow-up work blocked by spare availability or vendor dispatch" />
             <CompactRows rows={dashboard?.spareWaiting ?? []} getKey={(row) => row.spare_id} left={(row) => row.spare_name} right={(row) => formatHours(row.total_wait_hours)} />
+          </section>
+
+          <section className="panel">
+            <PanelHeader title="Impact Summary" subtitle="Active incidents with capacity, redundancy, thermal, vendor, and mitigation context" />
+            <CompactRows
+              rows={[
+                { id: 'capacity', label: 'Capacity risk', value: `${(dashboard?.impactSummary.capacity_risk_kw ?? 0).toFixed(0)} kW` },
+                { id: 'gpu', label: 'Affected GPUs', value: `${dashboard?.impactSummary.affected_gpu_count ?? 0}` },
+                { id: 'mitigation', label: 'Mitigated incidents', value: `${dashboard?.impactSummary.mitigated_incidents ?? 0}` },
+                { id: 'thermal', label: 'Thermal breach', value: `${dashboard?.impactSummary.thermal_breach_minutes ?? 0}m` },
+              ]}
+              getKey={(row) => row.id}
+              left={(row) => row.label}
+              right={(row) => row.value}
+            />
           </section>
 
           <section className="panel">
@@ -274,6 +296,7 @@ function FollowUpTable({ rows, selectedId, onSelect }: { rows: FollowUpItem[]; s
             <th>Incident</th>
             <th>Asset</th>
             <th>Stage</th>
+            <th>Impact</th>
             <th>Delay</th>
             <th>Action</th>
             <th>Score</th>
@@ -292,6 +315,10 @@ function FollowUpTable({ rows, selectedId, onSelect }: { rows: FollowUpItem[]; s
                 <span>{row.zone_name}</span>
               </td>
               <td>{formatStage(row.current_stage)}</td>
+              <td>
+                <strong>{row.affected_gpu_count ? `${row.affected_gpu_count} GPUs` : 'No GPU impact'}</strong>
+                <span>{impactLabel(row)}</span>
+              </td>
               <td>{formatHours(row.hours_in_current_stage)}</td>
               <td>{row.recommended_action}</td>
               <td>{row.total_priority_score.toFixed(1)}</td>
@@ -327,8 +354,49 @@ function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
         <Score label="Downtime" value={detail.request.downtime_score} />
         <Score label="Stage delay" value={detail.request.stage_delay_score} />
         <Score label="Spare risk" value={detail.request.spare_risk_score} />
-        <Score label="Zone impact" value={detail.request.infrastructure_zone_impact_score} />
+        <Score label="Capacity risk" value={detail.request.capacity_risk_score} />
+        <Score label="Redundancy risk" value={detail.request.redundancy_risk_score} />
+        <Score label="Vendor ETA risk" value={detail.request.vendor_eta_risk_score} />
+        <Score label="Mitigation credit" value={detail.request.mitigation_credit_score} />
       </div>
+      {detail.impact_snapshot ? (
+        <div className="impact-context">
+          <div>
+            <span>Redundancy</span>
+            <strong>{detail.impact_snapshot.redundancy_state}</strong>
+          </div>
+          <div>
+            <span>Capacity risk</span>
+            <strong>{detail.impact_snapshot.estimated_capacity_risk_kw.toFixed(0)} kW</strong>
+          </div>
+          <div>
+            <span>Affected GPUs</span>
+            <strong>{detail.impact_snapshot.affected_gpu_count}</strong>
+          </div>
+          <div>
+            <span>Vendor</span>
+            <strong>{formatStage(detail.impact_snapshot.vendor_status)}</strong>
+          </div>
+          <div>
+            <span>Mitigation</span>
+            <strong>{formatStage(detail.impact_snapshot.mitigation_status)}</strong>
+          </div>
+          <div>
+            <span>Thermal breach</span>
+            <strong>{detail.impact_snapshot.thermal_breach_minutes}m</strong>
+          </div>
+        </div>
+      ) : null}
+      {detail.impact_snapshot?.telemetry_readings.length ? (
+        <div className="telemetry-evidence">
+          {detail.impact_snapshot.telemetry_readings.map((reading) => (
+            <div key={reading.metric}>
+              <span>{formatStage(reading.metric)}</span>
+              <strong>{reading.value} {reading.unit}</strong>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="timeline">
         {detail.stage_lead_times.map((stage) => (
           <div className={stage.is_bottleneck ? 'timeline-row bottleneck' : 'timeline-row'} key={`${stage.stage}-${stage.entered_at}`}>
@@ -385,6 +453,15 @@ function formatStage(value: string) {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+function impactLabel(row: FollowUpItem) {
+  const labels = [
+    row.redundancy_state ? row.redundancy_state : null,
+    row.vendor_status ? formatStage(row.vendor_status) : null,
+    row.mitigation_status ? formatStage(row.mitigation_status) : null,
+  ].filter(Boolean)
+  return labels.length ? labels.join(' / ') : 'No impact context'
 }
 
 export default App

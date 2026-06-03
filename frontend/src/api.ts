@@ -10,6 +10,10 @@ export type Overview = {
   spare_waiting_delay_hours: number
   repeat_failure_asset_count: number
   engineer_assignment_delay_hours: number
+  capacity_risk_kw: number
+  affected_gpu_count: number
+  redundancy_lost_incidents: number
+  vendor_eta_missed_count: number
   latest_pipeline_run_status: string | null
   data_quality_status: string
 }
@@ -36,9 +40,19 @@ export type FollowUpItem = {
   needed_by_urgency_score: number
   repeat_failure_score: number
   spare_risk_score: number
+  capacity_risk_score: number
+  redundancy_risk_score: number
+  thermal_risk_score: number
+  vendor_eta_risk_score: number
+  mitigation_credit_score: number
   total_priority_score: number
   recommended_action: string
   reason_summary: string
+  redundancy_state: string | null
+  affected_gpu_count: number
+  estimated_capacity_risk_kw: number
+  mitigation_status: string | null
+  vendor_status: string | null
 }
 
 export type StageBottleneck = {
@@ -98,6 +112,17 @@ export type DataQualityCheck = {
   created_at: string
 }
 
+export type ImpactSummary = {
+  incident_count: number
+  capacity_risk_kw: number
+  affected_rack_count: number
+  affected_gpu_count: number
+  redundancy_lost_incidents: number
+  vendor_eta_missed_count: number
+  mitigated_incidents: number
+  thermal_breach_minutes: number
+}
+
 export type StageLeadTime = {
   stage: string
   entered_at: string
@@ -153,6 +178,31 @@ export type RequestDetail = {
     triggered_at: string
     resolved_at: string | null
   }[]
+  impact_snapshot: {
+    impact_snapshot_id: string
+    incident_id: string
+    asset_id: string
+    zone_id: string
+    snapshot_at: string
+    redundancy_state: string
+    affected_rack_count: number
+    affected_gpu_count: number
+    estimated_capacity_risk_kw: number
+    estimated_gpu_capacity_risk_pct: number
+    thermal_breach_minutes: number
+    power_redundancy_lost: boolean
+    cooling_redundancy_lost: boolean
+    mitigation_status: string
+    vendor_eta_at: string | null
+    vendor_status: string
+    source_system: string
+    telemetry_readings: {
+      metric: string
+      value: number
+      unit: string
+      status: string
+    }[]
+  } | null
   quality_flags: string[]
 }
 
@@ -188,11 +238,12 @@ export type DashboardData = {
   zoneDelays: InfrastructureZoneDelay[]
   spareWaiting: SpareWaiting[]
   qualityChecks: DataQualityCheck[]
+  impactSummary: ImpactSummary
 }
 
 export async function fetchDashboardData(filters: DashboardFilters = {}): Promise<DashboardData> {
   const query = buildQuery(filters)
-  const [overview, followUps, stageBottlenecks, assetDelays, zoneDelays, spareWaiting, qualityChecks] =
+  const [overview, followUps, stageBottlenecks, assetDelays, zoneDelays, spareWaiting, qualityChecks, impactSummary] =
     await Promise.all([
       getJson<Overview>('/api/overview'),
       getJson<FollowUpItem[]>(`/api/follow-ups${query}`),
@@ -201,9 +252,10 @@ export async function fetchDashboardData(filters: DashboardFilters = {}): Promis
       getJson<InfrastructureZoneDelay[]>('/api/zones/delays'),
       getJson<SpareWaiting[]>('/api/spares/waiting'),
       getJson<DataQualityCheck[]>('/api/data-quality/checks?status=FAILED&limit=8'),
+      getJson<ImpactSummary>('/api/impact/summary'),
     ])
 
-  return { overview, followUps, stageBottlenecks, assetDelays, zoneDelays, spareWaiting, qualityChecks }
+  return { overview, followUps, stageBottlenecks, assetDelays, zoneDelays, spareWaiting, qualityChecks, impactSummary }
 }
 
 export function fetchFilterMetadata(): Promise<FilterMetadata> {

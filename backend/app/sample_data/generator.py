@@ -33,6 +33,7 @@ def generate_sample_dataset(
     facility_work_orders: list[dict[str, Any]] = []
     validation_results: list[dict[str, Any]] = []
     telemetry_alerts: list[dict[str, Any]] = []
+    infrastructure_impact_snapshots: list[dict[str, Any]] = []
     scenario_summaries: list[dict[str, str]] = []
 
     for index, profile in enumerate(INFRASTRUCTURE_SCENARIO_PROFILES, start=1):
@@ -151,6 +152,20 @@ def generate_sample_dataset(
                 )
             )
 
+        infrastructure_impact_snapshots.append(
+            _infrastructure_source_record(
+                record_type="infrastructure_impact_snapshot",
+                record_id=f"IMPACT-{index:04d}",
+                payload=_impact_snapshot_payload(
+                    impact_snapshot_id=f"IMPACT-{index:04d}",
+                    incident_id=request_id,
+                    profile=profile,
+                    asset=asset,
+                    reported_at=reported_at,
+                ),
+            )
+        )
+
         scenario_summaries.append(
             {
                 "scenario_key": profile.scenario_key,
@@ -182,6 +197,7 @@ def generate_sample_dataset(
         "facility_work_orders": facility_work_orders,
         "validation_results": validation_results,
         "telemetry_alerts": telemetry_alerts,
+        "infrastructure_impact_snapshots": infrastructure_impact_snapshots,
     }
 
 
@@ -286,6 +302,20 @@ def _build_incident_stage_events(
             )
         )
 
+        for evidence_index, (evidence_type, reason_code) in enumerate(_impact_evidence_events_for_stage(profile, stage), start=1):
+            evidence_time = current_time + timedelta(minutes=5 * evidence_index)
+            events.append(
+                _infrastructure_stage_event_payload(
+                    incident_id=incident_id,
+                    sequence=len(events) + 1,
+                    stage=stage,
+                    event_type=evidence_type,
+                    event_status="ACTION_REQUIRED" if evidence_type in {"VENDOR_ETA_MISSED", "REDUNDANCY_LOST"} else "SUCCESS",
+                    occurred_at=evidence_time,
+                    reason_code=reason_code,
+                )
+            )
+
         if stage == "VALIDATION" and profile.validation_failed_once:
             failed_time = current_time + timedelta(hours=6)
             events.append(
@@ -331,6 +361,59 @@ def _build_incident_stage_events(
             )
         )
 
+    return events
+
+
+def _impact_snapshot_payload(
+    impact_snapshot_id: str,
+    incident_id: str,
+    profile: Any,
+    asset: dict[str, Any],
+    reported_at: datetime,
+) -> dict[str, Any]:
+    vendor_eta_at = (
+        reported_at + timedelta(hours=profile.vendor_eta_offset_hours)
+        if profile.vendor_eta_offset_hours is not None
+        else None
+    )
+    snapshot_at = reported_at + timedelta(hours=max(sum(profile.stage_durations_hours.values()), 1))
+    return {
+        "impact_snapshot_id": impact_snapshot_id,
+        "incident_id": incident_id,
+        "asset_id": profile.asset_id,
+        "zone_id": asset["zone_id"],
+        "snapshot_at": _iso(snapshot_at),
+        "redundancy_state": profile.redundancy_state,
+        "affected_rack_count": profile.affected_rack_count,
+        "affected_gpu_count": profile.affected_gpu_count,
+        "estimated_capacity_risk_kw": profile.estimated_capacity_risk_kw,
+        "estimated_gpu_capacity_risk_pct": profile.estimated_gpu_capacity_risk_pct,
+        "thermal_breach_minutes": profile.thermal_breach_minutes,
+        "power_redundancy_lost": profile.power_redundancy_lost,
+        "cooling_redundancy_lost": profile.cooling_redundancy_lost,
+        "mitigation_status": profile.mitigation_status,
+        "vendor_eta_at": _iso_or_none(vendor_eta_at),
+        "vendor_status": profile.vendor_status,
+        "source_system": INFRASTRUCTURE_SOURCE_SYSTEM,
+        "metadata_json": {"scenario_key": profile.scenario_key},
+        "telemetry_readings_json": list(profile.telemetry_readings),
+    }
+
+
+def _impact_evidence_events_for_stage(profile: Any, stage: str) -> list[tuple[str, str]]:
+    events: list[tuple[str, str]] = []
+    if stage == "FACILITIES_TRIAGE" and (profile.power_redundancy_lost or profile.cooling_redundancy_lost):
+        events.append(("REDUNDANCY_LOST", "IMPACT_CONTEXT_REDUNDANCY_LOST"))
+    if stage == "SPARE_VENDOR_WAITING" and profile.vendor_status == "WAITING_VENDOR_DISPATCH":
+        events.append(("VENDOR_ETA_UPDATED", "VENDOR_DISPATCH_PENDING"))
+    if stage == "SPARE_VENDOR_WAITING" and profile.vendor_status == "ETA_MISSED":
+        events.append(("VENDOR_ETA_MISSED", "VENDOR_ETA_MISSED"))
+    if stage in {"ENGINEER_ASSIGNED", "SPARE_VENDOR_WAITING", "VALIDATION"} and profile.mitigation_status == "LOAD_SHIFTED":
+        events.append(("LOAD_SHIFTED", "WORKLOAD_LOAD_SHIFTED"))
+    elif stage == "REPAIR_IN_PROGRESS" and profile.mitigation_status == "RUNNING_DEGRADED":
+        events.append(("MITIGATION_APPLIED", "RUNNING_DEGRADED"))
+    if stage == "RESTORED" and profile.mitigation_status == "VERIFIED_NORMAL":
+        events.append(("REDUNDANCY_RESTORED", "IMPACT_CONTEXT_VERIFIED_NORMAL"))
     return events
 
 

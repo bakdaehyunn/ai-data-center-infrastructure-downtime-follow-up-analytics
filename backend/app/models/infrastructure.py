@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, JSON, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, JSON, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -25,6 +25,7 @@ class InfrastructureZone(TimestampMixin, Base):
 
     assets: Mapped[list["InfrastructureAsset"]] = relationship(back_populates="infrastructure_zone")
     infrastructure_incidents: Mapped[list["InfrastructureIncident"]] = relationship(back_populates="infrastructure_zone")
+    impact_snapshots: Mapped[list["InfrastructureImpactSnapshot"]] = relationship(back_populates="infrastructure_zone")
 
 
 class InfrastructureAsset(TimestampMixin, Base):
@@ -49,6 +50,7 @@ class InfrastructureAsset(TimestampMixin, Base):
     infrastructure_zone: Mapped[InfrastructureZone] = relationship(back_populates="assets")
     infrastructure_incidents: Mapped[list["InfrastructureIncident"]] = relationship(back_populates="asset")
     telemetry_alerts: Mapped[list["TelemetryAlert"]] = relationship(back_populates="asset")
+    impact_snapshots: Mapped[list["InfrastructureImpactSnapshot"]] = relationship(back_populates="asset")
 
 
 class FacilitiesEngineer(TimestampMixin, Base):
@@ -120,6 +122,45 @@ class InfrastructureIncident(TimestampMixin, Base):
     work_orders: Mapped[list["FacilityWorkOrder"]] = relationship(back_populates="incident")
     validation_results: Mapped[list["ValidationResult"]] = relationship(back_populates="incident")
     telemetry_alerts: Mapped[list["TelemetryAlert"]] = relationship(back_populates="linked_incident")
+    impact_snapshots: Mapped[list["InfrastructureImpactSnapshot"]] = relationship(back_populates="incident")
+
+
+class InfrastructureImpactSnapshot(TimestampMixin, Base):
+    __tablename__ = "infrastructure_impact_snapshots"
+    __table_args__ = (
+        Index("ix_infrastructure_impact_incident_snapshot", "incident_id", "snapshot_at"),
+        Index("ix_infrastructure_impact_asset_snapshot", "asset_id", "snapshot_at"),
+        Index("ix_infrastructure_impact_redundancy", "redundancy_state"),
+        Index("ix_infrastructure_impact_vendor_status", "vendor_status"),
+        Index("ix_infrastructure_impact_mitigation", "mitigation_status"),
+    )
+
+    impact_snapshot_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    incident_id: Mapped[str] = mapped_column(
+        ForeignKey("infrastructure_incidents.incident_id"),
+        nullable=False,
+    )
+    asset_id: Mapped[str] = mapped_column(ForeignKey("infrastructure_assets.asset_id"), nullable=False)
+    zone_id: Mapped[str] = mapped_column(ForeignKey("infrastructure_zones.zone_id"), nullable=False)
+    snapshot_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    redundancy_state: Mapped[str] = mapped_column(String(40), nullable=False)
+    affected_rack_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    affected_gpu_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    estimated_capacity_risk_kw: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    estimated_gpu_capacity_risk_pct: Mapped[float] = mapped_column(Numeric(6, 2), nullable=False)
+    thermal_breach_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    power_redundancy_lost: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    cooling_redundancy_lost: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    mitigation_status: Mapped[str] = mapped_column(String(60), nullable=False)
+    vendor_eta_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    vendor_status: Mapped[str] = mapped_column(String(80), nullable=False)
+    source_system: Mapped[str] = mapped_column(String(80), nullable=False)
+    metadata_json: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
+    telemetry_readings_json: Mapped[Optional[list[dict[str, Any]]]] = mapped_column(JSON)
+
+    incident: Mapped[InfrastructureIncident] = relationship(back_populates="impact_snapshots")
+    asset: Mapped[InfrastructureAsset] = relationship(back_populates="impact_snapshots")
+    infrastructure_zone: Mapped[InfrastructureZone] = relationship(back_populates="impact_snapshots")
 
 
 class IncidentStageEvent(TimestampMixin, Base):

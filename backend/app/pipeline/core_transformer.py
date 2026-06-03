@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models.infrastructure import (
     InfrastructureAsset,
+    InfrastructureImpactSnapshot,
     ValidationResult,
     InfrastructureIncident,
     IncidentStageEvent,
@@ -41,6 +42,7 @@ class CoreTransformResult:
     facility_work_orders_loaded: int
     validation_results_loaded: int
     telemetry_alerts_loaded: int
+    infrastructure_impact_snapshots_loaded: int
     records_skipped: int
 
 
@@ -134,6 +136,17 @@ def transform_raw_to_core(session: Session, sample_dir: Path) -> CoreTransformRe
         session.merge(_telemetry_alert_from_payload(payload))
         telemetry_alerts_loaded += 1
 
+    infrastructure_impact_snapshots_loaded = 0
+    for payload in _load_optional_source_payloads(sample_dir, "infrastructure_impact_snapshots"):
+        if payload["incident_id"] not in valid_request_ids:
+            skipped += 1
+            continue
+        if payload["asset_id"] not in valid_asset_ids or payload["zone_id"] not in valid_zone_ids:
+            skipped += 1
+            continue
+        session.merge(_impact_snapshot_from_payload(payload))
+        infrastructure_impact_snapshots_loaded += 1
+
     session.flush()
     return CoreTransformResult(
         infrastructure_zones_loaded=infrastructure_zones_loaded,
@@ -145,6 +158,7 @@ def transform_raw_to_core(session: Session, sample_dir: Path) -> CoreTransformRe
         facility_work_orders_loaded=facility_work_orders_loaded,
         validation_results_loaded=validation_results_loaded,
         telemetry_alerts_loaded=telemetry_alerts_loaded,
+        infrastructure_impact_snapshots_loaded=infrastructure_impact_snapshots_loaded,
         records_skipped=skipped,
     )
 
@@ -160,6 +174,16 @@ def _load_master_records(sample_dir: Path) -> dict[str, list[dict[str, Any]]]:
             raise ValueError(f"Expected list records in {path}")
         records[name] = loaded
     return records
+
+
+def _load_optional_source_payloads(sample_dir: Path, name: str) -> list[dict[str, Any]]:
+    path = sample_dir / f"{name}.json"
+    if not path.exists():
+        return []
+    loaded = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(loaded, list):
+        raise ValueError(f"Expected list records in {path}")
+    return [record.get("payload", record) for record in loaded]
 
 
 def _merge_infrastructure_zones(session: Session, records: list[dict[str, Any]]) -> int:
@@ -299,6 +323,30 @@ def _telemetry_alert_from_payload(payload: dict[str, Any]) -> TelemetryAlert:
         resolved_at=_parse_optional_datetime(payload.get("resolved_at")),
         linked_incident_id=payload.get("linked_incident_id"),
         metadata_json=payload.get("metadata_json"),
+    )
+
+
+def _impact_snapshot_from_payload(payload: dict[str, Any]) -> InfrastructureImpactSnapshot:
+    return InfrastructureImpactSnapshot(
+        impact_snapshot_id=payload["impact_snapshot_id"],
+        incident_id=payload["incident_id"],
+        asset_id=payload["asset_id"],
+        zone_id=payload["zone_id"],
+        snapshot_at=_parse_datetime(payload["snapshot_at"]),
+        redundancy_state=payload["redundancy_state"],
+        affected_rack_count=int(payload["affected_rack_count"]),
+        affected_gpu_count=int(payload["affected_gpu_count"]),
+        estimated_capacity_risk_kw=float(payload["estimated_capacity_risk_kw"]),
+        estimated_gpu_capacity_risk_pct=float(payload["estimated_gpu_capacity_risk_pct"]),
+        thermal_breach_minutes=int(payload["thermal_breach_minutes"]),
+        power_redundancy_lost=bool(payload["power_redundancy_lost"]),
+        cooling_redundancy_lost=bool(payload["cooling_redundancy_lost"]),
+        mitigation_status=payload["mitigation_status"],
+        vendor_eta_at=_parse_optional_datetime(payload.get("vendor_eta_at")),
+        vendor_status=payload["vendor_status"],
+        source_system=payload["source_system"],
+        metadata_json=payload.get("metadata_json"),
+        telemetry_readings_json=payload.get("telemetry_readings_json"),
     )
 
 

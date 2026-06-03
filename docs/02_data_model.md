@@ -21,12 +21,13 @@ Raw tables keep source-shaped payloads for traceability and duplicate detection.
 - `facility_work_orders`: assigned facilities work and spare/vendor state
 - `validation_results`: return-to-service validation evidence
 - `telemetry_alerts`: linked monitoring evidence
+- `infrastructure_impact_snapshots`: latest-known rack, GPU, capacity, redundancy, thermal, vendor ETA, mitigation, and telemetry reading context for an incident
 
 ## Analytics Tables
 
 - `incident_current_status`: reconstructed current state and delay signal
 - `incident_stage_lead_times`: stage duration, threshold, and bottleneck signal
-- `downtime_follow_up_queue`: ranked actionable incidents and recommended actions
+- `downtime_follow_up_queue`: ranked actionable incidents, recommended actions, and score components for delay, spare/vendor risk, capacity risk, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit
 - `infrastructure_bottleneck_summary`: grouped stage delay by operational dimensions
 - `asset_delay_summary`: downtime concentration by infrastructure asset
 - `zone_delay_summary`: downtime concentration by data center zone
@@ -45,4 +46,5 @@ Raw tables keep source-shaped payloads for traceability and duplicate detection.
 - Work orders belong to an incident and may reference a facilities engineer and critical spare.
 - Validation results belong to an incident and indicate restore readiness.
 - Telemetry alerts belong to an asset and may link to an incident.
+- Impact snapshots belong to an incident, asset, and zone. The analytics builder uses the latest snapshot per incident when scoring active follow-up work.
 - Reconciliation issues are tied to a pipeline run and may link to an incident and asset.

@@ -19,6 +19,7 @@ from app.models.analytics import (
 )
 from app.models.infrastructure import (
     InfrastructureAsset,
+    InfrastructureImpactSnapshot,
     InfrastructureIncident,
     IncidentStageEvent,
     FacilityWorkOrder,
@@ -76,6 +77,7 @@ def build_analytics(
     work_orders = list(session.scalars(select(FacilityWorkOrder)))
     work_orders_by_request = _work_orders_by_request(work_orders)
     part_by_id = {part.spare_id: part for part in session.scalars(select(CriticalSpare))}
+    impact_by_request = _latest_impact_by_request(list(session.scalars(select(InfrastructureImpactSnapshot))))
 
     current_status_rows = _build_current_status_rows(
         requests=requests,
@@ -134,6 +136,7 @@ def build_analytics(
         lead_records=lead_records,
         work_orders_by_request=work_orders_by_request,
         part_by_id=part_by_id,
+        impact_by_request=impact_by_request,
         as_of=as_of_time,
     )
 
@@ -171,7 +174,14 @@ def _clear_analytics_tables(session: Session) -> None:
 
 
 def _default_as_of(events: list[IncidentStageEvent]) -> datetime:
-    return max(event.occurred_at for event in events) + timedelta(hours=24)
+    workflow_events = [
+        event
+        for event in events
+        if event.event_type == "ENTERED_STAGE"
+        or event.event_type == "INCIDENT_RESTORED"
+        or event.event_type in INFRASTRUCTURE_EXIT_EVENT_BY_STAGE.values()
+    ]
+    return max(event.occurred_at for event in workflow_events or events) + timedelta(hours=24)
 
 
 def _events_by_request(
@@ -464,6 +474,7 @@ def _build_downtime_follow_up_queue_rows(
     lead_records: list[LeadTimeRecord],
     work_orders_by_request: dict[str, list[FacilityWorkOrder]],
     part_by_id: dict[str, CriticalSpare],
+    impact_by_request: dict[str, InfrastructureImpactSnapshot],
     as_of: datetime,
 ) -> list[DowntimeFollowUpQueue]:
     current_by_request = {row.incident_id: row for row in current_status_rows}
@@ -490,6 +501,12 @@ def _build_downtime_follow_up_queue_rows(
         needed_by_urgency_score = _needed_by_urgency_score(request.needed_by_at, as_of)
         repeat_failure_score = min(max(repeat_failure_count_by_asset.get(request.asset_id, 1) - 1, 0) * 8, 16)
         spare_risk_score = _spare_risk_score(request, work_orders_by_request, part_by_id)
+        impact = impact_by_request.get(request.incident_id)
+        capacity_risk_score = _capacity_risk_score(impact)
+        redundancy_risk_score = _redundancy_risk_score(impact)
+        thermal_risk_score = _thermal_risk_score(impact)
+        vendor_eta_risk_score = _vendor_eta_risk_score(impact, as_of)
+        mitigation_credit_score = _mitigation_credit_score(impact)
         total = (
             asset_criticality_score
             + downtime_score
@@ -498,6 +515,11 @@ def _build_downtime_follow_up_queue_rows(
             + needed_by_urgency_score
             + repeat_failure_score
             + spare_risk_score
+            + capacity_risk_score
+            + redundancy_risk_score
+            + thermal_risk_score
+            + vendor_eta_risk_score
+            - mitigation_credit_score
         )
         scored_rows.append(
             (
@@ -515,9 +537,14 @@ def _build_downtime_follow_up_queue_rows(
                     needed_by_urgency_score=round(needed_by_urgency_score, 2),
                     repeat_failure_score=round(repeat_failure_score, 2),
                     spare_risk_score=round(spare_risk_score, 2),
+                    capacity_risk_score=round(capacity_risk_score, 2),
+                    redundancy_risk_score=round(redundancy_risk_score, 2),
+                    thermal_risk_score=round(thermal_risk_score, 2),
+                    vendor_eta_risk_score=round(vendor_eta_risk_score, 2),
+                    mitigation_credit_score=round(mitigation_credit_score, 2),
                     total_priority_score=round(total, 2),
-                    recommended_action=_recommended_action(request, work_orders_by_request, part_by_id),
-                    reason_summary=_reason_summary(request, current, asset, zone),
+                    recommended_action=_recommended_action(request, work_orders_by_request, part_by_id, impact),
+                    reason_summary=_reason_summary(request, current, asset, zone, impact),
                 ),
             )
         )
@@ -562,6 +589,17 @@ def _work_orders_by_request(
     for work_order in work_orders:
         grouped[work_order.incident_id].append(work_order)
     return grouped
+
+
+def _latest_impact_by_request(
+    snapshots: list[InfrastructureImpactSnapshot],
+) -> dict[str, InfrastructureImpactSnapshot]:
+    latest: dict[str, InfrastructureImpactSnapshot] = {}
+    for snapshot in snapshots:
+        current = latest.get(snapshot.incident_id)
+        if current is None or snapshot.snapshot_at > current.snapshot_at:
+            latest[snapshot.incident_id] = snapshot
+    return latest
 
 
 def _repeat_failure_count_by_asset(requests: list[InfrastructureIncident]) -> dict[str, int]:
@@ -668,11 +706,67 @@ def _spare_risk_score(
     return min(score, 22)
 
 
+def _capacity_risk_score(impact: InfrastructureImpactSnapshot | None) -> float:
+    if impact is None:
+        return 0
+    gpu_score = min(float(impact.affected_gpu_count) / 10, 24)
+    power_score = min(float(impact.estimated_capacity_risk_kw) / 100, 12)
+    return min(gpu_score + power_score, 30)
+
+
+def _redundancy_risk_score(impact: InfrastructureImpactSnapshot | None) -> float:
+    if impact is None:
+        return 0
+    if impact.redundancy_state == "N-1":
+        return 24
+    if impact.power_redundancy_lost or impact.cooling_redundancy_lost:
+        return 18
+    if impact.redundancy_state == "N":
+        return 12
+    return 0
+
+
+def _thermal_risk_score(impact: InfrastructureImpactSnapshot | None) -> float:
+    if impact is None:
+        return 0
+    return min(float(impact.thermal_breach_minutes) / 6, 18)
+
+
+def _vendor_eta_risk_score(impact: InfrastructureImpactSnapshot | None, as_of: datetime) -> float:
+    if impact is None:
+        return 0
+    if impact.vendor_status == "ETA_MISSED":
+        return 22
+    if impact.vendor_eta_at and impact.vendor_eta_at < as_of and impact.vendor_status != "NOT_REQUIRED":
+        return 18
+    if impact.vendor_status == "WAITING_VENDOR_DISPATCH":
+        return 14
+    if impact.vendor_status == "ETA_CONFIRMED":
+        return 6
+    return 0
+
+
+def _mitigation_credit_score(impact: InfrastructureImpactSnapshot | None) -> float:
+    if impact is None:
+        return 0
+    return {
+        "LOAD_SHIFTED": 8,
+        "RUNNING_DEGRADED": 4,
+        "VERIFIED_NORMAL": 2,
+        "NONE": 0,
+    }.get(impact.mitigation_status, 0)
+
+
 def _recommended_action(
     request: InfrastructureIncident,
     work_orders_by_request: dict[str, list[FacilityWorkOrder]],
     part_by_id: dict[str, CriticalSpare],
+    impact: InfrastructureImpactSnapshot | None = None,
 ) -> str:
+    if impact and impact.vendor_status == "ETA_MISSED":
+        return "Escalate missed vendor ETA and confirm recovery path"
+    if impact and (impact.power_redundancy_lost or impact.cooling_redundancy_lost or impact.redundancy_state == "N-1"):
+        return "Stabilize redundancy risk before capacity is exposed"
     if request.current_stage == "FACILITIES_TRIAGE":
         return "Escalate facilities triage"
     if request.current_stage == "ENGINEER_ASSIGNED":
@@ -695,13 +789,22 @@ def _reason_summary(
     current: IncidentCurrentStatus,
     asset: InfrastructureAsset,
     zone: InfrastructureZone,
+    impact: InfrastructureImpactSnapshot | None = None,
 ) -> str:
+    impact_summary = ""
+    if impact and (impact.affected_gpu_count or impact.estimated_capacity_risk_kw):
+        impact_summary = (
+            f" Impact context shows {impact.affected_gpu_count} affected GPUs and "
+            f"{float(impact.estimated_capacity_risk_kw):.0f} kW at risk."
+        )
     if current.is_delayed:
         return (
             f"{asset.criticality_level} asset in {zone.zone_name} is delayed in "
             f"{request.current_stage} for {float(current.hours_in_current_stage):.1f} hours."
+            f"{impact_summary}"
         )
     return (
         f"{asset.criticality_level} infrastructure incident is in {request.current_stage} "
         f"and needed by {request.needed_by_at.isoformat()}."
+        f"{impact_summary}"
     )

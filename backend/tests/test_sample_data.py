@@ -72,6 +72,31 @@ def test_critical_downtime_follow_up_requests_are_open() -> None:
     assert engineer_delay["current_stage"] == "ENGINEER_ASSIGNED"
 
 
+def test_sample_dataset_contains_ai_infrastructure_impact_context() -> None:
+    dataset = generate_sample_dataset()
+    impacts_by_incident = {
+        record["payload"]["incident_id"]: record["payload"]
+        for record in dataset["infrastructure_impact_snapshots"]
+    }
+    evidence_event_types = {
+        record["payload"]["event_type"]
+        for record in dataset["incident_stage_events"]
+    }
+
+    assert len(impacts_by_incident) == 10
+    assert impacts_by_incident["INC-0007"]["redundancy_state"] == "N-1"
+    assert impacts_by_incident["INC-0007"]["vendor_status"] == "ETA_MISSED"
+    assert impacts_by_incident["INC-0007"]["affected_gpu_count"] == 320
+    assert impacts_by_incident["INC-0004"]["mitigation_status"] == "LOAD_SHIFTED"
+    assert {
+        "REDUNDANCY_LOST",
+        "VENDOR_ETA_MISSED",
+        "VENDOR_ETA_UPDATED",
+        "LOAD_SHIFTED",
+        "MITIGATION_APPLIED",
+    }.issubset(evidence_event_types)
+
+
 def test_write_sample_dataset_creates_expected_files(tmp_path) -> None:
     dataset = generate_sample_dataset()
     written = write_sample_dataset(dataset, tmp_path)
@@ -87,5 +112,6 @@ def test_write_sample_dataset_creates_expected_files(tmp_path) -> None:
         "facility_work_orders.json",
         "validation_results.json",
         "telemetry_alerts.json",
+        "infrastructure_impact_snapshots.json",
     }
     assert json.loads((tmp_path / "manifest.json").read_text())["source_system"] == "sample_ai_data_center_infrastructure_system"

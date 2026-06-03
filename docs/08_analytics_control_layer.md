@@ -21,6 +21,7 @@ Downtime follow-up may depend on:
 - critical spare and vendor status
 - validation results
 - telemetry alerts
+- impact snapshots for capacity, redundancy, vendor ETA, mitigation, and telemetry readings
 - infrastructure asset master data
 - data center zone context
 
@@ -39,6 +40,7 @@ Canonical means the product's standard internal format. The current core model u
 - `facility_work_orders`
 - `validation_results`
 - `telemetry_alerts`
+- `infrastructure_impact_snapshots`
 
 This keeps analytics independent from source-specific message formats.
 
@@ -52,6 +54,7 @@ Implementation examples:
 - `_build_lead_time_records()` treats `ENTERED_STAGE` as the stage start.
 - `_find_stage_exit_time()` searches for the configured stage exit event or `INCIDENT_RESTORED`.
 - Open stages use `as_of_time` as the temporary exit time.
+- The default `as_of_time` is calculated from workflow transition events only, so evidence events such as `REDUNDANCY_LOST`, `LOAD_SHIFTED`, or `VENDOR_ETA_MISSED` do not accidentally lengthen stage durations.
 
 The lead-time rule is:
 
@@ -74,7 +77,23 @@ Current stage output is materialized into `incident_current_status`. Stage durat
 - `zone_delay_summary`
 - `spare_waiting_summary`
 
-The follow-up queue excludes `RESTORED` incidents and scores active incidents using asset criticality, estimated downtime, current stage delay, zone impact, needed-by urgency, repeat failure, and spare risk.
+The follow-up queue excludes `RESTORED` incidents and scores active incidents using asset criticality, estimated downtime, current stage delay, zone impact, needed-by urgency, repeat failure, spare risk, capacity risk, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit.
+
+V1.1 impact context uses the latest `infrastructure_impact_snapshots` row per incident and materializes these score components into `downtime_follow_up_queue`:
+
+- `capacity_risk_score`
+- `redundancy_risk_score`
+- `thermal_risk_score`
+- `vendor_eta_risk_score`
+- `mitigation_credit_score`
+
+The mitigation score is a credit. It reduces final priority when evidence shows load shifting, degraded operation, or verified normal state has reduced immediate exposure.
+
+Concrete examples in the deterministic sample data:
+
+- `INC-0007` has `N-1` redundancy, 320 affected GPUs, 900 kW at risk, and `ETA_MISSED`, so it ranks first with a missed-vendor-ETA action.
+- `INC-0004` has cooling redundancy loss, 256 affected GPUs, 620 kW at risk, thermal breach evidence, and `LOAD_SHIFTED`, so the queue still ranks it high while recording a mitigation credit.
+- `INC-0006` has thermal validation risk and load-shift mitigation, so its drilldown separates validation delay from impact context.
 
 ## Data Quality
 
@@ -94,6 +113,8 @@ Core checks validate normalized records:
 - spare/vendor waiting without required spare
 - validation without completed work
 - telemetry alert without known asset
+
+Impact snapshots are loaded after incident, asset, and zone references exist. Snapshots with unknown references are skipped before analytics output is materialized.
 
 ## Reconciliation
 
@@ -120,6 +141,8 @@ Examples from the seeded data:
 
 Drilldown quality flags combine latest-run failed data quality checks and latest-run open reconciliation issues.
 
+Drilldown also exposes the latest impact snapshot and its telemetry readings. This makes the follow-up row explain both the workflow blocker and the operational exposure attached to that blocker.
+
 `routes._quality_flags_for_request()` translates issue types into operator-facing labels such as:
 
 - `Spare or vendor evidence mismatch`
@@ -129,4 +152,4 @@ Drilldown quality flags combine latest-run failed data quality checks and latest
 
 ## Trust Boundary
 
-The analytics output should be treated as trusted only after raw checks, core checks, analytics build, and reconciliation checks have run for the same pipeline run.
+The analytics output should be treated as trusted only after raw checks, core checks, impact snapshot loading, analytics build, and reconciliation checks have run for the same pipeline run.

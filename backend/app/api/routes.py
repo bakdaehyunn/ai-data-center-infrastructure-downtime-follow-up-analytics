@@ -19,6 +19,7 @@ from app.models.analytics import (
 )
 from app.models.infrastructure import (
     InfrastructureAsset,
+    InfrastructureImpactSnapshot,
     ValidationResult,
     InfrastructureIncident,
     IncidentStageEvent,
@@ -33,6 +34,9 @@ from app.schemas.analytics import (
     FilterMetadataResponse,
     FilterOption,
     FollowUpItemResponse,
+    ImpactSummaryResponse,
+    InfrastructureImpactSnapshotResponse,
+    ImpactTelemetryReadingResponse,
     ValidationResponse,
     OverviewResponse,
     SpareWaitingResponse,
@@ -67,6 +71,12 @@ def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
     requests = list(db.scalars(select(InfrastructureIncident)))
     current_statuses = list(db.scalars(select(IncidentCurrentStatus)))
     asset_by_id = {asset.asset_id: asset for asset in db.scalars(select(InfrastructureAsset))}
+    latest_impact_by_incident = _latest_impact_by_incident(db)
+    active_incident_ids = {request.incident_id for request in requests if request.current_status != "RESTORED"}
+    active_impacts = [
+        impact for incident_id, impact in latest_impact_by_incident.items()
+        if incident_id in active_incident_ids
+    ]
     latest_run = _latest_pipeline_run(db)
     failed_quality_count = _failed_quality_count(db, latest_run.pipeline_run_id if latest_run else None)
     top_bottleneck = db.scalar(
@@ -109,6 +119,14 @@ def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
         spare_waiting_delay_hours=round(float(spare_waiting_delay), 2),
         repeat_failure_asset_count=int(repeat_failure_asset_count),
         engineer_assignment_delay_hours=round(float(engineer_assignment_delay), 2),
+        capacity_risk_kw=round(sum(float(impact.estimated_capacity_risk_kw) for impact in active_impacts), 2),
+        affected_gpu_count=sum(impact.affected_gpu_count for impact in active_impacts),
+        redundancy_lost_incidents=sum(
+            1
+            for impact in active_impacts
+            if impact.power_redundancy_lost or impact.cooling_redundancy_lost or impact.redundancy_state == "N-1"
+        ),
+        vendor_eta_missed_count=sum(1 for impact in active_impacts if impact.vendor_status == "ETA_MISSED"),
         latest_pipeline_run_status=latest_run.status if latest_run else None,
         data_quality_status="FAILED" if failed_quality_count else "PASS",
     )
@@ -182,6 +200,7 @@ def get_follow_up_detail(
         .where(ValidationResult.incident_id == incident_id)
         .order_by(ValidationResult.validation_id)
     ).all()
+    impact_snapshot = _latest_impact_for_incident(db, incident_id)
 
     return RequestDetailResponse(
         request=_follow_up_response(
@@ -196,7 +215,35 @@ def get_follow_up_detail(
         work_orders=[_work_order_response(db, work_order) for work_order in work_orders],
         validation_results=[_validation_response(validation) for validation in validations],
         telemetry_alerts=[_telemetry_alert_response(alert) for alert in request.telemetry_alerts],
+        impact_snapshot=_impact_snapshot_response(impact_snapshot) if impact_snapshot else None,
         quality_flags=_quality_flags_for_request(db, incident_id),
+    )
+
+
+@router.get("/impact/summary", response_model=ImpactSummaryResponse)
+def get_impact_summary(db: Session = Depends(get_db)) -> ImpactSummaryResponse:
+    requests = {
+        request.incident_id: request
+        for request in db.scalars(select(InfrastructureIncident))
+    }
+    impacts = [
+        impact
+        for incident_id, impact in _latest_impact_by_incident(db).items()
+        if requests.get(incident_id) and requests[incident_id].current_status != "RESTORED"
+    ]
+    return ImpactSummaryResponse(
+        incident_count=len(impacts),
+        capacity_risk_kw=round(sum(float(impact.estimated_capacity_risk_kw) for impact in impacts), 2),
+        affected_rack_count=sum(impact.affected_rack_count for impact in impacts),
+        affected_gpu_count=sum(impact.affected_gpu_count for impact in impacts),
+        redundancy_lost_incidents=sum(
+            1
+            for impact in impacts
+            if impact.power_redundancy_lost or impact.cooling_redundancy_lost or impact.redundancy_state == "N-1"
+        ),
+        vendor_eta_missed_count=sum(1 for impact in impacts if impact.vendor_status == "ETA_MISSED"),
+        mitigated_incidents=sum(1 for impact in impacts if impact.mitigation_status != "NONE"),
+        thermal_breach_minutes=sum(impact.thermal_breach_minutes for impact in impacts),
     )
 
 
@@ -352,6 +399,7 @@ def _follow_up_response(
     line: InfrastructureZone,
     current: IncidentCurrentStatus,
 ) -> FollowUpItemResponse:
+    impact = _latest_impact_from_request(request)
     return FollowUpItemResponse(
         priority_rank=queue.priority_rank,
         incident_id=request.incident_id,
@@ -374,9 +422,19 @@ def _follow_up_response(
         needed_by_urgency_score=float(queue.needed_by_urgency_score),
         repeat_failure_score=float(queue.repeat_failure_score),
         spare_risk_score=float(queue.spare_risk_score),
+        capacity_risk_score=float(queue.capacity_risk_score),
+        redundancy_risk_score=float(queue.redundancy_risk_score),
+        thermal_risk_score=float(queue.thermal_risk_score),
+        vendor_eta_risk_score=float(queue.vendor_eta_risk_score),
+        mitigation_credit_score=float(queue.mitigation_credit_score),
         total_priority_score=float(queue.total_priority_score),
         recommended_action=queue.recommended_action,
         reason_summary=queue.reason_summary,
+        redundancy_state=impact.redundancy_state if impact else None,
+        affected_gpu_count=impact.affected_gpu_count if impact else 0,
+        estimated_capacity_risk_kw=float(impact.estimated_capacity_risk_kw) if impact else 0,
+        mitigation_status=impact.mitigation_status if impact else None,
+        vendor_status=impact.vendor_status if impact else None,
     )
 
 
@@ -394,6 +452,11 @@ def _empty_queue_row(request: InfrastructureIncident, current: IncidentCurrentSt
         needed_by_urgency_score=0,
         repeat_failure_score=0,
         spare_risk_score=0,
+        capacity_risk_score=0,
+        redundancy_risk_score=0,
+        thermal_risk_score=0,
+        vendor_eta_risk_score=0,
+        mitigation_credit_score=0,
         total_priority_score=0,
         recommended_action="No follow-up required" if request.current_status == "RESTORED" else "Review infrastructure incident status",
         reason_summary=f"Incident is {request.current_status} in {current.current_stage}.",
@@ -461,6 +524,73 @@ def _telemetry_alert_response(alert) -> TelemetryAlertResponse:
         severity=alert.severity,
         triggered_at=alert.triggered_at,
         resolved_at=alert.resolved_at,
+    )
+
+
+def _latest_impact_by_incident(db: Session) -> dict[str, InfrastructureImpactSnapshot]:
+    impacts = db.scalars(
+        select(InfrastructureImpactSnapshot).order_by(
+            InfrastructureImpactSnapshot.incident_id,
+            desc(InfrastructureImpactSnapshot.snapshot_at),
+            InfrastructureImpactSnapshot.impact_snapshot_id,
+        )
+    ).all()
+    latest: dict[str, InfrastructureImpactSnapshot] = {}
+    for impact in impacts:
+        latest.setdefault(impact.incident_id, impact)
+    return latest
+
+
+def _latest_impact_for_incident(db: Session, incident_id: str) -> InfrastructureImpactSnapshot | None:
+    return db.scalar(
+        select(InfrastructureImpactSnapshot)
+        .where(InfrastructureImpactSnapshot.incident_id == incident_id)
+        .order_by(desc(InfrastructureImpactSnapshot.snapshot_at), InfrastructureImpactSnapshot.impact_snapshot_id)
+        .limit(1)
+    )
+
+
+def _latest_impact_from_request(request: InfrastructureIncident) -> InfrastructureImpactSnapshot | None:
+    if not request.impact_snapshots:
+        return None
+    return sorted(
+        request.impact_snapshots,
+        key=lambda impact: (impact.snapshot_at, impact.impact_snapshot_id),
+        reverse=True,
+    )[0]
+
+
+def _impact_snapshot_response(
+    impact: InfrastructureImpactSnapshot,
+) -> InfrastructureImpactSnapshotResponse:
+    readings = impact.telemetry_readings_json or []
+    return InfrastructureImpactSnapshotResponse(
+        impact_snapshot_id=impact.impact_snapshot_id,
+        incident_id=impact.incident_id,
+        asset_id=impact.asset_id,
+        zone_id=impact.zone_id,
+        snapshot_at=impact.snapshot_at,
+        redundancy_state=impact.redundancy_state,
+        affected_rack_count=impact.affected_rack_count,
+        affected_gpu_count=impact.affected_gpu_count,
+        estimated_capacity_risk_kw=float(impact.estimated_capacity_risk_kw),
+        estimated_gpu_capacity_risk_pct=float(impact.estimated_gpu_capacity_risk_pct),
+        thermal_breach_minutes=impact.thermal_breach_minutes,
+        power_redundancy_lost=impact.power_redundancy_lost,
+        cooling_redundancy_lost=impact.cooling_redundancy_lost,
+        mitigation_status=impact.mitigation_status,
+        vendor_eta_at=impact.vendor_eta_at,
+        vendor_status=impact.vendor_status,
+        source_system=impact.source_system,
+        telemetry_readings=[
+            ImpactTelemetryReadingResponse(
+                metric=str(reading.get("metric")),
+                value=float(reading.get("value", 0)),
+                unit=str(reading.get("unit")),
+                status=str(reading.get("status")),
+            )
+            for reading in readings
+        ],
     )
 
 

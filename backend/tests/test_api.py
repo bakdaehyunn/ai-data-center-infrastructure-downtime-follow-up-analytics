@@ -52,6 +52,10 @@ def test_overview_endpoint_returns_downtime_follow_up_summary(api_client: TestCl
     assert data["critical_asset_delayed"] == 3
     assert data["top_bottleneck_stage"] == "ENGINEER_ASSIGNED"
     assert data["repeat_failure_asset_count"] == 1
+    assert data["capacity_risk_kw"] == 2820.0
+    assert data["affected_gpu_count"] == 1024
+    assert data["redundancy_lost_incidents"] == 5
+    assert data["vendor_eta_missed_count"] == 1
     assert data["latest_pipeline_run_status"] == "PARTIAL_SUCCESS"
     assert data["data_quality_status"] == "FAILED"
 
@@ -64,8 +68,11 @@ def test_follow_ups_endpoint_returns_ranked_queue(api_client: TestClient) -> Non
     assert [row["incident_id"] for row in data] == ["INC-0007", "INC-0004", "INC-0006"]
     assert data[0]["priority_rank"] == 1
     assert data[0]["current_stage"] == "SPARE_VENDOR_WAITING"
-    assert data[0]["recommended_action"] == "Expedite critical spare or vendor dispatch"
-    assert data[0]["total_priority_score"] == 150.0
+    assert data[0]["recommended_action"] == "Escalate missed vendor ETA and confirm recovery path"
+    assert data[0]["total_priority_score"] == 222.0
+    assert data[0]["redundancy_state"] == "N-1"
+    assert data[0]["affected_gpu_count"] == 320
+    assert data[0]["vendor_status"] == "ETA_MISSED"
 
 
 def test_follow_ups_endpoint_filters_queue(api_client: TestClient) -> None:
@@ -90,7 +97,9 @@ def test_follow_up_detail_returns_state_timeline_and_related_records(api_client:
     assert data["request"]["incident_id"] == "INC-0004"
     assert data["request"]["priority_rank"] == 2
     assert data["request"]["current_stage"] == "SPARE_VENDOR_WAITING"
-    assert data["request"]["recommended_action"] == "Expedite critical spare or vendor dispatch"
+    assert data["request"]["recommended_action"] == "Stabilize redundancy risk before capacity is exposed"
+    assert data["request"]["mitigation_status"] == "LOAD_SHIFTED"
+    assert data["request"]["vendor_status"] == "WAITING_VENDOR_DISPATCH"
     assert [stage["stage"] for stage in data["stage_lead_times"]] == [
         "INCIDENT_REPORTED",
         "FACILITIES_TRIAGE",
@@ -101,6 +110,10 @@ def test_follow_up_detail_returns_state_timeline_and_related_records(api_client:
     assert data["work_orders"][0]["required_spare_id"] == "SPARE-CHILLER-COMPRESSOR"
     assert data["work_orders"][0]["stock_status"] == "OUT_OF_STOCK"
     assert data["telemetry_alerts"][0]["alert_type"] == "CHILLED_WATER_TEMP_HIGH"
+    assert data["impact_snapshot"]["affected_gpu_count"] == 256
+    assert data["impact_snapshot"]["estimated_capacity_risk_kw"] == 620.0
+    assert data["impact_snapshot"]["cooling_redundancy_lost"] is True
+    assert data["impact_snapshot"]["telemetry_readings"][0]["metric"] == "supply_water_temp_c"
     assert any(
         flag == "Spare or vendor evidence mismatch: A work order is waiting on a spare or vendor, but no required spare is linked."
         for flag in data["quality_flags"]
@@ -115,7 +128,8 @@ def test_follow_up_detail_handles_completed_non_queued_request(api_client: TestC
     assert data["request"]["priority_rank"] == 0
     assert data["request"]["current_status"] == "RESTORED"
     assert data["request"]["recommended_action"] == "No follow-up required"
-    assert len(data["timeline"]) == 14
+    assert len(data["timeline"]) == 15
+    assert data["impact_snapshot"]["mitigation_status"] == "VERIFIED_NORMAL"
     assert data["quality_flags"] == []
 
 
@@ -132,11 +146,13 @@ def test_downtime_and_impact_endpoints_return_analytics(api_client: TestClient) 
     equipment_response = api_client.get("/api/assets/delays")
     lines_response = api_client.get("/api/zones/delays")
     parts_response = api_client.get("/api/spares/waiting")
+    impact_response = api_client.get("/api/impact/summary")
 
     assert stages_response.status_code == 200
     assert equipment_response.status_code == 200
     assert lines_response.status_code == 200
     assert parts_response.status_code == 200
+    assert impact_response.status_code == 200
 
     stages = stages_response.json()
     assert stages[0]["stage"] == "ENGINEER_ASSIGNED"
@@ -144,6 +160,16 @@ def test_downtime_and_impact_endpoints_return_analytics(api_client: TestClient) 
     assert equipment_response.json()[0]["asset_id"] == "ASSET-UPS-01"
     assert lines_response.json()[0]["zone_id"] == "ZONE-POWER-A"
     assert parts_response.json()[0]["spare_id"] == "SPARE-CHILLER-COMPRESSOR"
+    assert impact_response.json() == {
+        "incident_count": 7,
+        "capacity_risk_kw": 2820.0,
+        "affected_rack_count": 128,
+        "affected_gpu_count": 1024,
+        "redundancy_lost_incidents": 5,
+        "vendor_eta_missed_count": 1,
+        "mitigated_incidents": 6,
+        "thermal_breach_minutes": 219,
+    }
 
 
 def test_data_quality_endpoints_expose_failed_checks(api_client: TestClient) -> None:

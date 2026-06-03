@@ -15,6 +15,7 @@ from app.models.analytics import (
 )
 from app.models.infrastructure import (
     InfrastructureAsset,
+    InfrastructureImpactSnapshot,
     ValidationResult,
     InfrastructureIncident,
     IncidentStageEvent,
@@ -61,11 +62,11 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         result = run_ingestion_pipeline(session=session, sample_dir=sample_dir)
 
         assert result.status == "PARTIAL_SUCCESS"
-        assert result.rows_extracted == 125
-        assert result.rows_loaded == 124
+        assert result.rows_extracted == 142
+        assert result.rows_loaded == 141
         assert result.rows_rejected == 1
         assert result.quality_failed_checks == 6
-        assert result.core_records_loaded == 153
+        assert result.core_records_loaded == 180
         assert result.core_records_skipped == 1
         assert result.analytics_records_loaded == 348
         assert result.reconciliation_issues_created == 5
@@ -74,7 +75,7 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert pipeline_run is not None
         assert pipeline_run.pipeline_name == PIPELINE_NAME
         assert _count(session, RawInfrastructureIncident) == 12
-        assert _count(session, RawIncidentStageEvent) == 91
+        assert _count(session, RawIncidentStageEvent) == 108
         assert _count(session, RawFacilityWorkOrder) == 10
         assert _count(session, RawValidationResult) == 5
         assert _count(session, RawTelemetryAlert) == 6
@@ -83,10 +84,11 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert _count(session, FacilitiesEngineer) == 7
         assert _count(session, CriticalSpare) == 9
         assert _count(session, InfrastructureIncident) == 11
-        assert _count(session, IncidentStageEvent) == 91
+        assert _count(session, IncidentStageEvent) == 108
         assert _count(session, FacilityWorkOrder) == 10
         assert _count(session, ValidationResult) == 5
         assert _count(session, TelemetryAlert) == 6
+        assert _count(session, InfrastructureImpactSnapshot) == 10
         assert _count(session, IncidentCurrentStatus) == 10
         assert _count(session, IncidentStageLeadTime) == 48
         assert _count(session, DowntimeFollowUpQueue) == 7
@@ -182,8 +184,11 @@ def test_analytics_ranks_downtime_follow_up_queue(tmp_path: Path) -> None:
 
         assert top_request_ids == ["INC-0007", "INC-0004", "INC-0006"]
         assert top_requests[0].current_stage == "SPARE_VENDOR_WAITING"
-        assert top_requests[0].recommended_action == "Expedite critical spare or vendor dispatch"
-        assert float(top_requests[0].total_priority_score) == 150.0
+        assert top_requests[0].recommended_action == "Escalate missed vendor ETA and confirm recovery path"
+        assert float(top_requests[0].total_priority_score) == 222.0
+        assert float(top_requests[0].capacity_risk_score) == 30.0
+        assert float(top_requests[0].redundancy_risk_score) == 24.0
+        assert float(top_requests[0].vendor_eta_risk_score) == 22.0
 
 
 def test_pipeline_idempotently_rejects_duplicate_raw_records(tmp_path: Path) -> None:
@@ -194,12 +199,13 @@ def test_pipeline_idempotently_rejects_duplicate_raw_records(tmp_path: Path) -> 
         first = run_ingestion_pipeline(session=session, sample_dir=sample_dir)
         second = run_ingestion_pipeline(session=session, sample_dir=sample_dir)
 
-        assert first.rows_loaded == 124
+        assert first.rows_loaded == 141
         assert second.rows_loaded == 0
-        assert second.rows_rejected == 125
+        assert second.rows_rejected == 142
         assert _count(session, RawInfrastructureIncident) == 12
         assert _count(session, InfrastructureIncident) == 11
-        assert _count(session, IncidentStageEvent) == 91
+        assert _count(session, IncidentStageEvent) == 108
+        assert _count(session, InfrastructureImpactSnapshot) == 10
         assert _count(session, DowntimeFollowUpQueue) == 7
 
 

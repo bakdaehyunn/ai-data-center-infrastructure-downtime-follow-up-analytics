@@ -10,15 +10,16 @@ It answers:
 
 ## Operating Need
 
-AI data center downtime evidence is scattered across incident records, workflow events, facility work orders, critical spares, vendor waits, validation records, telemetry alerts, infrastructure assets, and facility zones.
+AI data center downtime evidence is scattered across incident records, workflow events, facility work orders, critical spares, vendor waits, validation records, telemetry alerts, impact snapshots, infrastructure assets, and facility zones.
 
-The product turns that scattered evidence into a trusted follow-up view. It does not replace the systems of record. It helps operators decide which open incident needs attention first and why.
+The product turns that scattered evidence into a trusted follow-up view. It does not replace the systems of record. It helps operators decide which open incident needs attention first, why it matters, and whether GPU capacity, power/cooling redundancy, vendor ETA, or mitigation status changes the follow-up priority.
 
 ## Users
 
 - Facilities supervisors who need to unblock triage, assignment, repair, and validation
 - Reliability engineers who need repeat failure and asset impact signals
 - Operations leads who need zone-level return-to-service risk
+- Capacity and infrastructure operations leads who need affected rack, GPU, redundancy, and thermal exposure signals
 - Data/platform engineers who need traceable analytics outputs from messy operational records
 
 ## In Scope
@@ -28,6 +29,7 @@ The product turns that scattered evidence into a trusted follow-up view. It does
 - Stage lead time and threshold-based delay
 - Bottleneck summaries by stage, asset, zone, team, failure mode, priority, and spare category
 - Spare/vendor waiting risk
+- Impact context for affected racks, affected GPUs, capacity-at-risk, redundancy state, thermal breach, vendor ETA, and mitigation status
 - Data quality checks and reconciliation issues
 - Read-only API and dashboard
 

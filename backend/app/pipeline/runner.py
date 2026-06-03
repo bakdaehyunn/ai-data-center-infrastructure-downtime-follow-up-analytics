@@ -144,6 +144,7 @@ def _core_records_loaded(core_result) -> int:
         + core_result.facility_work_orders_loaded
         + core_result.validation_results_loaded
         + core_result.telemetry_alerts_loaded
+        + core_result.infrastructure_impact_snapshots_loaded
     )
 
 

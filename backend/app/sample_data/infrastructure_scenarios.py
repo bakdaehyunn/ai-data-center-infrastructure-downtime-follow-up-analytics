@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 
 INFRASTRUCTURE_SOURCE_SYSTEM = "sample_ai_data_center_infrastructure_system"
@@ -55,6 +56,18 @@ class InfrastructureScenarioProfile:
     stop_stage: str | None = None
     validation_failed_once: bool = False
     telemetry_alert_type: str | None = None
+    redundancy_state: str = "N+1"
+    affected_rack_count: int = 0
+    affected_gpu_count: int = 0
+    estimated_capacity_risk_kw: int = 0
+    estimated_gpu_capacity_risk_pct: float = 0
+    thermal_breach_minutes: int = 0
+    power_redundancy_lost: bool = False
+    cooling_redundancy_lost: bool = False
+    mitigation_status: str = "NONE"
+    vendor_eta_offset_hours: int | None = None
+    vendor_status: str = "NOT_REQUIRED"
+    telemetry_readings: tuple[dict[str, Any], ...] = ()
 
 
 INFRASTRUCTURE_SCENARIO_PROFILES = [
@@ -78,6 +91,7 @@ INFRASTRUCTURE_SCENARIO_PROFILES = [
             "REPAIR_IN_PROGRESS": 5,
             "VALIDATION": 2,
         },
+        mitigation_status="VERIFIED_NORMAL",
     ),
     InfrastructureScenarioProfile(
         scenario_key="ups_module_triage_delay",
@@ -97,6 +111,17 @@ INFRASTRUCTURE_SCENARIO_PROFILES = [
         },
         stop_stage="FACILITIES_TRIAGE",
         telemetry_alert_type="UPS_BYPASS_ALARM",
+        redundancy_state="N",
+        affected_rack_count=18,
+        affected_gpu_count=144,
+        estimated_capacity_risk_kw=450,
+        estimated_gpu_capacity_risk_pct=18.0,
+        power_redundancy_lost=True,
+        mitigation_status="NONE",
+        telemetry_readings=(
+            {"metric": "ups_load_pct", "value": 83.0, "unit": "percent", "status": "WARNING"},
+            {"metric": "battery_runtime_minutes", "value": 11.0, "unit": "minutes", "status": "WARNING"},
+        ),
     ),
     InfrastructureScenarioProfile(
         scenario_key="pdu_breaker_assignment_delay",
@@ -117,6 +142,17 @@ INFRASTRUCTURE_SCENARIO_PROFILES = [
         },
         stop_stage="ENGINEER_ASSIGNED",
         telemetry_alert_type="BRANCH_CIRCUIT_TRIP",
+        redundancy_state="N",
+        affected_rack_count=6,
+        affected_gpu_count=48,
+        estimated_capacity_risk_kw=160,
+        estimated_gpu_capacity_risk_pct=6.0,
+        power_redundancy_lost=True,
+        mitigation_status="RUNNING_DEGRADED",
+        telemetry_readings=(
+            {"metric": "branch_current_amps", "value": 0.0, "unit": "amps", "status": "CRITICAL"},
+            {"metric": "rack_power_available_pct", "value": 72.0, "unit": "percent", "status": "WARNING"},
+        ),
     ),
     InfrastructureScenarioProfile(
         scenario_key="chiller_spare_waiting_delay",
@@ -138,6 +174,20 @@ INFRASTRUCTURE_SCENARIO_PROFILES = [
         },
         stop_stage="SPARE_VENDOR_WAITING",
         telemetry_alert_type="CHILLED_WATER_TEMP_HIGH",
+        redundancy_state="N",
+        affected_rack_count=32,
+        affected_gpu_count=256,
+        estimated_capacity_risk_kw=620,
+        estimated_gpu_capacity_risk_pct=32.0,
+        thermal_breach_minutes=75,
+        cooling_redundancy_lost=True,
+        mitigation_status="LOAD_SHIFTED",
+        vendor_eta_offset_hours=34,
+        vendor_status="WAITING_VENDOR_DISPATCH",
+        telemetry_readings=(
+            {"metric": "supply_water_temp_c", "value": 18.7, "unit": "celsius", "status": "CRITICAL"},
+            {"metric": "gpu_hall_return_temp_c", "value": 31.4, "unit": "celsius", "status": "CRITICAL"},
+        ),
     ),
     InfrastructureScenarioProfile(
         scenario_key="cdu_repair_in_progress_delay",
@@ -159,6 +209,17 @@ INFRASTRUCTURE_SCENARIO_PROFILES = [
             "REPAIR_IN_PROGRESS": 72,
         },
         stop_stage="REPAIR_IN_PROGRESS",
+        redundancy_state="N",
+        affected_rack_count=10,
+        affected_gpu_count=80,
+        estimated_capacity_risk_kw=210,
+        estimated_gpu_capacity_risk_pct=10.0,
+        cooling_redundancy_lost=True,
+        mitigation_status="RUNNING_DEGRADED",
+        telemetry_readings=(
+            {"metric": "coolant_flow_lpm", "value": 52.0, "unit": "lpm", "status": "WARNING"},
+            {"metric": "loop_delta_t_c", "value": 8.8, "unit": "celsius", "status": "WARNING"},
+        ),
     ),
     InfrastructureScenarioProfile(
         scenario_key="thermal_validation_delay",
@@ -182,6 +243,17 @@ INFRASTRUCTURE_SCENARIO_PROFILES = [
         },
         stop_stage="VALIDATION",
         validation_failed_once=True,
+        redundancy_state="N+1",
+        affected_rack_count=14,
+        affected_gpu_count=112,
+        estimated_capacity_risk_kw=300,
+        estimated_gpu_capacity_risk_pct=14.0,
+        thermal_breach_minutes=96,
+        mitigation_status="LOAD_SHIFTED",
+        telemetry_readings=(
+            {"metric": "rack_inlet_temp_c", "value": 30.8, "unit": "celsius", "status": "CRITICAL"},
+            {"metric": "thermal_validation_pass_rate_pct", "value": 68.0, "unit": "percent", "status": "WARNING"},
+        ),
     ),
     InfrastructureScenarioProfile(
         scenario_key="generator_vendor_waiting_delay",
@@ -203,6 +275,19 @@ INFRASTRUCTURE_SCENARIO_PROFILES = [
         },
         stop_stage="SPARE_VENDOR_WAITING",
         telemetry_alert_type="GENERATOR_START_FAILURE",
+        redundancy_state="N-1",
+        affected_rack_count=40,
+        affected_gpu_count=320,
+        estimated_capacity_risk_kw=900,
+        estimated_gpu_capacity_risk_pct=40.0,
+        power_redundancy_lost=True,
+        mitigation_status="RUNNING_DEGRADED",
+        vendor_eta_offset_hours=20,
+        vendor_status="ETA_MISSED",
+        telemetry_readings=(
+            {"metric": "generator_start_success", "value": 0.0, "unit": "boolean", "status": "CRITICAL"},
+            {"metric": "fuel_pressure_psi", "value": 18.0, "unit": "psi", "status": "CRITICAL"},
+        ),
     ),
     InfrastructureScenarioProfile(
         scenario_key="repeated_crah_fan_failure",
@@ -224,6 +309,13 @@ INFRASTRUCTURE_SCENARIO_PROFILES = [
             "REPAIR_IN_PROGRESS": 18,
             "VALIDATION": 4,
         },
+        redundancy_state="N+1",
+        affected_rack_count=4,
+        affected_gpu_count=32,
+        estimated_capacity_risk_kw=90,
+        estimated_gpu_capacity_risk_pct=4.0,
+        thermal_breach_minutes=22,
+        mitigation_status="VERIFIED_NORMAL",
     ),
     InfrastructureScenarioProfile(
         scenario_key="gpu_zone_temperature_assignment_delay",
@@ -244,6 +336,17 @@ INFRASTRUCTURE_SCENARIO_PROFILES = [
         },
         stop_stage="ENGINEER_ASSIGNED",
         telemetry_alert_type="RACK_INLET_TEMP_HIGH",
+        redundancy_state="N+1",
+        affected_rack_count=8,
+        affected_gpu_count=64,
+        estimated_capacity_risk_kw=180,
+        estimated_gpu_capacity_risk_pct=8.0,
+        thermal_breach_minutes=48,
+        mitigation_status="LOAD_SHIFTED",
+        telemetry_readings=(
+            {"metric": "rack_inlet_temp_c", "value": 29.9, "unit": "celsius", "status": "WARNING"},
+            {"metric": "gpu_throttle_events", "value": 17.0, "unit": "count", "status": "WARNING"},
+        ),
     ),
     InfrastructureScenarioProfile(
         scenario_key="epms_telemetry_follow_up",
@@ -266,5 +369,14 @@ INFRASTRUCTURE_SCENARIO_PROFILES = [
             "VALIDATION": 3,
         },
         telemetry_alert_type="POWER_READING_MISMATCH",
+        redundancy_state="N+1",
+        affected_rack_count=0,
+        affected_gpu_count=0,
+        estimated_capacity_risk_kw=0,
+        estimated_gpu_capacity_risk_pct=0,
+        mitigation_status="VERIFIED_NORMAL",
+        telemetry_readings=(
+            {"metric": "meter_variance_pct", "value": 7.4, "unit": "percent", "status": "WARNING"},
+        ),
     ),
 ]
