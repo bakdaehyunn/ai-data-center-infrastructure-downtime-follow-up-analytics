@@ -6,6 +6,8 @@ It answers one practical question:
 
 > Which AI infrastructure incidents are delaying return-to-service, where is the blocker, and what should the team follow up next?
 
+![AI data center infrastructure downtime follow-up dashboard](docs/assets/dashboard-preview.png)
+
 ## Why This Exists
 
 AI data center downtime evidence rarely lives in one clean system. Incident records, workflow events, facility work orders, critical spares, vendor waits, validation results, telemetry alerts, impact snapshots, infrastructure assets, and facility zones are often scattered across different operational tools.
