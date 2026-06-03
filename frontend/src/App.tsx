@@ -152,23 +152,23 @@ function App() {
 
       <section className="kpi-grid">
         <Kpi icon={<Wrench size={18} />} label="Open incidents" value={dashboard?.overview.open_requests ?? 0} />
-        <Kpi icon={<Clock3 size={18} />} label="Delayed requests" value={dashboard?.overview.delayed_requests ?? 0} tone="warning" />
-        <Kpi icon={<AlertTriangle size={18} />} label="Critical delayed" value={dashboard?.overview.critical_asset_delayed ?? 0} tone="danger" />
+        <Kpi icon={<Clock3 size={18} />} label="Delayed follow-ups" value={dashboard?.overview.delayed_requests ?? 0} tone="warning" />
+        <Kpi icon={<AlertTriangle size={18} />} label="Critical follow-ups" value={dashboard?.overview.critical_asset_delayed ?? 0} tone="danger" />
         <Kpi icon={<Zap size={18} />} label="Capacity at risk" value={`${(dashboard?.overview.capacity_risk_kw ?? 0).toFixed(0)} kW`} tone="danger" />
         <Kpi icon={<Cpu size={18} />} label="Affected GPUs" value={dashboard?.overview.affected_gpu_count ?? 0} tone="warning" />
       </section>
 
       <section className="exposure-strip" aria-label="Operational exposure">
         <ExposureMetric icon={<ShieldAlert size={16} />} label="Redundancy lost" value={dashboard?.overview.redundancy_lost_incidents ?? 0} tone="danger" />
-        <ExposureMetric icon={<Clock3 size={16} />} label="Missed vendor ETA" value={dashboard?.overview.vendor_eta_missed_count ?? 0} tone="warning" />
+        <ExposureMetric icon={<Clock3 size={16} />} label="Vendor ETA missed" value={dashboard?.overview.vendor_eta_missed_count ?? 0} tone="warning" />
         <ExposureMetric icon={<Boxes size={16} />} label="Spare/vendor wait" value={formatHours(dashboard?.overview.spare_waiting_delay_hours ?? 0)} />
-        <ExposureMetric icon={<Database size={16} />} label="Latest-run trust" value={dashboard?.overview.data_quality_status ?? 'UNKNOWN'} tone={dashboard?.overview.data_quality_status === 'PASS' ? 'ok' : 'danger'} />
+        <ExposureMetric icon={<Database size={16} />} label="Evidence status" value={formatDataQualityStatus(dashboard?.overview.data_quality_status)} tone={dashboard?.overview.data_quality_status === 'PASS' ? 'ok' : 'danger'} />
       </section>
 
       <section className="dashboard-layout">
         <div className="main-stack">
           <section className="panel queue-panel">
-            <PanelHeader title="Follow-up Queue" subtitle="Incidents ranked by delay, stage blocker, capacity exposure, redundancy state, vendor ETA, mitigation, and source trust" />
+            <PanelHeader title="Follow-up Queue" subtitle="Work ordered by recovery delay, blocker, infrastructure impact, and evidence confidence" />
             {loading ? <div className="empty-state">Loading follow-up queue</div> : <FollowUpTable rows={dashboard?.followUps ?? []} selectedId={selectedId} onSelect={setSelectedId} />}
           </section>
 
@@ -199,12 +199,13 @@ function App() {
           </section>
 
           <section className="panel">
-            <PanelHeader title="Data Trust" subtitle={`${dashboard?.qualityChecks.length ?? 0} failed latest-run checks`} />
+            <PanelHeader title="Data Trust" subtitle={`${dashboard?.qualityChecks.length ?? 0} source data issues found in the latest analysis run`} />
             <div className="quality-list">
               {(dashboard?.qualityChecks ?? []).map((check) => (
                 <div className="quality-row" key={check.check_result_id}>
-                  <strong>{check.target_table}</strong>
-                  <span>{check.check_name}</span>
+                  <strong>{sourceFeedLabel(check.target_table)}</strong>
+                  <span>{trustIssueLabel(check.check_name)}</span>
+                  <small>{check.failed_row_count} affected row{check.failed_row_count === 1 ? '' : 's'} · {check.target_table}</small>
                 </div>
               ))}
             </div>
@@ -306,46 +307,49 @@ function FollowUpTable({ rows, selectedId, onSelect }: { rows: FollowUpItem[]; s
     return <div className="empty-state">No delayed follow-up incidents match the current filters</div>
   }
   return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Incident</th>
-            <th>Asset / Zone</th>
-            <th>Blocker</th>
-            <th>Impact</th>
-            <th>Delay</th>
-            <th>Action</th>
-            <th>Trust</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.incident_id} className={selectedId === row.incident_id ? 'selected' : ''} onClick={() => onSelect(row.incident_id)}>
-              <td className="rank-cell">#{row.priority_rank}</td>
-              <td>
-                <strong>{row.request_number}</strong>
-                <span>{row.priority_level}</span>
-              </td>
-              <td className="asset-cell">
-                <strong>{row.asset_name}</strong>
-                <span>{row.zone_name}</span>
-              </td>
-              <td className="blocker-cell">{formatStage(row.current_stage)}</td>
-              <td className="impact-cell">
-                <strong>{row.affected_gpu_count ? `${row.affected_gpu_count} GPUs` : 'No GPU impact'}</strong>
-                <span>{impactLabel(row)}</span>
-              </td>
-              <td className="delay-cell">{formatHours(row.hours_in_current_stage)}</td>
-              <td className="action-cell">{row.recommended_action}</td>
-              <td className="trust-cell">
-                <TrustBadge status={row.impact_confidence_status} count={row.impact_trust_issue_count} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="followup-list">
+      {rows.map((row) => (
+        <button key={row.incident_id} type="button" className={selectedId === row.incident_id ? 'followup-card selected' : 'followup-card'} onClick={() => onSelect(row.incident_id)}>
+          <div className="queue-rank">
+            <strong>#{row.priority_rank}</strong>
+            <span className={`priority-pill ${row.priority_level.toLowerCase()}`}>{formatStage(row.priority_level)}</span>
+          </div>
+
+          <div className="queue-identity">
+            <span>Incident</span>
+            <strong>{row.request_number}</strong>
+            <small>{row.request_title}</small>
+          </div>
+
+          <div className="queue-asset">
+            <span>Asset / zone</span>
+            <strong>{row.asset_name}</strong>
+            <small>{row.zone_name}</small>
+          </div>
+
+          <div className="queue-blocker">
+            <span>Recovery blocker</span>
+            <strong>{formatStage(row.current_stage)}</strong>
+            <small>{formatHours(row.hours_in_current_stage)} in stage</small>
+          </div>
+
+          <div className="queue-impact">
+            <span>Impact</span>
+            <strong>{row.affected_gpu_count ? `${row.affected_gpu_count} GPUs` : 'No GPU impact'}</strong>
+            <small>{impactLabel(row)}</small>
+          </div>
+
+          <div className="queue-action">
+            <span>Next follow-up</span>
+            <strong>{row.recommended_action}</strong>
+          </div>
+
+          <div className="queue-evidence">
+            <span>Evidence</span>
+            <TrustBadge status={row.impact_confidence_status} count={row.impact_trust_issue_count} />
+          </div>
+        </button>
+      ))}
     </div>
   )
 }
@@ -359,31 +363,45 @@ function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
       <div className="detail-hero">
         <div>
           <strong>{detail.request.request_title}</strong>
-          <span>{detail.request.priority_level} · {formatStage(detail.request.current_stage)}</span>
+          <span>{formatStage(detail.request.priority_level)} priority · blocked at {formatStage(detail.request.current_stage)}</span>
         </div>
         <TrustBadge status={detail.impact_confidence_status} count={detail.impact_trust_flags.length} />
       </div>
+
       <div className="detail-action">
-        <span>Recommended action</span>
+        <span>Next operational action</span>
         <strong>{detail.request.recommended_action}</strong>
       </div>
+
       <div className="detail-summary">
         <span>Why it matters</span>
         <p>{detail.request.reason_summary}</p>
       </div>
-      {detail.quality_flags.length ? (
-        <div className="detail-quality-flags" aria-label="Request quality flags">
-          {detail.quality_flags.map((flag) => (
-            <div key={flag}>
-              <AlertTriangle size={15} />
-              <span>{flag}</span>
+
+      <div className="detail-section evidence-section">
+        <strong className="detail-section-title">Recovery blocker</strong>
+        <div className="timeline">
+          {detail.stage_lead_times.map((stage) => (
+            <div className={stage.is_bottleneck ? 'timeline-row bottleneck' : 'timeline-row'} key={`${stage.stage}-${stage.entered_at}`}>
+              <span>{formatStage(stage.stage)}</span>
+              <strong>{formatHours(stage.duration_hours)}</strong>
             </div>
           ))}
         </div>
-      ) : null}
+        <div className="work-order">
+          {detail.work_orders.map((order) => (
+            <div key={order.work_order_id}>
+              <strong>{order.assigned_team}</strong>
+              <span>{formatStage(order.work_order_status)}</span>
+              {order.required_spare_name ? <span>{order.required_spare_name} · {formatStage(order.stock_status ?? 'unknown')}</span> : null}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {detail.impact_snapshot ? (
-        <div className="detail-section">
-          <strong className="detail-section-title">Impact context</strong>
+        <div className="detail-section evidence-section">
+          <strong className="detail-section-title">Impact evidence</strong>
           <div className="impact-context">
             <div>
               <span>Redundancy</span>
@@ -410,25 +428,47 @@ function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
               <strong>{detail.impact_snapshot.thermal_breach_minutes}m</strong>
             </div>
           </div>
+          {detail.impact_snapshot.telemetry_readings.length ? (
+            <div className="telemetry-evidence">
+              {detail.impact_snapshot.telemetry_readings.map((reading) => (
+                <div key={reading.metric}>
+                  <span>{formatStage(reading.metric)}</span>
+                  <strong>{reading.value} {reading.unit}</strong>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
-      <div className="impact-trust">
-        <strong className="detail-section-title">Impact Trust</strong>
+
+      <div className="impact-trust evidence-section">
+        <strong className="detail-section-title">Trust and source evidence</strong>
         <div className={`trust-summary ${trustTone(detail.impact_confidence_status)}`}>
           {detail.impact_confidence_status === 'TRUSTED' ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
-          <strong>{formatStage(detail.impact_confidence_status)}</strong>
-          <span>{detail.impact_trust_flags.length ? `${detail.impact_trust_flags.length} issue${detail.impact_trust_flags.length === 1 ? '' : 's'}` : 'Impact context matches latest-run evidence'}</span>
+          <strong>{trustStatusLabel(detail.impact_confidence_status)}</strong>
+          <span>{detail.impact_trust_flags.length ? `${detail.impact_trust_flags.length} impact evidence issue${detail.impact_trust_flags.length === 1 ? '' : 's'} to review` : 'Impact context matches latest-run evidence'}</span>
         </div>
+        {detail.quality_flags.length ? (
+          <div className="detail-quality-flags" aria-label="Request quality flags">
+            {detail.quality_flags.map((flag) => (
+              <div key={flag}>
+                <AlertTriangle size={15} />
+                <span>{trustIssueLabel(flag)}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {detail.impact_trust_flags.map((flag) => (
           <div className="impact-trust-flag" key={`${flag.issue_type}-${flag.message}`}>
-            <strong>{formatStage(flag.issue_type)}</strong>
+            <strong>{trustIssueLabel(flag.issue_type)}</strong>
             <span>{flag.message}</span>
             {Object.keys(flag.evidence).length ? <small>{formatEvidence(flag.evidence)}</small> : null}
           </div>
         ))}
       </div>
-      <div className="detail-section">
-        <strong className="detail-section-title">Score components</strong>
+
+      <div className="detail-section evidence-section secondary-evidence">
+        <strong className="detail-section-title">Priority score evidence</strong>
         <div className="score-grid">
           <Score label="Downtime" value={detail.request.downtime_score} />
           <Score label="Stage delay" value={detail.request.stage_delay_score} />
@@ -438,33 +478,6 @@ function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
           <Score label="Vendor ETA risk" value={detail.request.vendor_eta_risk_score} />
           <Score label="Mitigation credit" value={detail.request.mitigation_credit_score} />
         </div>
-      </div>
-      {detail.impact_snapshot?.telemetry_readings.length ? (
-        <div className="telemetry-evidence">
-          {detail.impact_snapshot.telemetry_readings.map((reading) => (
-            <div key={reading.metric}>
-              <span>{formatStage(reading.metric)}</span>
-              <strong>{reading.value} {reading.unit}</strong>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      <div className="timeline">
-        {detail.stage_lead_times.map((stage) => (
-          <div className={stage.is_bottleneck ? 'timeline-row bottleneck' : 'timeline-row'} key={`${stage.stage}-${stage.entered_at}`}>
-            <span>{formatStage(stage.stage)}</span>
-            <strong>{formatHours(stage.duration_hours)}</strong>
-          </div>
-        ))}
-      </div>
-      <div className="work-order">
-        {detail.work_orders.map((order) => (
-          <div key={order.work_order_id}>
-            <strong>{order.assigned_team}</strong>
-            <span>{order.work_order_status}</span>
-            {order.required_spare_name ? <span>{order.required_spare_name} · {order.stock_status}</span> : null}
-          </div>
-        ))}
       </div>
     </div>
   )
@@ -482,7 +495,7 @@ function Score({ label, value }: { label: string; value: number }) {
 function TrustBadge({ status, count }: { status: string; count: number }) {
   return (
     <span className={`trust-badge ${trustTone(status)}`}>
-      {formatStage(status)}
+      {trustStatusLabel(status)}
       {count ? ` ${count}` : ''}
     </span>
   )
@@ -514,6 +527,46 @@ function formatStage(value: string) {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+function formatDataQualityStatus(status?: string | null) {
+  if (status === 'PASS') return 'Trusted'
+  if (status === 'FAILED') return 'Needs review'
+  return 'Unknown'
+}
+
+function trustStatusLabel(status: string) {
+  if (status === 'TRUSTED') return 'Trusted'
+  if (status === 'WARNING') return 'Review evidence'
+  return 'Unverified'
+}
+
+function sourceFeedLabel(tableName: string) {
+  const labels: Record<string, string> = {
+    raw_infrastructure_incidents: 'Incident source feed',
+    infrastructure_incidents: 'Incident core records',
+    incident_stage_events: 'Stage event history',
+    validation_results: 'Validation records',
+    facility_work_orders: 'Work order records',
+    impact_snapshots: 'Impact snapshots',
+    telemetry_alerts: 'Telemetry alerts',
+  }
+  return labels[tableName] ?? formatStage(tableName)
+}
+
+function trustIssueLabel(issueName: string) {
+  const labels: Record<string, string> = {
+    duplicate_source_record: 'Duplicate source records detected',
+    missing_required_fields: 'Required source fields are missing',
+    infrastructure_incident_without_stage_event: 'Incident is missing stage history',
+    stage_event_timestamp_out_of_order: 'Stage events arrived out of order',
+    validation_without_completed_work: 'Validation exists without completed work',
+    spare_waiting_without_required_spare: 'Spare wait has no required spare record',
+    stale_impact_snapshot: 'Impact snapshot is stale',
+    missing_impact_snapshot: 'Impact snapshot is missing',
+    contradictory_impact_evidence: 'Impact evidence is contradictory',
+  }
+  return labels[issueName] ?? formatStage(issueName)
 }
 
 function impactLabel(row: FollowUpItem) {
