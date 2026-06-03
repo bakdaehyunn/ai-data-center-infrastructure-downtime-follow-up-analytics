@@ -26,7 +26,7 @@ from app.models.maintenance import (
     Part,
     ProductionLine,
 )
-from app.models.ops import DataQualityCheckResult, PipelineRun
+from app.models.ops import DataQualityCheckResult, MaintenanceReconciliationIssue, PipelineRun
 from app.schemas.analytics import (
     DataQualityCheckResponse,
     EquipmentDelayResponse,
@@ -48,6 +48,18 @@ from app.schemas.analytics import (
 )
 
 router = APIRouter(prefix="/api")
+
+
+RECONCILIATION_FLAG_LABELS = {
+    "analytics_output_missing_current_status": "Analytics output gap",
+    "event_sequence_before_request": "Event timeline mismatch",
+    "inspection_without_completed_work": "Inspection sequence mismatch",
+    "parts_waiting_missing_required_part": "Parts data mismatch",
+    "state_reconstruction_active_with_completion_event": "State reconstruction mismatch",
+    "state_reconstruction_missing_completion_event": "State reconstruction gap",
+    "state_reconstruction_missing_stage_event": "State reconstruction gap",
+    "state_reconstruction_stage_mismatch": "State reconstruction mismatch",
+}
 
 
 @router.get("/overview", response_model=OverviewResponse)
@@ -452,7 +464,25 @@ def _quality_flags_for_request(db: Session, maintenance_request_id: str) -> list
         failed_keys = string_list(check.sample_failed_keys)
         if any(maintenance_request_id in key for key in failed_keys):
             flags.append(f"{check.target_table}.{check.check_name}: {check.message}")
+    reconciliation_issues = db.scalars(
+        select(MaintenanceReconciliationIssue)
+        .where(
+            MaintenanceReconciliationIssue.pipeline_run_id == latest_run.pipeline_run_id,
+            MaintenanceReconciliationIssue.maintenance_request_id == maintenance_request_id,
+            MaintenanceReconciliationIssue.status == "OPEN",
+        )
+        .order_by(MaintenanceReconciliationIssue.severity, MaintenanceReconciliationIssue.issue_type)
+    ).all()
+    flags.extend(
+        _reconciliation_quality_flag(issue)
+        for issue in reconciliation_issues
+    )
     return flags
+
+
+def _reconciliation_quality_flag(issue: MaintenanceReconciliationIssue) -> str:
+    label = RECONCILIATION_FLAG_LABELS.get(issue.issue_type, "Reconciliation issue")
+    return f"{label}: {issue.message}"
 
 
 def _latest_pipeline_run(db: Session) -> PipelineRun | None:

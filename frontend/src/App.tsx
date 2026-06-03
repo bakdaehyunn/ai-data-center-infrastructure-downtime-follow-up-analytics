@@ -313,6 +313,16 @@ function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
         <strong>{detail.request.request_title}</strong>
         <span>{detail.request.reason_summary}</span>
       </div>
+      {detail.quality_flags.length ? (
+        <div className="detail-quality-flags" aria-label="Request quality flags">
+          {detail.quality_flags.map((flag) => (
+            <div key={flag}>
+              <AlertTriangle size={15} />
+              <span>{flag}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="score-grid">
         <Score label="Downtime" value={detail.request.downtime_score} />
         <Score label="Stage delay" value={detail.request.stage_delay_score} />

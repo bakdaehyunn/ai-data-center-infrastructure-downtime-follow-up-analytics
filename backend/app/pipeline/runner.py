@@ -12,6 +12,7 @@ from app.pipeline.analytics_builder import build_analytics
 from app.pipeline.core_transformer import transform_raw_to_core
 from app.pipeline.quality import run_core_quality_checks, run_raw_quality_checks
 from app.pipeline.raw_loader import load_raw_records, read_raw_source_records
+from app.pipeline.reconciler import run_reconciliation_checks
 from app.sample_data.generator import generate_sample_dataset, write_sample_dataset
 
 
@@ -29,6 +30,7 @@ class PipelineResult:
     core_records_loaded: int
     core_records_skipped: int
     analytics_records_loaded: int
+    reconciliation_issues_created: int
 
 
 def run_ingestion_pipeline(
@@ -73,6 +75,10 @@ def run_ingestion_pipeline(
         )
         session.add_all(core_quality_results)
         analytics_result = build_analytics(session=session)
+        reconciliation_result = run_reconciliation_checks(
+            session=session,
+            pipeline_run_id=pipeline_run_id,
+        )
 
         all_quality_results = quality_results + core_quality_results
         failed_checks = sum(1 for result in all_quality_results if result.status != "PASS")
@@ -95,6 +101,7 @@ def run_ingestion_pipeline(
             core_records_loaded=_core_records_loaded(core_result),
             core_records_skipped=core_result.records_skipped,
             analytics_records_loaded=_analytics_records_loaded(analytics_result),
+            reconciliation_issues_created=reconciliation_result.issues_created,
         )
     except Exception as exc:
         session.rollback()

@@ -24,7 +24,7 @@ from app.models.maintenance import (
     SensorAlert,
     Technician,
 )
-from app.models.ops import DataQualityCheckResult, PipelineRun
+from app.models.ops import DataQualityCheckResult, MaintenanceReconciliationIssue, PipelineRun
 from app.models.raw import (
     RawInspectionResult,
     RawMaintenanceRequest,
@@ -68,6 +68,7 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert result.core_records_loaded == 153
         assert result.core_records_skipped == 1
         assert result.analytics_records_loaded == 358
+        assert result.reconciliation_issues_created == 5
 
         pipeline_run = session.scalar(select(PipelineRun).where(PipelineRun.pipeline_run_id == result.pipeline_run_id))
         assert pipeline_run is not None
@@ -94,6 +95,7 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert _count(session, ProductionLineDelaySummary) == 5
         assert _count(session, PartsWaitingSummary) == 2
         assert _count(session, DataQualityCheckResult) == 30
+        assert _count(session, MaintenanceReconciliationIssue) == 5
 
         failures = {
             (result.target_table, result.check_name): result.failed_row_count
@@ -106,6 +108,28 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert failures[("maintenance_stage_events", "stage_event_timestamp_out_of_order")] == 1
         assert failures[("maintenance_work_orders", "parts_waiting_without_required_part")] == 1
         assert failures[("inspection_results", "inspection_without_completed_work")] == 1
+        reconciliation_issue_types = {
+            issue.issue_type
+            for issue in session.scalars(select(MaintenanceReconciliationIssue))
+        }
+        assert {
+            "analytics_output_missing_current_status",
+            "event_sequence_before_request",
+            "inspection_without_completed_work",
+            "parts_waiting_missing_required_part",
+            "state_reconstruction_missing_stage_event",
+        } == reconciliation_issue_types
+        parts_reconciliation_issue = session.scalar(
+            select(MaintenanceReconciliationIssue).where(
+                MaintenanceReconciliationIssue.maintenance_request_id == "MREQ-0004",
+                MaintenanceReconciliationIssue.issue_type == "parts_waiting_missing_required_part",
+            )
+        )
+        assert parts_reconciliation_issue is not None
+        assert parts_reconciliation_issue.evidence_json == {
+            "work_order_ids": ["MWO-QA-NO-PART"],
+            "work_order_status": "WAITING_PARTS",
+        }
         completed_stage_summary = session.scalar(
             select(MaintenanceBottleneckSummary).where(MaintenanceBottleneckSummary.stage == "COMPLETED")
         )

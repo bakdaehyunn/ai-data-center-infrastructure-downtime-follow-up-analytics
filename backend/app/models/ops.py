@@ -54,3 +54,27 @@ class DataQualityCheckResult(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+
+class MaintenanceReconciliationIssue(Base):
+    __tablename__ = "maintenance_reconciliation_issues"
+    __table_args__ = (
+        Index("ix_reconciliation_issues_run_request", "pipeline_run_id", "maintenance_request_id"),
+        Index("ix_reconciliation_issues_type_severity", "issue_type", "severity"),
+        Index("ix_reconciliation_issues_request_status", "maintenance_request_id", "status"),
+    )
+
+    issue_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    pipeline_run_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    maintenance_request_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    equipment_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    issue_type: Mapped[str] = mapped_column(String(160), nullable=False)
+    severity: Mapped[str] = mapped_column(String(40), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_json: Mapped[Optional[Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )

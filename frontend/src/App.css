@@ -243,6 +243,7 @@ tbody tr.selected {
 }
 
 .detail-summary,
+.detail-quality-flags,
 .score-grid,
 .timeline,
 .work-order,
@@ -268,6 +269,29 @@ tbody tr.selected {
   color: #59656d;
   font-size: 0.88rem;
   line-height: 1.45;
+}
+
+.detail-quality-flags {
+  gap: 8px;
+}
+
+.detail-quality-flags div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid #efc8c3;
+  border-radius: 8px;
+  background: #fff6f5;
+  color: #9d3f37;
+}
+
+.detail-quality-flags span {
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .score-grid {

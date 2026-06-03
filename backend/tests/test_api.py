@@ -12,7 +12,7 @@ from sqlalchemy.pool import StaticPool
 from app.db import get_db
 from app.main import app
 from app.models import Base
-from app.models.ops import DataQualityCheckResult, PipelineRun
+from app.models.ops import DataQualityCheckResult, MaintenanceReconciliationIssue, PipelineRun
 from app.pipeline.runner import run_ingestion_pipeline
 from app.sample_data.generator import generate_sample_dataset, write_sample_dataset
 
@@ -100,6 +100,10 @@ def test_follow_up_detail_returns_state_timeline_and_related_records(api_client:
     assert data["work_orders"][0]["required_part_id"] == "PART-SERVO-7KW"
     assert data["work_orders"][0]["stock_status"] == "OUT_OF_STOCK"
     assert data["sensor_alerts"][0]["alert_type"] == "DRIVE_FAULT"
+    assert any(
+        flag == "Parts data mismatch: A work order is waiting for parts, but no required part is linked."
+        for flag in data["quality_flags"]
+    )
 
 
 def test_follow_up_detail_handles_completed_non_queued_request(api_client: TestClient) -> None:
@@ -187,6 +191,19 @@ def test_overview_and_quality_checks_use_latest_pipeline_run(api_client: TestCli
                 failed_row_count=1,
                 sample_failed_keys=["MREQ-0010"],
                 message="Old failed check should not affect latest-run quality.",
+            )
+        )
+        session.add(
+            MaintenanceReconciliationIssue(
+                issue_id="REC-RUN-OLDER-FAILED-001",
+                pipeline_run_id="RUN-OLDER-FAILED",
+                maintenance_request_id="MREQ-0010",
+                equipment_id="EQ-MIX-001",
+                issue_type="stale_reconciliation_issue",
+                severity="ERROR",
+                status="OPEN",
+                message="Old reconciliation issue should not affect latest-run drilldown.",
+                evidence_json={"source": "test"},
             )
         )
         session.commit()

@@ -19,7 +19,7 @@ from app.models.maintenance import (
     SensorAlert,
     Technician,
 )
-from app.models.ops import DataQualityCheckResult, PipelineRun
+from app.models.ops import DataQualityCheckResult, MaintenanceReconciliationIssue, PipelineRun
 from app.models.raw import (
     RawInspectionResult,
     RawMaintenanceRequest,
@@ -38,6 +38,7 @@ __all__ = [
     "MaintenanceBottleneckSummary",
     "MaintenanceCurrentStatus",
     "MaintenanceRequest",
+    "MaintenanceReconciliationIssue",
     "MaintenanceStageLeadTime",
     "MaintenanceStageEvent",
     "MaintenanceWorkOrder",
