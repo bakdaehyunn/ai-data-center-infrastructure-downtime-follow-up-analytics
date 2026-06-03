@@ -121,7 +121,7 @@ def run_core_quality_checks(
         _check_work_order_without_request(session),
         _check_validation_without_completed_work(session),
         _check_spare_waiting_without_required_spare(session),
-        _check_telemetry_alert_without_equipment(session),
+        _check_telemetry_alert_without_known_asset(session),
     ]
     return _quality_results_to_models(checks, pipeline_run_id, start_index)
 
@@ -391,7 +391,7 @@ def _check_spare_waiting_without_required_spare(session: Session) -> QualityChec
     )
 
 
-def _check_telemetry_alert_without_equipment(session: Session) -> QualityCheck:
+def _check_telemetry_alert_without_known_asset(session: Session) -> QualityCheck:
     asset_ids = {
         row[0]
         for row in session.execute(select(InfrastructureAsset.asset_id))
@@ -402,7 +402,7 @@ def _check_telemetry_alert_without_equipment(session: Session) -> QualityCheck:
         if alert.asset_id not in asset_ids
     ]
     return QualityCheck(
-        check_name="telemetry_alert_without_equipment",
+        check_name="telemetry_alert_without_known_asset",
         target_table="telemetry_alerts",
         severity="ERROR",
         failed_keys=failed,

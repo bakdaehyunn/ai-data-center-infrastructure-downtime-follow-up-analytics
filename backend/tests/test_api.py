@@ -80,15 +80,15 @@ def test_follow_ups_endpoint_returns_ranked_queue(api_client: TestClient) -> Non
 
 def test_follow_ups_endpoint_filters_queue(api_client: TestClient) -> None:
     stage_response = api_client.get("/api/follow-ups?stage=ENGINEER_ASSIGNED")
-    line_response = api_client.get("/api/follow-ups?zone_id=ZONE-POWER-A")
+    zone_response = api_client.get("/api/follow-ups?zone_id=ZONE-POWER-A")
     priority_response = api_client.get("/api/follow-ups?priority_level=CRITICAL")
 
     assert stage_response.status_code == 200
-    assert line_response.status_code == 200
+    assert zone_response.status_code == 200
     assert priority_response.status_code == 200
 
     assert [row["incident_id"] for row in stage_response.json()] == ["INC-0003", "INC-0009"]
-    assert {row["zone_id"] for row in line_response.json()} == {"ZONE-POWER-A"}
+    assert {row["zone_id"] for row in zone_response.json()} == {"ZONE-POWER-A"}
     assert {row["priority_level"] for row in priority_response.json()} == {"CRITICAL"}
 
 
@@ -100,7 +100,9 @@ def test_follow_up_detail_returns_state_timeline_and_related_records(api_client:
     assert data["request"]["incident_id"] == "INC-0004"
     assert data["request"]["priority_rank"] == 2
     assert data["request"]["current_stage"] == "SPARE_VENDOR_WAITING"
-    assert data["request"]["recommended_action"] == "Stabilize redundancy risk before capacity is exposed"
+    assert data["request"]["recommended_action"] == "Expedite critical spare or vendor dispatch"
+    assert "Impact rationale:" in data["request"]["reason_summary"]
+    assert "redundancy exposure" in data["request"]["reason_summary"]
     assert data["request"]["mitigation_status"] == "LOAD_SHIFTED"
     assert data["request"]["vendor_status"] == "WAITING_VENDOR_DISPATCH"
     assert [stage["stage"] for stage in data["stage_lead_times"]] == [
@@ -161,23 +163,23 @@ def test_follow_up_detail_and_timeline_return_404_for_unknown_request(api_client
 
 def test_downtime_and_impact_endpoints_return_analytics(api_client: TestClient) -> None:
     stages_response = api_client.get("/api/downtime/stages")
-    equipment_response = api_client.get("/api/assets/delays")
-    lines_response = api_client.get("/api/zones/delays")
-    parts_response = api_client.get("/api/spares/waiting")
+    assets_response = api_client.get("/api/assets/delays")
+    zones_response = api_client.get("/api/zones/delays")
+    spares_response = api_client.get("/api/spares/waiting")
     impact_response = api_client.get("/api/impact/summary")
 
     assert stages_response.status_code == 200
-    assert equipment_response.status_code == 200
-    assert lines_response.status_code == 200
-    assert parts_response.status_code == 200
+    assert assets_response.status_code == 200
+    assert zones_response.status_code == 200
+    assert spares_response.status_code == 200
     assert impact_response.status_code == 200
 
     stages = stages_response.json()
     assert stages[0]["stage"] == "ENGINEER_ASSIGNED"
     assert stages[0]["total_delay_hours"] == 132.0
-    assert equipment_response.json()[0]["asset_id"] == "ASSET-UPS-01"
-    assert lines_response.json()[0]["zone_id"] == "ZONE-POWER-A"
-    assert parts_response.json()[0]["spare_id"] == "SPARE-CHILLER-COMPRESSOR"
+    assert assets_response.json()[0]["asset_id"] == "ASSET-UPS-01"
+    assert zones_response.json()[0]["zone_id"] == "ZONE-POWER-A"
+    assert spares_response.json()[0]["spare_id"] == "SPARE-CHILLER-COMPRESSOR"
     assert impact_response.json() == {
         "incident_count": 7,
         "capacity_risk_kw": 2820.0,

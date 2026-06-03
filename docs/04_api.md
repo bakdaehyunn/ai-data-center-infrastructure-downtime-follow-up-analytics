@@ -20,6 +20,8 @@ GET /api/follow-ups/{incident_id}/timeline
 
 The queue supports filters by `zone_id`, `asset_id`, `priority_level`, and active `stage`. Queue rows include impact context fields such as redundancy state, affected GPUs, estimated kW at risk, mitigation status, vendor status, `impact_confidence_status`, and `impact_trust_issue_count`.
 
+`recommended_action` is the next workflow follow-up. `reason_summary` explains why the row matters, including delay and impact context. This keeps operational action separate from impact rationale.
+
 Drilldown returns the selected incident, stage lead times, timeline events, work orders, validation results, telemetry alerts, the latest impact snapshot, impact telemetry readings, general quality flags, `impact_confidence_status`, and structured `impact_trust_flags`.
 
 ## Downtime and Impact
@@ -34,7 +36,7 @@ GET /api/spares/waiting
 
 These endpoints explain where delay and operational exposure are accumulating across workflow stages, infrastructure assets, data center zones, critical spares, capacity risk, redundancy state, vendor ETA, mitigation status, and impact-confidence state.
 
-Compatibility routes remain available:
+Compatibility aliases remain available for older local clients, but they are not the primary AI infrastructure product surface:
 
 ```text
 GET /api/equipment/delays

@@ -352,7 +352,12 @@ def list_stage_downtime(
 
 
 @router.get("/equipment/delays", response_model=list[InfrastructureAssetDelayResponse])
-def list_equipment_delays(limit: int = 20, db: Session = Depends(get_db)) -> list[InfrastructureAssetDelayResponse]:
+def list_equipment_delay_alias(limit: int = 20, db: Session = Depends(get_db)) -> list[InfrastructureAssetDelayResponse]:
+    return list_asset_delays(limit=limit, db=db)
+
+
+@router.get("/assets/delays", response_model=list[InfrastructureAssetDelayResponse])
+def list_asset_delays(limit: int = 20, db: Session = Depends(get_db)) -> list[InfrastructureAssetDelayResponse]:
     rows = db.scalars(
         select(AssetDelaySummary)
         .order_by(desc(AssetDelaySummary.total_downtime_hours), AssetDelaySummary.asset_name)
@@ -361,13 +366,13 @@ def list_equipment_delays(limit: int = 20, db: Session = Depends(get_db)) -> lis
     return [InfrastructureAssetDelayResponse.model_validate(row, from_attributes=True) for row in rows]
 
 
-@router.get("/assets/delays", response_model=list[InfrastructureAssetDelayResponse])
-def list_asset_delays(limit: int = 20, db: Session = Depends(get_db)) -> list[InfrastructureAssetDelayResponse]:
-    return list_equipment_delays(limit=limit, db=db)
-
-
 @router.get("/lines/delays", response_model=list[InfrastructureZoneDelayResponse])
-def list_line_delays(db: Session = Depends(get_db)) -> list[InfrastructureZoneDelayResponse]:
+def list_line_delay_alias(db: Session = Depends(get_db)) -> list[InfrastructureZoneDelayResponse]:
+    return list_zone_delays(db=db)
+
+
+@router.get("/zones/delays", response_model=list[InfrastructureZoneDelayResponse])
+def list_zone_delays(db: Session = Depends(get_db)) -> list[InfrastructureZoneDelayResponse]:
     rows = db.scalars(
         select(ZoneDelaySummary)
         .order_by(desc(ZoneDelaySummary.total_downtime_hours), ZoneDelaySummary.zone_name)
@@ -375,23 +380,18 @@ def list_line_delays(db: Session = Depends(get_db)) -> list[InfrastructureZoneDe
     return [InfrastructureZoneDelayResponse.model_validate(row, from_attributes=True) for row in rows]
 
 
-@router.get("/zones/delays", response_model=list[InfrastructureZoneDelayResponse])
-def list_zone_delays(db: Session = Depends(get_db)) -> list[InfrastructureZoneDelayResponse]:
-    return list_line_delays(db=db)
-
-
 @router.get("/parts/waiting", response_model=list[SpareWaitingResponse])
-def list_spare_waiting(db: Session = Depends(get_db)) -> list[SpareWaitingResponse]:
+def list_part_waiting_alias(db: Session = Depends(get_db)) -> list[SpareWaitingResponse]:
+    return list_spares_waiting(db=db)
+
+
+@router.get("/spares/waiting", response_model=list[SpareWaitingResponse])
+def list_spares_waiting(db: Session = Depends(get_db)) -> list[SpareWaitingResponse]:
     rows = db.scalars(
         select(SpareWaitingSummary)
         .order_by(desc(SpareWaitingSummary.total_wait_hours), SpareWaitingSummary.spare_name)
     ).all()
     return [SpareWaitingResponse.model_validate(row, from_attributes=True) for row in rows]
-
-
-@router.get("/spares/waiting", response_model=list[SpareWaitingResponse])
-def list_spares_waiting(db: Session = Depends(get_db)) -> list[SpareWaitingResponse]:
-    return list_spare_waiting(db=db)
 
 
 @router.get("/metadata/filters", response_model=FilterMetadataResponse)

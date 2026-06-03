@@ -29,7 +29,9 @@ Terminal `RESTORED` stages are not exposed as actionable stage filters.
 
 The queue ranks open incidents by return-to-service delay, blocker stage, zone impact, urgency, repeat failure, spare risk, capacity exposure, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit.
 
-Each row shows rank, incident number, priority, asset, zone, current stage, compact impact context, delay, recommended action, and score.
+Each row shows rank, incident number, priority, asset, zone, current stage, compact impact context, delay, recommended action, impact confidence, and score.
+
+`recommended_action` is the next operational follow-up based on the active workflow blocker. Impact exposure such as GPU capacity, redundancy loss, thermal breach, vendor ETA, and mitigation state explains why the incident matters, but it should not replace the workflow action unless the active blocker is spare/vendor follow-up.
 
 ## Drilldown
 
@@ -40,6 +42,8 @@ Selecting a queue row shows:
 - score components
 - latest impact snapshot
 - affected racks, affected GPUs, estimated kW at risk, redundancy state, vendor status, mitigation status, and thermal breach minutes
+- impact confidence summary
+- structured impact trust flags for stale, missing, or contradictory impact evidence
 - impact telemetry readings
 - stage lead times
 - facilities work order context
@@ -54,3 +58,5 @@ Selecting a queue row shows:
 - Spare/vendor waiting
 - Impact summary
 - Data trust
+
+The data trust panel explains latest-run raw/core/workflow quality. The impact trust section explains whether the selected incident's impact context is trusted, warning, or unverified for the same latest pipeline run.

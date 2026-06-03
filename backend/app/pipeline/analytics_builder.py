@@ -108,21 +108,21 @@ def build_analytics(
         part_by_id=part_by_id,
         summary_date=as_of_time.date(),
     )
-    equipment_rows = _build_asset_delay_summary_rows(
+    asset_rows = _build_asset_delay_summary_rows(
         requests=requests,
         asset_by_id=asset_by_id,
         zone_by_id=zone_by_id,
         lead_records=lead_records,
         current_status_rows=current_status_rows,
     )
-    line_rows = _build_zone_delay_summary_rows(
+    zone_rows = _build_zone_delay_summary_rows(
         requests=requests,
         asset_by_id=asset_by_id,
         zone_by_id=zone_by_id,
         lead_records=lead_records,
         current_status_rows=current_status_rows,
     )
-    parts_rows = _build_spare_waiting_summary_rows(
+    spare_rows = _build_spare_waiting_summary_rows(
         lead_records=lead_records,
         request_by_id=request_by_id,
         work_orders_by_request=work_orders_by_request,
@@ -143,9 +143,9 @@ def build_analytics(
     session.add_all(current_status_rows)
     session.add_all(lead_time_rows)
     session.add_all(bottleneck_rows)
-    session.add_all(equipment_rows)
-    session.add_all(line_rows)
-    session.add_all(parts_rows)
+    session.add_all(asset_rows)
+    session.add_all(zone_rows)
+    session.add_all(spare_rows)
     session.add_all(follow_up_rows)
     session.flush()
 
@@ -154,9 +154,9 @@ def build_analytics(
         incident_stage_lead_times_count=len(lead_time_rows),
         downtime_follow_up_queue_count=len(follow_up_rows),
         infrastructure_bottleneck_summary_count=len(bottleneck_rows),
-        asset_delay_summary_count=len(equipment_rows),
-        zone_delay_summary_count=len(line_rows),
-        spare_waiting_summary_count=len(parts_rows),
+        asset_delay_summary_count=len(asset_rows),
+        zone_delay_summary_count=len(zone_rows),
+        spare_waiting_summary_count=len(spare_rows),
     )
 
 
@@ -763,22 +763,20 @@ def _recommended_action(
     part_by_id: dict[str, CriticalSpare],
     impact: InfrastructureImpactSnapshot | None = None,
 ) -> str:
-    if impact and impact.vendor_status == "ETA_MISSED":
-        return "Escalate missed vendor ETA and confirm recovery path"
-    if impact and (impact.power_redundancy_lost or impact.cooling_redundancy_lost or impact.redundancy_state == "N-1"):
-        return "Stabilize redundancy risk before capacity is exposed"
     if request.current_stage == "FACILITIES_TRIAGE":
-        return "Escalate facilities triage"
+        return "Complete facilities triage and confirm owning team"
     if request.current_stage == "ENGINEER_ASSIGNED":
         return "Assign facilities engineer or rebalance team"
     if request.current_stage == "SPARE_VENDOR_WAITING":
+        if impact and impact.vendor_status == "ETA_MISSED":
+            return "Escalate missed vendor ETA and confirm recovery path"
         for work_order in work_orders_by_request.get(request.incident_id, []):
             part = part_by_id.get(work_order.required_spare_id) if work_order.required_spare_id else None
             if part and part.stock_status == "OUT_OF_STOCK":
                 return "Expedite critical spare or vendor dispatch"
         return "Confirm spare availability or vendor ETA"
     if request.current_stage == "REPAIR_IN_PROGRESS":
-        return "Escalate active repair completion"
+        return "Unblock repair completion and confirm mitigation status"
     if request.current_stage == "VALIDATION":
         return "Prioritize restore validation"
     return "Review infrastructure incident status"
@@ -791,12 +789,7 @@ def _reason_summary(
     zone: InfrastructureZone,
     impact: InfrastructureImpactSnapshot | None = None,
 ) -> str:
-    impact_summary = ""
-    if impact and (impact.affected_gpu_count or impact.estimated_capacity_risk_kw):
-        impact_summary = (
-            f" Impact context shows {impact.affected_gpu_count} affected GPUs and "
-            f"{float(impact.estimated_capacity_risk_kw):.0f} kW at risk."
-        )
+    impact_summary = _impact_rationale(impact)
     if current.is_delayed:
         return (
             f"{asset.criticality_level} asset in {zone.zone_name} is delayed in "
@@ -808,3 +801,27 @@ def _reason_summary(
         f"and needed by {request.needed_by_at.isoformat()}."
         f"{impact_summary}"
     )
+
+
+def _impact_rationale(impact: InfrastructureImpactSnapshot | None) -> str:
+    if impact is None:
+        return ""
+
+    details: list[str] = []
+    if impact.affected_gpu_count or impact.estimated_capacity_risk_kw:
+        details.append(
+            f"{impact.affected_gpu_count} affected GPUs and "
+            f"{float(impact.estimated_capacity_risk_kw):.0f} kW at risk"
+        )
+    if impact.redundancy_state == "N-1" or impact.power_redundancy_lost or impact.cooling_redundancy_lost:
+        details.append(f"{impact.redundancy_state} redundancy exposure")
+    if impact.thermal_breach_minutes:
+        details.append(f"{impact.thermal_breach_minutes} thermal breach minutes")
+    if impact.vendor_status not in {"NOT_REQUIRED", "ETA_CONFIRMED"}:
+        details.append(f"vendor status {impact.vendor_status}")
+    if impact.mitigation_status != "NONE":
+        details.append(f"mitigation {impact.mitigation_status}")
+
+    if not details:
+        return ""
+    return f" Impact rationale: {'; '.join(details)}."

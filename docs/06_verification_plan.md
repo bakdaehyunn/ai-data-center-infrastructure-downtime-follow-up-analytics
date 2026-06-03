@@ -15,7 +15,11 @@ Expected coverage:
 - pipeline load counts
 - analytics table counts
 - follow-up ranking
+- workflow-blocker recommended actions
+- impact rationale in follow-up summaries
 - latest-run data quality scoping
+- latest-run impact confidence scoping
+- structured impact trust flags
 - terminal-stage analytics behavior
 - API endpoints
 - health endpoint
@@ -40,6 +44,9 @@ Use the local dashboard to verify:
 
 - dashboard loads without failed API fetches
 - follow-up queue renders
+- recommended action reads as the next operational follow-up
+- impact confidence badges render in queue rows
+- impact trust flags render in incident drilldown
 - stage filter excludes `Restored`
 - filtering the queue updates the incident drilldown selection
 - dashboard wording stays focused on AI data center infrastructure follow-up analytics
@@ -49,7 +56,7 @@ Use the local dashboard to verify:
 Search active source and docs for removed domain framing:
 
 ```bash
-rg -n "<removed-domain-term>" backend/app backend/tests frontend/src README.md docs
+rg -n -i "procurement|manufacturing|ev battery|maintenance|production line|parts waiting|portfolio|interview" backend/app backend/tests frontend/src README.md docs
 ```
 
-Expected result: no active source or documentation references to removed domain framing.
+Expected result: no active source or documentation references to removed domain framing. Backward-compatible endpoint aliases may remain in API code, but the primary product surface should use infrastructure assets, zones, and critical spares.

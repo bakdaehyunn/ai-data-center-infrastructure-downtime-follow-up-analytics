@@ -206,6 +206,28 @@ def test_analytics_ranks_downtime_follow_up_queue(tmp_path: Path) -> None:
         assert float(top_requests[0].vendor_eta_risk_score) == 22.0
 
 
+def test_recommended_action_preserves_workflow_blocker_while_reason_explains_impact(tmp_path: Path) -> None:
+    sample_dir = _write_sample_data(tmp_path)
+    session_factory = _session_factory()
+
+    with session_factory() as session:
+        run_ingestion_pipeline(session=session, sample_dir=sample_dir)
+
+        engineer_assigned = session.scalar(
+            select(DowntimeFollowUpQueue).where(DowntimeFollowUpQueue.incident_id == "INC-0003")
+        )
+        repair_in_progress = session.scalar(
+            select(DowntimeFollowUpQueue).where(DowntimeFollowUpQueue.incident_id == "INC-0005")
+        )
+
+        assert engineer_assigned is not None
+        assert engineer_assigned.recommended_action == "Assign facilities engineer or rebalance team"
+        assert "Impact rationale:" in engineer_assigned.reason_summary
+        assert "redundancy exposure" in engineer_assigned.reason_summary
+        assert repair_in_progress is not None
+        assert repair_in_progress.recommended_action == "Unblock repair completion and confirm mitigation status"
+
+
 def test_pipeline_idempotently_rejects_duplicate_raw_records(tmp_path: Path) -> None:
     sample_dir = _write_sample_data(tmp_path)
     session_factory = _session_factory()
