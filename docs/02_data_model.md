@@ -1,60 +1,48 @@
 # Data Model
 
-The data model supports one analytical workflow: connect scattered maintenance records, reconstruct request state, and rank downtime follow-up work.
+## Raw Tables
 
-## Source-Shaped Raw Tables
+- `raw_infrastructure_incidents`
+- `raw_incident_stage_events`
+- `raw_facility_work_orders`
+- `raw_validation_results`
+- `raw_telemetry_alerts`
 
-Raw tables preserve what arrived from upstream-style sources. They keep source IDs and pipeline run IDs so ingestion can be traced and quality checks can point back to the affected records.
+Raw tables keep source-shaped payloads for traceability and duplicate detection.
 
-- `raw_maintenance_requests`
-- `raw_maintenance_stage_events`
-- `raw_maintenance_work_orders`
-- `raw_inspection_results`
-- `raw_sensor_alerts`
+## Core Tables
 
-## Core Operational Tables
-
-Core tables normalize the maintenance domain into consistent relationships.
-
-- `production_lines`
-- `equipment`
-- `technicians`
-- `parts`
-- `maintenance_requests`
-- `maintenance_stage_events`
-- `maintenance_work_orders`
-- `inspection_results`
-- `sensor_alerts`
+- `infrastructure_zones`: AI data center halls, power paths, cooling loops, backup power areas, and monitoring zones
+- `infrastructure_assets`: CRAH, UPS, PDU, chiller, CDU, generator, rack sensor, and switchgear assets
+- `facilities_engineers`: facilities teams and skill groups
+- `critical_spares`: cooling, power, generator, sensor, and metering spares
+- `infrastructure_incidents`: normalized downtime follow-up incidents
+- `incident_stage_events`: event history used for state reconstruction
+- `facility_work_orders`: assigned facilities work and spare/vendor state
+- `validation_results`: return-to-service validation evidence
+- `telemetry_alerts`: linked monitoring evidence
 
 ## Analytics Tables
 
-Analytics tables store computed outputs used by the API and dashboard.
-
-- `maintenance_current_status`: reconstructed current stage and request state
-- `maintenance_stage_lead_times`: duration, threshold, delay, and bottleneck flags by stage
-- `downtime_follow_up_queue`: ranked actionable requests with score components and recommended action
-- `maintenance_bottleneck_summary`: delay concentration by active workflow stage
-- `equipment_delay_summary`: downtime concentration by equipment
-- `production_line_delay_summary`: downtime concentration by line
-- `parts_waiting_summary`: wait hours and blocked request count by part
+- `incident_current_status`: reconstructed current state and delay signal
+- `incident_stage_lead_times`: stage duration, threshold, and bottleneck signal
+- `downtime_follow_up_queue`: ranked actionable incidents and recommended actions
+- `infrastructure_bottleneck_summary`: grouped stage delay by operational dimensions
+- `asset_delay_summary`: downtime concentration by infrastructure asset
+- `zone_delay_summary`: downtime concentration by data center zone
+- `spare_waiting_summary`: spare/vendor wait impact
 
 ## Ops Tables
 
-Ops tables make the pipeline observable and keep data trust visible.
-
 - `pipeline_runs`
 - `data_quality_check_results`
+- `infrastructure_reconciliation_issues`
 
-## Main Relationships
+## Relationship Summary
 
-- Maintenance request belongs to equipment and production line.
-- Stage events belong to a maintenance request.
-- Work order belongs to a maintenance request and may reference technician and part.
-- Inspection result belongs to a maintenance request.
-- Sensor alert belongs to equipment and may link to a maintenance request.
-
-## Modeling Notes
-
-- Event history is used for state reconstruction because stage duration and delay cannot be trusted from a single current-status field.
-- Terminal `COMPLETED` requests remain available in timelines, but completed stages are excluded from actionable bottleneck summaries.
-- The follow-up queue is an analytics table rather than an editable task list. It represents what the pipeline recommends based on the latest trusted run.
+- An incident belongs to one infrastructure asset and one infrastructure zone.
+- Stage events belong to an incident and reconstruct its timeline.
+- Work orders belong to an incident and may reference a facilities engineer and critical spare.
+- Validation results belong to an incident and indicate restore readiness.
+- Telemetry alerts belong to an asset and may link to an incident.
+- Reconciliation issues are tied to a pipeline run and may link to an incident and asset.

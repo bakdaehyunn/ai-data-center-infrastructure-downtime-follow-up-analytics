@@ -12,7 +12,7 @@ from sqlalchemy.pool import StaticPool
 from app.db import get_db
 from app.main import app
 from app.models import Base
-from app.models.ops import DataQualityCheckResult, MaintenanceReconciliationIssue, PipelineRun
+from app.models.ops import DataQualityCheckResult, InfrastructureReconciliationIssue, PipelineRun
 from app.pipeline.runner import run_ingestion_pipeline
 from app.sample_data.generator import generate_sample_dataset, write_sample_dataset
 
@@ -49,8 +49,9 @@ def test_overview_endpoint_returns_downtime_follow_up_summary(api_client: TestCl
     assert data["total_requests"] == 11
     assert data["open_requests"] == 8
     assert data["delayed_requests"] == 8
-    assert data["critical_equipment_delayed"] == 3
-    assert data["top_bottleneck_stage"] == "TECHNICIAN_ASSIGNED"
+    assert data["critical_asset_delayed"] == 3
+    assert data["top_bottleneck_stage"] == "ENGINEER_ASSIGNED"
+    assert data["repeat_failure_asset_count"] == 1
     assert data["latest_pipeline_run_status"] == "PARTIAL_SUCCESS"
     assert data["data_quality_status"] == "FAILED"
 
@@ -60,67 +61,67 @@ def test_follow_ups_endpoint_returns_ranked_queue(api_client: TestClient) -> Non
 
     assert response.status_code == 200
     data = response.json()
-    assert [row["maintenance_request_id"] for row in data] == ["MREQ-0004", "MREQ-0007", "MREQ-0006"]
+    assert [row["incident_id"] for row in data] == ["INC-0007", "INC-0004", "INC-0006"]
     assert data[0]["priority_rank"] == 1
-    assert data[0]["current_stage"] == "PARTS_WAITING"
-    assert data[0]["recommended_action"] == "Expedite required part or approve substitute"
-    assert data[0]["total_priority_score"] == 151.73
+    assert data[0]["current_stage"] == "SPARE_VENDOR_WAITING"
+    assert data[0]["recommended_action"] == "Expedite critical spare or vendor dispatch"
+    assert data[0]["total_priority_score"] == 150.0
 
 
 def test_follow_ups_endpoint_filters_queue(api_client: TestClient) -> None:
-    stage_response = api_client.get("/api/follow-ups?stage=TECHNICIAN_ASSIGNED")
-    line_response = api_client.get("/api/follow-ups?line_id=LINE-PKG-01")
+    stage_response = api_client.get("/api/follow-ups?stage=ENGINEER_ASSIGNED")
+    line_response = api_client.get("/api/follow-ups?zone_id=ZONE-POWER-A")
     priority_response = api_client.get("/api/follow-ups?priority_level=CRITICAL")
 
     assert stage_response.status_code == 200
     assert line_response.status_code == 200
     assert priority_response.status_code == 200
 
-    assert [row["maintenance_request_id"] for row in stage_response.json()] == ["MREQ-0003", "MREQ-0009"]
-    assert {row["line_id"] for row in line_response.json()} == {"LINE-PKG-01"}
+    assert [row["incident_id"] for row in stage_response.json()] == ["INC-0003", "INC-0009"]
+    assert {row["zone_id"] for row in line_response.json()} == {"ZONE-POWER-A"}
     assert {row["priority_level"] for row in priority_response.json()} == {"CRITICAL"}
 
 
 def test_follow_up_detail_returns_state_timeline_and_related_records(api_client: TestClient) -> None:
-    response = api_client.get("/api/follow-ups/MREQ-0004")
+    response = api_client.get("/api/follow-ups/INC-0004")
 
     assert response.status_code == 200
     data = response.json()
-    assert data["request"]["maintenance_request_id"] == "MREQ-0004"
-    assert data["request"]["priority_rank"] == 1
-    assert data["request"]["current_stage"] == "PARTS_WAITING"
-    assert data["request"]["recommended_action"] == "Expedite required part or approve substitute"
+    assert data["request"]["incident_id"] == "INC-0004"
+    assert data["request"]["priority_rank"] == 2
+    assert data["request"]["current_stage"] == "SPARE_VENDOR_WAITING"
+    assert data["request"]["recommended_action"] == "Expedite critical spare or vendor dispatch"
     assert [stage["stage"] for stage in data["stage_lead_times"]] == [
-        "MAINTENANCE_REQUEST_SUBMITTED",
-        "MAINTENANCE_REVIEW",
-        "TECHNICIAN_ASSIGNED",
-        "PARTS_WAITING",
+        "INCIDENT_REPORTED",
+        "FACILITIES_TRIAGE",
+        "ENGINEER_ASSIGNED",
+        "SPARE_VENDOR_WAITING",
     ]
     assert data["stage_lead_times"][-1]["is_bottleneck"] is True
-    assert data["work_orders"][0]["required_part_id"] == "PART-SERVO-7KW"
+    assert data["work_orders"][0]["required_spare_id"] == "SPARE-CHILLER-COMPRESSOR"
     assert data["work_orders"][0]["stock_status"] == "OUT_OF_STOCK"
-    assert data["sensor_alerts"][0]["alert_type"] == "DRIVE_FAULT"
+    assert data["telemetry_alerts"][0]["alert_type"] == "CHILLED_WATER_TEMP_HIGH"
     assert any(
-        flag == "Parts data mismatch: A work order is waiting for parts, but no required part is linked."
+        flag == "Spare or vendor evidence mismatch: A work order is waiting on a spare or vendor, but no required spare is linked."
         for flag in data["quality_flags"]
     )
 
 
 def test_follow_up_detail_handles_completed_non_queued_request(api_client: TestClient) -> None:
-    response = api_client.get("/api/follow-ups/MREQ-0010")
+    response = api_client.get("/api/follow-ups/INC-0010")
 
     assert response.status_code == 200
     data = response.json()
     assert data["request"]["priority_rank"] == 0
-    assert data["request"]["current_status"] == "COMPLETED"
+    assert data["request"]["current_status"] == "RESTORED"
     assert data["request"]["recommended_action"] == "No follow-up required"
     assert len(data["timeline"]) == 14
     assert data["quality_flags"] == []
 
 
 def test_follow_up_detail_and_timeline_return_404_for_unknown_request(api_client: TestClient) -> None:
-    detail_response = api_client.get("/api/follow-ups/MREQ-NOT-FOUND")
-    timeline_response = api_client.get("/api/follow-ups/MREQ-NOT-FOUND/timeline")
+    detail_response = api_client.get("/api/follow-ups/INC-NOT-FOUND")
+    timeline_response = api_client.get("/api/follow-ups/INC-NOT-FOUND/timeline")
 
     assert detail_response.status_code == 404
     assert timeline_response.status_code == 404
@@ -128,9 +129,9 @@ def test_follow_up_detail_and_timeline_return_404_for_unknown_request(api_client
 
 def test_downtime_and_impact_endpoints_return_analytics(api_client: TestClient) -> None:
     stages_response = api_client.get("/api/downtime/stages")
-    equipment_response = api_client.get("/api/equipment/delays")
-    lines_response = api_client.get("/api/lines/delays")
-    parts_response = api_client.get("/api/parts/waiting")
+    equipment_response = api_client.get("/api/assets/delays")
+    lines_response = api_client.get("/api/zones/delays")
+    parts_response = api_client.get("/api/spares/waiting")
 
     assert stages_response.status_code == 200
     assert equipment_response.status_code == 200
@@ -138,11 +139,11 @@ def test_downtime_and_impact_endpoints_return_analytics(api_client: TestClient) 
     assert parts_response.status_code == 200
 
     stages = stages_response.json()
-    assert stages[0]["stage"] == "TECHNICIAN_ASSIGNED"
-    assert stages[0]["total_delay_hours"] == 128.0
-    assert equipment_response.json()[0]["equipment_id"] == "EQ-PRS-001"
-    assert lines_response.json()[0]["line_id"] == "LINE-PKG-01"
-    assert parts_response.json()[0]["part_id"] == "PART-SERVO-7KW"
+    assert stages[0]["stage"] == "ENGINEER_ASSIGNED"
+    assert stages[0]["total_delay_hours"] == 132.0
+    assert equipment_response.json()[0]["asset_id"] == "ASSET-UPS-01"
+    assert lines_response.json()[0]["zone_id"] == "ZONE-POWER-A"
+    assert parts_response.json()[0]["spare_id"] == "SPARE-CHILLER-COMPRESSOR"
 
 
 def test_data_quality_endpoints_expose_failed_checks(api_client: TestClient) -> None:
@@ -152,12 +153,12 @@ def test_data_quality_endpoints_expose_failed_checks(api_client: TestClient) -> 
     data = response.json()
     failed_keys = {(row["target_table"], row["check_name"]) for row in data}
     assert {
-        ("raw_maintenance_requests", "duplicate_source_record"),
-        ("raw_maintenance_requests", "missing_required_fields"),
-        ("maintenance_requests", "maintenance_request_without_stage_event"),
-        ("maintenance_stage_events", "stage_event_timestamp_out_of_order"),
-        ("maintenance_work_orders", "parts_waiting_without_required_part"),
-        ("inspection_results", "inspection_without_completed_work"),
+        ("raw_infrastructure_incidents", "duplicate_source_record"),
+        ("raw_infrastructure_incidents", "missing_required_fields"),
+        ("infrastructure_incidents", "infrastructure_incident_without_stage_event"),
+        ("incident_stage_events", "stage_event_timestamp_out_of_order"),
+        ("facility_work_orders", "spare_waiting_without_required_spare"),
+        ("validation_results", "validation_without_completed_work"),
     }.issubset(failed_keys)
 
     detail_response = api_client.get(f"/api/data-quality/checks/{data[0]['check_result_id']}")
@@ -172,7 +173,7 @@ def test_overview_and_quality_checks_use_latest_pipeline_run(api_client: TestCli
         session.add(
             PipelineRun(
                 pipeline_run_id="RUN-OLDER-FAILED",
-                pipeline_name="maintenance_downtime_followup",
+                pipeline_name="ai_data_center_infrastructure_followup",
                 started_at=latest_run.started_at.replace(year=latest_run.started_at.year - 1),
                 status="PARTIAL_SUCCESS",
                 rows_extracted=1,
@@ -189,16 +190,16 @@ def test_overview_and_quality_checks_use_latest_pipeline_run(api_client: TestCli
                 severity="ERROR",
                 status="FAILED",
                 failed_row_count=1,
-                sample_failed_keys=["MREQ-0010"],
+                sample_failed_keys=["INC-0010"],
                 message="Old failed check should not affect latest-run quality.",
             )
         )
         session.add(
-            MaintenanceReconciliationIssue(
+            InfrastructureReconciliationIssue(
                 issue_id="REC-RUN-OLDER-FAILED-001",
                 pipeline_run_id="RUN-OLDER-FAILED",
-                maintenance_request_id="MREQ-0010",
-                equipment_id="EQ-MIX-001",
+                incident_id="INC-0010",
+                asset_id="ASSET-SWGR-01",
                 issue_type="stale_reconciliation_issue",
                 severity="ERROR",
                 status="OPEN",
@@ -211,7 +212,7 @@ def test_overview_and_quality_checks_use_latest_pipeline_run(api_client: TestCli
     overview_response = api_client.get("/api/overview")
     failed_response = api_client.get("/api/data-quality/checks?status=FAILED")
     all_failed_response = api_client.get("/api/data-quality/checks?status=FAILED&all_runs=true")
-    detail_response = api_client.get("/api/follow-ups/MREQ-0010")
+    detail_response = api_client.get("/api/follow-ups/INC-0010")
 
     assert overview_response.status_code == 200
     assert failed_response.status_code == 200
@@ -224,13 +225,13 @@ def test_overview_and_quality_checks_use_latest_pipeline_run(api_client: TestCli
     assert detail_response.json()["quality_flags"] == []
 
 
-def test_filter_metadata_endpoint_returns_maintenance_options(api_client: TestClient) -> None:
+def test_filter_metadata_endpoint_returns_infrastructure_options(api_client: TestClient) -> None:
     response = api_client.get("/api/metadata/filters")
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data["production_lines"]) == 5
-    assert len(data["equipment"]) == 9
-    assert "PARTS_WAITING" in data["stages"]
-    assert "COMPLETED" not in data["stages"]
+    assert len(data["infrastructure_zones"]) == 5
+    assert len(data["assets"]) == 9
+    assert "SPARE_VENDOR_WAITING" in data["stages"]
+    assert "RESTORED" not in data["stages"]
     assert "CRITICAL" in data["priority_levels"]

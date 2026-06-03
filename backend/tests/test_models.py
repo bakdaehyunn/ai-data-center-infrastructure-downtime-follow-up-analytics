@@ -1,29 +1,29 @@
 from app.models import Base
 
 
-def test_maintenance_downtime_schema_tables_are_registered() -> None:
+def test_infrastructure_downtime_schema_tables_are_registered() -> None:
     expected_tables = {
-        "raw_maintenance_requests",
-        "raw_maintenance_stage_events",
-        "raw_maintenance_work_orders",
-        "raw_inspection_results",
-        "raw_sensor_alerts",
-        "maintenance_current_status",
-        "maintenance_stage_lead_times",
+        "raw_infrastructure_incidents",
+        "raw_incident_stage_events",
+        "raw_facility_work_orders",
+        "raw_validation_results",
+        "raw_telemetry_alerts",
+        "incident_current_status",
+        "incident_stage_lead_times",
         "downtime_follow_up_queue",
-        "maintenance_bottleneck_summary",
-        "equipment_delay_summary",
-        "production_line_delay_summary",
-        "parts_waiting_summary",
-        "production_lines",
-        "equipment",
-        "technicians",
-        "parts",
-        "maintenance_requests",
-        "maintenance_stage_events",
-        "maintenance_work_orders",
-        "inspection_results",
-        "sensor_alerts",
+        "infrastructure_bottleneck_summary",
+        "asset_delay_summary",
+        "zone_delay_summary",
+        "spare_waiting_summary",
+        "infrastructure_zones",
+        "infrastructure_assets",
+        "facilities_engineers",
+        "critical_spares",
+        "infrastructure_incidents",
+        "incident_stage_events",
+        "facility_work_orders",
+        "validation_results",
+        "telemetry_alerts",
         "pipeline_runs",
         "data_quality_check_results",
     }
@@ -32,12 +32,12 @@ def test_maintenance_downtime_schema_tables_are_registered() -> None:
 
 
 def test_stage_events_support_timeline_queries() -> None:
-    stage_events = Base.metadata.tables["maintenance_stage_events"]
+    stage_events = Base.metadata.tables["incident_stage_events"]
 
-    assert "maintenance_request_id" in stage_events.c
+    assert "incident_id" in stage_events.c
     assert "occurred_at" in stage_events.c
     assert any(
-        index.name == "ix_maintenance_stage_events_request_time"
+        index.name == "ix_incident_stage_events_request_time"
         for index in stage_events.indexes
     )
 

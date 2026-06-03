@@ -10,12 +10,12 @@ class OverviewResponse(BaseModel):
     total_requests: int
     open_requests: int
     delayed_requests: int
-    critical_equipment_delayed: int
+    critical_asset_delayed: int
     avg_downtime_hours: float
     top_bottleneck_stage: Optional[str]
-    parts_waiting_delay_hours: float
-    repeat_failure_equipment_count: int
-    technician_assignment_delay_hours: float
+    spare_waiting_delay_hours: float
+    repeat_failure_asset_count: int
+    engineer_assignment_delay_hours: float
     latest_pipeline_run_status: Optional[str]
     data_quality_status: str
 
@@ -32,26 +32,26 @@ class StageBottleneckResponse(BaseModel):
 
 class FollowUpItemResponse(BaseModel):
     priority_rank: int
-    maintenance_request_id: str
+    incident_id: str
     request_number: str
     request_title: str
-    equipment_id: str
-    equipment_name: str
-    line_id: str
-    line_name: str
+    asset_id: str
+    asset_name: str
+    zone_id: str
+    zone_name: str
     current_stage: str
     current_status: str
     hours_in_current_stage: float
     needed_by_at: datetime
     priority_level: str
     business_impact: str
-    equipment_criticality_score: float
+    asset_criticality_score: float
     downtime_score: float
     stage_delay_score: float
-    production_line_impact_score: float
+    infrastructure_zone_impact_score: float
     needed_by_urgency_score: float
     repeat_failure_score: float
-    parts_risk_score: float
+    spare_risk_score: float
     total_priority_score: float
     recommended_action: str
     reason_summary: str
@@ -81,28 +81,28 @@ class TimelineEventResponse(BaseModel):
 class WorkOrderSummaryResponse(BaseModel):
     work_order_id: str
     assigned_team: str
-    assigned_technician_id: Optional[str]
+    assigned_engineer_id: Optional[str]
     work_order_status: str
     planned_start_at: Optional[datetime]
     actual_start_at: Optional[datetime]
     actual_completed_at: Optional[datetime]
-    required_part_id: Optional[str]
-    required_part_name: Optional[str]
+    required_spare_id: Optional[str]
+    required_spare_name: Optional[str]
     stock_status: Optional[str]
 
 
-class InspectionResponse(BaseModel):
-    inspection_id: str
-    inspection_status: str
-    inspector_id: Optional[str]
-    inspection_started_at: Optional[datetime]
-    inspection_completed_at: Optional[datetime]
+class ValidationResponse(BaseModel):
+    validation_id: str
+    validation_status: str
+    validator_id: Optional[str]
+    validation_started_at: Optional[datetime]
+    validation_completed_at: Optional[datetime]
     failure_reason: Optional[str]
 
 
-class SensorAlertResponse(BaseModel):
-    sensor_alert_id: str
-    equipment_id: str
+class TelemetryAlertResponse(BaseModel):
+    telemetry_alert_id: str
+    asset_id: str
     alert_type: str
     severity: str
     triggered_at: datetime
@@ -114,16 +114,16 @@ class RequestDetailResponse(BaseModel):
     stage_lead_times: list[StageLeadTimeResponse]
     timeline: list[TimelineEventResponse]
     work_orders: list[WorkOrderSummaryResponse]
-    inspection_results: list[InspectionResponse]
-    sensor_alerts: list[SensorAlertResponse]
+    validation_results: list[ValidationResponse]
+    telemetry_alerts: list[TelemetryAlertResponse]
     quality_flags: list[str]
 
 
-class EquipmentDelayResponse(BaseModel):
-    equipment_id: str
-    equipment_name: str
-    line_id: str
-    line_name: str
+class InfrastructureAssetDelayResponse(BaseModel):
+    asset_id: str
+    asset_name: str
+    zone_id: str
+    zone_name: str
     request_count: int
     delayed_request_count: int
     repeat_failure_count: int
@@ -132,20 +132,20 @@ class EquipmentDelayResponse(BaseModel):
     top_failure_mode: str
 
 
-class ProductionLineDelayResponse(BaseModel):
-    line_id: str
-    line_name: str
+class InfrastructureZoneDelayResponse(BaseModel):
+    zone_id: str
+    zone_name: str
     open_request_count: int
     delayed_request_count: int
-    critical_equipment_delayed_count: int
+    critical_asset_delayed_count: int
     total_downtime_hours: float
     top_bottleneck_stage: str
 
 
-class PartsWaitingResponse(BaseModel):
-    part_id: str
-    part_name: str
-    part_category: str
+class SpareWaitingResponse(BaseModel):
+    spare_id: str
+    spare_name: str
+    spare_category: str
     waiting_request_count: int
     total_wait_hours: float
     avg_wait_hours: float
@@ -184,11 +184,11 @@ class FilterOption(BaseModel):
 
 
 class FilterMetadataResponse(BaseModel):
-    production_lines: list[FilterOption]
-    equipment: list[FilterOption]
-    equipment_types: list[str]
-    technician_teams: list[str]
-    part_categories: list[str]
+    infrastructure_zones: list[FilterOption]
+    assets: list[FilterOption]
+    asset_types: list[str]
+    facilities_teams: list[str]
+    spare_categories: list[str]
     priority_levels: list[str]
     request_types: list[str]
     failure_modes: list[str]

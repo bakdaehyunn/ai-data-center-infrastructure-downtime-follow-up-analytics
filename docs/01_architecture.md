@@ -3,66 +3,52 @@
 ## Flow
 
 ```text
-scattered maintenance source records
-  -> raw maintenance tables
-  -> core maintenance tables
-  -> analytics tables
-  -> analytics control checks
+scattered AI infrastructure source records
+  -> raw source-preserving tables
+  -> core AI infrastructure tables
+  -> analytics materialization
+  -> reconciliation checks
   -> read-only FastAPI API
   -> React dashboard
 ```
 
+## Layer Responsibilities
+
+- Raw layer preserves source payloads, source record IDs, pipeline run IDs, and ingestion timestamps.
+- Core layer normalizes source records into incidents, stage events, work orders, assets, zones, spares, engineers, validations, and telemetry alerts.
+- Analytics layer stores calculated current status, lead times, bottlenecks, follow-up scores, and impact summaries.
+- Control layer persists reconciliation issues when core state, event history, and analytics outputs do not agree.
+- API layer serves read-only analytics and drilldown views.
+
+## Pipeline Order
+
+```text
+generate/read sample source files
+  -> raw quality checks
+  -> raw load
+  -> core transform
+  -> core quality checks
+  -> analytics build
+  -> reconciliation issue detection
+  -> pipeline run commit
+```
+
+Reconciliation runs after analytics materialization because some issues require comparing core incidents with generated analytics rows, for example a core incident missing `incident_current_status`.
+
 ## Design Choices
 
-### Raw/Core/Analytics/Ops Layers
+### Event History as Analytical Evidence
 
-The layer split keeps each responsibility clear:
-
-- raw preserves source-shaped records, source IDs, and pipeline run traceability
-- core normalizes maintenance entities into a consistent operational model
-- analytics stores calculated state, lead time, bottleneck, impact, and follow-up outputs
-- ops records pipeline runs, data quality results, and reconciliation issues
-
-This mirrors the operating problem: the value comes from connecting scattered records without pretending they came from one perfect source table.
-
-### Analytics Control Layer
-
-The analytics control layer runs after analytics materialization and before API consumers rely on the output. It checks whether the core records, event history, and generated analytics rows agree with each other before users rely on the dashboard.
-
-Current reconciliation outputs are stored in `maintenance_reconciliation_issues` and scoped to the latest pipeline run. Request-level issues are exposed as drilldown quality flags.
-
-The control layer currently detects:
-
-- current state that cannot be reconstructed from stage events
-- current stage mismatches between core request state and event history
-- completion status conflicts between request records and event history
-- stage events that occur before the request was reported
-- parts-waiting work orders without a required part
-- inspections without completed maintenance work
-- core requests missing a generated current-status analytics row
-
-This is separate from raw/core data quality checks. Data quality checks validate source and normalized records; reconciliation checks validate whether those records can safely support the analytics output.
-
-### Event History as Source of Truth
-
-The current state is reconstructed from maintenance stage events. A single current-status field can say where a request is now, but it cannot explain how it got there, how long each stage took, or where delay accumulated.
-
-Event history gives the project the analytical surface it needs:
-
-- stage entry and exit timestamps
-- current stage reconstruction
-- stage lead time
-- terminal versus actionable states
-- request timeline drilldown
+The current state can be stored on an incident, but stage events explain how the incident reached that state. The analytics builder uses stage entry and exit events to calculate lead time, delay, bottlenecks, and timelines.
 
 ### Pipeline-Computed Analytics
 
-The pipeline calculates lead time, bottlenecks, impact summaries, reconciliation flags, and priority scores before API reads. This keeps the API read-optimized and predictable, and it makes the analytics outputs auditable by pipeline run.
+The pipeline computes analytics before API reads. This makes API responses stable, fast, and auditable by pipeline run.
 
-### Read-Only Analytics API
+### Read-Only API
 
-The API exposes operational analytics only. It does not mutate maintenance records because the project is not trying to replace a maintenance system of record. Its job is to show what needs follow-up, why it matters, and whether the supporting data is trustworthy.
+The API does not mutate incidents, work orders, inventory, or telemetry. The product is an analytics control and follow-up layer above operational systems of record.
 
-### Dashboard as Decision Support
+### Latest-Run Trust Scope
 
-The dashboard is intentionally centered on a follow-up queue and drilldown. It is not a maintenance entry screen. It helps a user move from broad delay visibility to a specific request, blocker, and recommended action.
+Data quality checks and reconciliation flags are scoped to the latest pipeline run by default. This prevents stale failures from polluting current dashboard trust signals.

@@ -18,16 +18,16 @@ def test_sample_dataset_contains_required_downtime_follow_up_scenarios() -> None
     }
 
     assert {
-        "normal_completed_maintenance",
-        "maintenance_review_delay",
-        "technician_assignment_delay",
-        "parts_waiting_delay",
-        "maintenance_in_progress_delay",
-        "inspection_delay",
-        "critical_equipment_delayed",
-        "repeat_failure_equipment",
-        "line_delay_concentration",
-        "sensor_triggered_maintenance",
+        "completed_crac_fan_replacement",
+        "ups_module_triage_delay",
+        "pdu_breaker_assignment_delay",
+        "chiller_spare_waiting_delay",
+        "cdu_repair_in_progress_delay",
+        "thermal_validation_delay",
+        "generator_vendor_waiting_delay",
+        "repeated_crah_fan_failure",
+        "gpu_zone_temperature_assignment_delay",
+        "epms_telemetry_follow_up",
     }.issubset(scenario_keys)
 
 
@@ -39,16 +39,16 @@ def test_sample_dataset_contains_seeded_quality_issue_records() -> None:
     }
     source_ids = [
         record["source_record_id"]
-        for record in dataset["maintenance_requests"]
+        for record in dataset["infrastructure_incidents"]
     ]
 
     assert {
         "duplicate_source_record",
         "missing_required_fields",
-        "maintenance_request_without_stage_event",
+        "infrastructure_incident_without_stage_event",
         "stage_event_timestamp_out_of_order",
-        "parts_waiting_without_required_part",
-        "inspection_without_completed_work",
+        "spare_waiting_without_required_spare",
+        "validation_without_completed_work",
     } == expected_checks
     assert len(source_ids) != len(set(source_ids))
 
@@ -57,19 +57,19 @@ def test_critical_downtime_follow_up_requests_are_open() -> None:
     dataset = generate_sample_dataset()
     requests_by_scenario = {
         record["payload"]["scenario_key"]: record["payload"]
-        for record in dataset["maintenance_requests"]
+        for record in dataset["infrastructure_incidents"]
         if "scenario_key" in record["payload"]
     }
 
-    parts_waiting = requests_by_scenario["parts_waiting_delay"]
-    critical = requests_by_scenario["critical_equipment_delayed"]
-    technician_delay = requests_by_scenario["technician_assignment_delay"]
+    spare_waiting = requests_by_scenario["chiller_spare_waiting_delay"]
+    critical = requests_by_scenario["generator_vendor_waiting_delay"]
+    engineer_delay = requests_by_scenario["pdu_breaker_assignment_delay"]
 
-    assert parts_waiting["priority_level"] == "CRITICAL"
-    assert parts_waiting["current_stage"] == "PARTS_WAITING"
-    assert parts_waiting["current_status"] == "IN_PROGRESS"
-    assert critical["current_stage"] == "PARTS_WAITING"
-    assert technician_delay["current_stage"] == "TECHNICIAN_ASSIGNED"
+    assert spare_waiting["priority_level"] == "CRITICAL"
+    assert spare_waiting["current_stage"] == "SPARE_VENDOR_WAITING"
+    assert spare_waiting["current_status"] == "IN_PROGRESS"
+    assert critical["current_stage"] == "SPARE_VENDOR_WAITING"
+    assert engineer_delay["current_stage"] == "ENGINEER_ASSIGNED"
 
 
 def test_write_sample_dataset_creates_expected_files(tmp_path) -> None:
@@ -78,14 +78,14 @@ def test_write_sample_dataset_creates_expected_files(tmp_path) -> None:
 
     assert {path.name for path in written} == {
         "manifest.json",
-        "production_lines.json",
-        "equipment.json",
-        "technicians.json",
-        "parts.json",
-        "maintenance_requests.json",
-        "maintenance_stage_events.json",
-        "maintenance_work_orders.json",
-        "inspection_results.json",
-        "sensor_alerts.json",
+        "infrastructure_zones.json",
+        "infrastructure_assets.json",
+        "facilities_engineers.json",
+        "critical_spares.json",
+        "infrastructure_incidents.json",
+        "incident_stage_events.json",
+        "facility_work_orders.json",
+        "validation_results.json",
+        "telemetry_alerts.json",
     }
-    assert json.loads((tmp_path / "manifest.json").read_text())["source_system"] == "sample_industrial_maintenance_system"
+    assert json.loads((tmp_path / "manifest.json").read_text())["source_system"] == "sample_ai_data_center_infrastructure_system"

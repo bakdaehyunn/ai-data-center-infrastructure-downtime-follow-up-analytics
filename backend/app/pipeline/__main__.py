@@ -8,7 +8,7 @@ from app.pipeline.runner import run_ingestion_pipeline
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the maintenance downtime follow-up data pipeline.")
+    parser = argparse.ArgumentParser(description="Run the AI data center infrastructure follow-up pipeline.")
     parser.add_argument("command", choices=["run"])
     parser.add_argument(
         "--sample-dir",
@@ -19,7 +19,7 @@ def main() -> None:
     parser.add_argument(
         "--generate-sample",
         action="store_true",
-        help="Generate deterministic maintenance sample data before running the pipeline.",
+        help="Generate deterministic AI data center infrastructure sample data before running the pipeline.",
     )
     parser.add_argument("--seed", type=int, default=20260523)
     args = parser.parse_args()

@@ -6,31 +6,31 @@ from sqlalchemy.orm import sessionmaker
 from app.models import Base
 from app.models.analytics import (
     DowntimeFollowUpQueue,
-    EquipmentDelaySummary,
-    MaintenanceBottleneckSummary,
-    MaintenanceCurrentStatus,
-    MaintenanceStageLeadTime,
-    PartsWaitingSummary,
-    ProductionLineDelaySummary,
+    AssetDelaySummary,
+    InfrastructureBottleneckSummary,
+    IncidentCurrentStatus,
+    IncidentStageLeadTime,
+    SpareWaitingSummary,
+    ZoneDelaySummary,
 )
-from app.models.maintenance import (
-    Equipment,
-    InspectionResult,
-    MaintenanceRequest,
-    MaintenanceStageEvent,
-    MaintenanceWorkOrder,
-    Part,
-    ProductionLine,
-    SensorAlert,
-    Technician,
+from app.models.infrastructure import (
+    InfrastructureAsset,
+    ValidationResult,
+    InfrastructureIncident,
+    IncidentStageEvent,
+    FacilityWorkOrder,
+    CriticalSpare,
+    InfrastructureZone,
+    TelemetryAlert,
+    FacilitiesEngineer,
 )
-from app.models.ops import DataQualityCheckResult, MaintenanceReconciliationIssue, PipelineRun
+from app.models.ops import DataQualityCheckResult, InfrastructureReconciliationIssue, PipelineRun
 from app.models.raw import (
-    RawInspectionResult,
-    RawMaintenanceRequest,
-    RawMaintenanceStageEvent,
-    RawMaintenanceWorkOrder,
-    RawSensorAlert,
+    RawValidationResult,
+    RawInfrastructureIncident,
+    RawIncidentStageEvent,
+    RawFacilityWorkOrder,
+    RawTelemetryAlert,
 )
 from app.pipeline.quality import run_raw_quality_checks
 from app.pipeline.raw_loader import read_raw_source_records
@@ -49,8 +49,8 @@ def test_raw_quality_checks_detect_seeded_source_issues(tmp_path: Path) -> None:
         if result.status != "PASS"
     }
 
-    assert failures[("raw_maintenance_requests", "duplicate_source_record")] == 1
-    assert failures[("raw_maintenance_requests", "missing_required_fields")] == 1
+    assert failures[("raw_infrastructure_incidents", "duplicate_source_record")] == 1
+    assert failures[("raw_infrastructure_incidents", "missing_required_fields")] == 1
 
 
 def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_path: Path) -> None:
@@ -67,71 +67,71 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert result.quality_failed_checks == 6
         assert result.core_records_loaded == 153
         assert result.core_records_skipped == 1
-        assert result.analytics_records_loaded == 358
+        assert result.analytics_records_loaded == 348
         assert result.reconciliation_issues_created == 5
 
         pipeline_run = session.scalar(select(PipelineRun).where(PipelineRun.pipeline_run_id == result.pipeline_run_id))
         assert pipeline_run is not None
         assert pipeline_run.pipeline_name == PIPELINE_NAME
-        assert _count(session, RawMaintenanceRequest) == 12
-        assert _count(session, RawMaintenanceStageEvent) == 91
-        assert _count(session, RawMaintenanceWorkOrder) == 10
-        assert _count(session, RawInspectionResult) == 5
-        assert _count(session, RawSensorAlert) == 6
-        assert _count(session, ProductionLine) == 5
-        assert _count(session, Equipment) == 9
-        assert _count(session, Technician) == 6
-        assert _count(session, Part) == 10
-        assert _count(session, MaintenanceRequest) == 11
-        assert _count(session, MaintenanceStageEvent) == 91
-        assert _count(session, MaintenanceWorkOrder) == 10
-        assert _count(session, InspectionResult) == 5
-        assert _count(session, SensorAlert) == 6
-        assert _count(session, MaintenanceCurrentStatus) == 10
-        assert _count(session, MaintenanceStageLeadTime) == 48
+        assert _count(session, RawInfrastructureIncident) == 12
+        assert _count(session, RawIncidentStageEvent) == 91
+        assert _count(session, RawFacilityWorkOrder) == 10
+        assert _count(session, RawValidationResult) == 5
+        assert _count(session, RawTelemetryAlert) == 6
+        assert _count(session, InfrastructureZone) == 5
+        assert _count(session, InfrastructureAsset) == 9
+        assert _count(session, FacilitiesEngineer) == 7
+        assert _count(session, CriticalSpare) == 9
+        assert _count(session, InfrastructureIncident) == 11
+        assert _count(session, IncidentStageEvent) == 91
+        assert _count(session, FacilityWorkOrder) == 10
+        assert _count(session, ValidationResult) == 5
+        assert _count(session, TelemetryAlert) == 6
+        assert _count(session, IncidentCurrentStatus) == 10
+        assert _count(session, IncidentStageLeadTime) == 48
         assert _count(session, DowntimeFollowUpQueue) == 7
-        assert _count(session, MaintenanceBottleneckSummary) == 277
-        assert _count(session, EquipmentDelaySummary) == 9
-        assert _count(session, ProductionLineDelaySummary) == 5
-        assert _count(session, PartsWaitingSummary) == 2
+        assert _count(session, InfrastructureBottleneckSummary) == 267
+        assert _count(session, AssetDelaySummary) == 9
+        assert _count(session, ZoneDelaySummary) == 5
+        assert _count(session, SpareWaitingSummary) == 2
         assert _count(session, DataQualityCheckResult) == 30
-        assert _count(session, MaintenanceReconciliationIssue) == 5
+        assert _count(session, InfrastructureReconciliationIssue) == 5
 
         failures = {
             (result.target_table, result.check_name): result.failed_row_count
             for result in session.scalars(select(DataQualityCheckResult))
             if result.status != "PASS"
         }
-        assert failures[("raw_maintenance_requests", "duplicate_source_record")] == 1
-        assert failures[("raw_maintenance_requests", "missing_required_fields")] == 1
-        assert failures[("maintenance_requests", "maintenance_request_without_stage_event")] == 1
-        assert failures[("maintenance_stage_events", "stage_event_timestamp_out_of_order")] == 1
-        assert failures[("maintenance_work_orders", "parts_waiting_without_required_part")] == 1
-        assert failures[("inspection_results", "inspection_without_completed_work")] == 1
+        assert failures[("raw_infrastructure_incidents", "duplicate_source_record")] == 1
+        assert failures[("raw_infrastructure_incidents", "missing_required_fields")] == 1
+        assert failures[("infrastructure_incidents", "infrastructure_incident_without_stage_event")] == 1
+        assert failures[("incident_stage_events", "stage_event_timestamp_out_of_order")] == 1
+        assert failures[("facility_work_orders", "spare_waiting_without_required_spare")] == 1
+        assert failures[("validation_results", "validation_without_completed_work")] == 1
         reconciliation_issue_types = {
             issue.issue_type
-            for issue in session.scalars(select(MaintenanceReconciliationIssue))
+            for issue in session.scalars(select(InfrastructureReconciliationIssue))
         }
         assert {
             "analytics_output_missing_current_status",
             "event_sequence_before_request",
-            "inspection_without_completed_work",
-            "parts_waiting_missing_required_part",
+            "validation_without_completed_work",
+            "spare_waiting_missing_required_spare",
             "state_reconstruction_missing_stage_event",
         } == reconciliation_issue_types
-        parts_reconciliation_issue = session.scalar(
-            select(MaintenanceReconciliationIssue).where(
-                MaintenanceReconciliationIssue.maintenance_request_id == "MREQ-0004",
-                MaintenanceReconciliationIssue.issue_type == "parts_waiting_missing_required_part",
+        spare_reconciliation_issue = session.scalar(
+            select(InfrastructureReconciliationIssue).where(
+                InfrastructureReconciliationIssue.incident_id == "INC-0004",
+                InfrastructureReconciliationIssue.issue_type == "spare_waiting_missing_required_spare",
             )
         )
-        assert parts_reconciliation_issue is not None
-        assert parts_reconciliation_issue.evidence_json == {
+        assert spare_reconciliation_issue is not None
+        assert spare_reconciliation_issue.evidence_json == {
             "work_order_ids": ["MWO-QA-NO-PART"],
-            "work_order_status": "WAITING_PARTS",
+            "work_order_status": "WAITING_SPARE_VENDOR",
         }
         completed_stage_summary = session.scalar(
-            select(MaintenanceBottleneckSummary).where(MaintenanceBottleneckSummary.stage == "COMPLETED")
+            select(InfrastructureBottleneckSummary).where(InfrastructureBottleneckSummary.stage == "RESTORED")
         )
         assert completed_stage_summary is None
 
@@ -143,29 +143,29 @@ def test_analytics_identifies_seeded_downtime_bottlenecks(tmp_path: Path) -> Non
     with session_factory() as session:
         run_ingestion_pipeline(session=session, sample_dir=sample_dir)
 
-        parts_waiting = session.scalar(
-            select(MaintenanceBottleneckSummary).where(
-                MaintenanceBottleneckSummary.dimension_type == "STAGE",
-                MaintenanceBottleneckSummary.dimension_id == "PARTS_WAITING",
-                MaintenanceBottleneckSummary.stage == "PARTS_WAITING",
+        spare_waiting = session.scalar(
+            select(InfrastructureBottleneckSummary).where(
+                InfrastructureBottleneckSummary.dimension_type == "STAGE",
+                InfrastructureBottleneckSummary.dimension_id == "SPARE_VENDOR_WAITING",
+                InfrastructureBottleneckSummary.stage == "SPARE_VENDOR_WAITING",
             )
         )
-        servo_part = session.scalar(
-            select(PartsWaitingSummary).where(PartsWaitingSummary.part_id == "PART-SERVO-7KW")
+        chiller_spare = session.scalar(
+            select(SpareWaitingSummary).where(SpareWaitingSummary.spare_id == "SPARE-CHILLER-COMPRESSOR")
         )
-        repeat_equipment = session.scalar(
-            select(EquipmentDelaySummary).where(EquipmentDelaySummary.equipment_id == "EQ-CNV-001")
+        repeat_asset = session.scalar(
+            select(AssetDelaySummary).where(AssetDelaySummary.asset_id == "ASSET-CRAH-01")
         )
 
-        assert parts_waiting is not None
-        assert parts_waiting.delayed_count == 2
-        assert float(parts_waiting.total_delay_hours) == 100.0
-        assert servo_part is not None
-        assert servo_part.waiting_request_count == 1
-        assert float(servo_part.total_wait_hours) == 85.0
-        assert repeat_equipment is not None
-        assert repeat_equipment.request_count == 2
-        assert repeat_equipment.repeat_failure_count == 2
+        assert spare_waiting is not None
+        assert spare_waiting.delayed_count == 2
+        assert float(spare_waiting.total_delay_hours) == 112.0
+        assert chiller_spare is not None
+        assert chiller_spare.waiting_request_count == 1
+        assert float(chiller_spare.total_wait_hours) == 85.0
+        assert repeat_asset is not None
+        assert repeat_asset.request_count == 2
+        assert repeat_asset.repeat_failure_count == 2
 
 
 def test_analytics_ranks_downtime_follow_up_queue(tmp_path: Path) -> None:
@@ -178,12 +178,12 @@ def test_analytics_ranks_downtime_follow_up_queue(tmp_path: Path) -> None:
         top_requests = session.scalars(
             select(DowntimeFollowUpQueue).order_by(DowntimeFollowUpQueue.priority_rank).limit(3)
         ).all()
-        top_request_ids = [request.maintenance_request_id for request in top_requests]
+        top_request_ids = [request.incident_id for request in top_requests]
 
-        assert top_request_ids == ["MREQ-0004", "MREQ-0007", "MREQ-0006"]
-        assert top_requests[0].current_stage == "PARTS_WAITING"
-        assert top_requests[0].recommended_action == "Expedite required part or approve substitute"
-        assert float(top_requests[0].total_priority_score) == 151.73
+        assert top_request_ids == ["INC-0007", "INC-0004", "INC-0006"]
+        assert top_requests[0].current_stage == "SPARE_VENDOR_WAITING"
+        assert top_requests[0].recommended_action == "Expedite critical spare or vendor dispatch"
+        assert float(top_requests[0].total_priority_score) == 150.0
 
 
 def test_pipeline_idempotently_rejects_duplicate_raw_records(tmp_path: Path) -> None:
@@ -197,9 +197,9 @@ def test_pipeline_idempotently_rejects_duplicate_raw_records(tmp_path: Path) -> 
         assert first.rows_loaded == 124
         assert second.rows_loaded == 0
         assert second.rows_rejected == 125
-        assert _count(session, RawMaintenanceRequest) == 12
-        assert _count(session, MaintenanceRequest) == 11
-        assert _count(session, MaintenanceStageEvent) == 91
+        assert _count(session, RawInfrastructureIncident) == 12
+        assert _count(session, InfrastructureIncident) == 11
+        assert _count(session, IncidentStageEvent) == 91
         assert _count(session, DowntimeFollowUpQueue) == 7
 
 

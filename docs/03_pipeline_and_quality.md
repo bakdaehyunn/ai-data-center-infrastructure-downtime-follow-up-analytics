@@ -1,62 +1,47 @@
-# Pipeline and Data Quality
-
-The pipeline turns scattered maintenance source records into follow-up analytics that can be queried quickly and reviewed by pipeline run.
+# Pipeline and Quality
 
 ## Pipeline Steps
 
-1. Generate deterministic maintenance sample data.
-2. Read source-shaped JSON records.
-3. Run raw quality checks.
-4. Load raw records with duplicate rejection.
-5. Transform valid raw records into core tables.
-6. Run core quality checks.
-7. Build analytics tables.
-8. Record pipeline run status and load counts.
+1. Read or generate deterministic AI data center source files.
+2. Run raw quality checks before insertion.
+3. Load raw records with duplicate rejection.
+4. Transform valid raw records into the core model.
+5. Run core quality checks.
+6. Build analytics tables.
+7. Run reconciliation checks between core, event history, and analytics outputs.
+8. Commit the pipeline run with load, quality, analytics, and reconciliation counts.
 
 ## Raw Quality Checks
 
-Raw checks protect ingestion trust before source records become normalized entities.
-
-- unknown source system
-- duplicate source record
-- missing required fields
-- invalid date format
-- missing maintenance request references
+- Unknown source system
+- Duplicate source record
+- Missing required payload fields
+- Invalid date format
+- Missing source incident references
 
 ## Core Quality Checks
 
-Core checks protect analytical trust after records are normalized.
+- Incident without stage event
+- Stage event timestamp before incident reporting
+- Work order without incident
+- Spare/vendor waiting without required spare
+- Validation without completed infrastructure work
+- Telemetry alert without known asset
 
-- maintenance request without stage event
-- stage event timestamp before request reporting
-- work order without request
-- inspection without completed work
-- parts waiting without required part
-- sensor alert without equipment
+## Reconciliation Checks
 
-## Analytics Calculations
-
-Stage lead time:
-
-```text
-duration_hours = exited_at_or_as_of - entered_at
-delay_hours = max(duration_hours - stage_threshold_hours, 0)
-```
-
-Follow-up score combines:
-
-- equipment criticality
-- estimated downtime
-- current stage delay
-- production line impact
-- needed-by urgency
-- repeat failure
-- parts risk
+- Core current stage does not match latest entered-stage event
+- Restored incident missing restore event
+- Active incident contains restore event
+- Stage event occurred before incident reporting
+- Spare/vendor wait lacks required spare evidence
+- Validation exists before completed work
+- Core incident missing generated current-status analytics row
 
 ## Terminal Stage Behavior
 
-Terminal `COMPLETED` stage records remain available in request timelines and current-state reconstruction. They are excluded from bottleneck summaries so the stage chart focuses on waiting or execution stages where follow-up is still actionable.
+Terminal `RESTORED` records remain available in timelines and lead-time outputs. They are excluded from actionable bottleneck summaries and follow-up queue rows so the dashboard focuses on active work.
 
-## Latest-Run Trust
+## Latest-Run Scoping
 
-Data quality endpoints default to the latest pipeline run. Historical checks can still be requested, but dashboard trust indicators should represent the data behind the current analytics output, not stale failures from older runs.
+API quality endpoints default to the latest pipeline run. Drilldown quality flags also use latest-run data quality and reconciliation results.

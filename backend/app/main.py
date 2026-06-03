@@ -8,7 +8,7 @@ from app.settings import Settings
 settings = Settings()
 
 app = FastAPI(
-    title="Maintenance Downtime Follow-up Analytics API",
+    title="AI Data Center Infrastructure Downtime Follow-up Analytics API",
     version="0.1.0",
 )
 app.add_middleware(

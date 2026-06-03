@@ -1,52 +1,48 @@
-# UI Spec
+# UI Specification
 
-## Dashboard Goal
+## Primary Screen
 
-The dashboard should help an operations user answer four questions:
+The dashboard opens directly into the operational follow-up view. It is not a landing page and does not include record-entry workflows.
 
-- what maintenance work is delaying return-to-service?
-- where is the current blocker?
-- what should be followed up next?
-- can the data behind the recommendation be trusted?
+## Filters
 
-## Main Views
+- Zone
+- Asset
+- Priority
+- Active stage
 
-### Overview KPIs
+Terminal `RESTORED` stages are not exposed as actionable stage filters.
 
-- open requests
-- delayed requests
-- critical delayed equipment
-- parts waiting hours
-- latest-run data quality status
+## KPI Row
 
-### Follow-up Queue
+- Open incidents
+- Delayed incidents
+- Critical delayed assets
+- Spare/vendor wait hours
+- Latest-run data trust
 
-The queue ranks open maintenance requests and shows request, equipment, line, current stage, current delay, recommended action, and score.
+## Follow-up Queue
 
-The queue is the primary working surface. It should read like a daily follow-up list for a supervisor or planner, not like a generic table of records.
+The queue ranks open incidents by return-to-service delay, blocker stage, zone impact, urgency, repeat failure, and spare risk.
 
-### Request Drilldown
+Each row shows rank, incident number, priority, asset, zone, current stage, delay, recommended action, and score.
 
-The drilldown explains why the selected request is in the queue:
+## Drilldown
 
-- request summary
+Selecting a queue row shows:
+
+- incident summary
+- quality flags
 - score components
 - stage lead times
-- work order context
-- parts context
-- sensor alert context
-- quality flags
+- facilities work order context
+- required spare and stock status
+- validation and telemetry context from the API
 
-### Bottleneck and Impact Panels
+## Analytics Panels
 
-- active stage bottlenecks
-- equipment downtime concentration
-- production line downtime concentration
-- parts waiting impact
-- failed latest-run data quality checks
-
-## Interaction Rules
-
-- Filters should narrow the queue and keep the drilldown aligned with the filtered result set.
-- Terminal completed stages should not appear as actionable stage filters.
-- Empty states should explain that no follow-up work matches the current filters.
+- Active stage bottlenecks
+- Asset impact
+- Zone impact
+- Spare/vendor waiting
+- Data trust

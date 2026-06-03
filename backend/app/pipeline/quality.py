@@ -7,25 +7,25 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.maintenance import (
-    Equipment,
-    InspectionResult,
-    MaintenanceRequest,
-    MaintenanceStageEvent,
-    MaintenanceWorkOrder,
-    SensorAlert,
+from app.models.infrastructure import (
+    InfrastructureAsset,
+    ValidationResult,
+    InfrastructureIncident,
+    IncidentStageEvent,
+    FacilityWorkOrder,
+    TelemetryAlert,
 )
 from app.models.ops import DataQualityCheckResult
 from app.pipeline.raw_loader import RAW_SOURCE_SPECS
-from app.sample_data.maintenance_scenarios import MAINTENANCE_SOURCE_SYSTEM
+from app.sample_data.infrastructure_scenarios import INFRASTRUCTURE_SOURCE_SYSTEM
 
 
 REQUIRED_PAYLOAD_FIELDS = {
-    "raw_maintenance_requests": {
-        "maintenance_request_id",
+    "raw_infrastructure_incidents": {
+        "incident_id",
         "request_number",
-        "equipment_id",
-        "line_id",
+        "asset_id",
+        "zone_id",
         "request_title",
         "request_type",
         "priority_level",
@@ -37,9 +37,9 @@ REQUIRED_PAYLOAD_FIELDS = {
         "business_impact",
         "estimated_downtime_hours",
     },
-    "raw_maintenance_stage_events": {
+    "raw_incident_stage_events": {
         "event_id",
-        "maintenance_request_id",
+        "incident_id",
         "stage",
         "event_type",
         "event_status",
@@ -47,20 +47,20 @@ REQUIRED_PAYLOAD_FIELDS = {
         "actor_type",
         "source_system",
     },
-    "raw_maintenance_work_orders": {
+    "raw_facility_work_orders": {
         "work_order_id",
-        "maintenance_request_id",
+        "incident_id",
         "assigned_team",
         "work_order_status",
     },
-    "raw_inspection_results": {
-        "inspection_id",
-        "maintenance_request_id",
-        "inspection_status",
+    "raw_validation_results": {
+        "validation_id",
+        "incident_id",
+        "validation_status",
     },
-    "raw_sensor_alerts": {
-        "sensor_alert_id",
-        "equipment_id",
+    "raw_telemetry_alerts": {
+        "telemetry_alert_id",
+        "asset_id",
         "alert_type",
         "severity",
         "triggered_at",
@@ -68,11 +68,11 @@ REQUIRED_PAYLOAD_FIELDS = {
 }
 
 DATE_FIELDS = {
-    "raw_maintenance_requests": ["reported_at", "needed_by_at"],
-    "raw_maintenance_stage_events": ["occurred_at"],
-    "raw_maintenance_work_orders": ["planned_start_at", "actual_start_at", "actual_completed_at"],
-    "raw_inspection_results": ["inspection_started_at", "inspection_completed_at"],
-    "raw_sensor_alerts": ["triggered_at", "resolved_at"],
+    "raw_infrastructure_incidents": ["reported_at", "needed_by_at"],
+    "raw_incident_stage_events": ["occurred_at"],
+    "raw_facility_work_orders": ["planned_start_at", "actual_start_at", "actual_completed_at"],
+    "raw_validation_results": ["validation_started_at", "validation_completed_at"],
+    "raw_telemetry_alerts": ["triggered_at", "resolved_at"],
 }
 
 
@@ -119,9 +119,9 @@ def run_core_quality_checks(
         _check_request_without_stage_event(session),
         _check_event_timestamp_out_of_order(session),
         _check_work_order_without_request(session),
-        _check_inspection_without_completed_work(session),
-        _check_parts_waiting_without_required_part(session),
-        _check_sensor_alert_without_equipment(session),
+        _check_validation_without_completed_work(session),
+        _check_spare_waiting_without_required_spare(session),
+        _check_telemetry_alert_without_equipment(session),
     ]
     return _quality_results_to_models(checks, pipeline_run_id, start_index)
 
@@ -130,14 +130,14 @@ def _check_unknown_source_system(target_table: str, records: list[dict[str, Any]
     failed = [
         _record_key(record)
         for record in records
-        if record.get("source_system") != MAINTENANCE_SOURCE_SYSTEM
+        if record.get("source_system") != INFRASTRUCTURE_SOURCE_SYSTEM
     ]
     return QualityCheck(
         check_name="unknown_source_system",
         target_table=target_table,
         severity="ERROR",
         failed_keys=failed,
-        message="Source system must match the expected maintenance sample source.",
+        message="Source system must match the expected infrastructure sample source.",
     )
 
 
@@ -213,57 +213,57 @@ def _check_invalid_date_format(target_table: str, records: list[dict[str, Any]])
 def _check_missing_source_references(
     records_by_table: dict[str, list[dict[str, Any]]],
 ) -> list[QualityCheck]:
-    request_ids = _payload_id_set(records_by_table["raw_maintenance_requests"], "maintenance_request_id")
+    request_ids = _payload_id_set(records_by_table["raw_infrastructure_incidents"], "incident_id")
 
     event_missing_request = [
         _record_key(record)
-        for record in records_by_table["raw_maintenance_stage_events"]
-        if _payload_value(record, "maintenance_request_id") not in request_ids
+        for record in records_by_table["raw_incident_stage_events"]
+        if _payload_value(record, "incident_id") not in request_ids
     ]
     work_order_missing_request = [
         _record_key(record)
-        for record in records_by_table["raw_maintenance_work_orders"]
-        if _payload_value(record, "maintenance_request_id") not in request_ids
+        for record in records_by_table["raw_facility_work_orders"]
+        if _payload_value(record, "incident_id") not in request_ids
     ]
-    inspection_missing_request = [
+    validation_missing_request = [
         _record_key(record)
-        for record in records_by_table["raw_inspection_results"]
-        if _payload_value(record, "maintenance_request_id") not in request_ids
+        for record in records_by_table["raw_validation_results"]
+        if _payload_value(record, "incident_id") not in request_ids
     ]
     alert_missing_request = [
         _record_key(record)
-        for record in records_by_table["raw_sensor_alerts"]
-        if _payload_value(record, "linked_maintenance_request_id") not in (None, "", *request_ids)
+        for record in records_by_table["raw_telemetry_alerts"]
+        if _payload_value(record, "linked_incident_id") not in (None, "", *request_ids)
     ]
 
     return [
         QualityCheck(
-            check_name="missing_maintenance_request_reference",
-            target_table="raw_maintenance_stage_events",
+            check_name="missing_infrastructure_request_reference",
+            target_table="raw_incident_stage_events",
             severity="ERROR",
             failed_keys=event_missing_request,
-            message="Maintenance stage event source records must reference an existing source maintenance request.",
+            message="Infrastructure stage event source records must reference an existing source infrastructure request.",
         ),
         QualityCheck(
-            check_name="missing_maintenance_request_reference",
-            target_table="raw_maintenance_work_orders",
+            check_name="missing_infrastructure_request_reference",
+            target_table="raw_facility_work_orders",
             severity="ERROR",
             failed_keys=work_order_missing_request,
-            message="Maintenance work order source records must reference an existing source maintenance request.",
+            message="Infrastructure work order source records must reference an existing source infrastructure request.",
         ),
         QualityCheck(
-            check_name="missing_maintenance_request_reference",
-            target_table="raw_inspection_results",
+            check_name="missing_infrastructure_request_reference",
+            target_table="raw_validation_results",
             severity="ERROR",
-            failed_keys=inspection_missing_request,
-            message="Inspection source records must reference an existing source maintenance request.",
+            failed_keys=validation_missing_request,
+            message="Validation source records must reference an existing source infrastructure request.",
         ),
         QualityCheck(
-            check_name="missing_maintenance_request_reference",
-            target_table="raw_sensor_alerts",
+            check_name="missing_infrastructure_request_reference",
+            target_table="raw_telemetry_alerts",
             severity="ERROR",
             failed_keys=alert_missing_request,
-            message="Linked sensor alerts must reference an existing source maintenance request when populated.",
+            message="Linked telemetry alerts must reference an existing source infrastructure incident when populated.",
         ),
     ]
 
@@ -298,115 +298,115 @@ def _is_valid_iso_datetime_or_date(value: str) -> bool:
 def _check_request_without_stage_event(session: Session) -> QualityCheck:
     request_ids_with_events = {
         row[0]
-        for row in session.execute(select(MaintenanceStageEvent.maintenance_request_id).distinct())
+        for row in session.execute(select(IncidentStageEvent.incident_id).distinct())
     }
     failed = [
-        request.maintenance_request_id
-        for request in session.scalars(select(MaintenanceRequest))
-        if request.maintenance_request_id not in request_ids_with_events
+        request.incident_id
+        for request in session.scalars(select(InfrastructureIncident))
+        if request.incident_id not in request_ids_with_events
     ]
     return QualityCheck(
-        check_name="maintenance_request_without_stage_event",
-        target_table="maintenance_requests",
+        check_name="infrastructure_incident_without_stage_event",
+        target_table="infrastructure_incidents",
         severity="ERROR",
         failed_keys=failed,
-        message="Every core maintenance request should have at least one stage event.",
+        message="Every core infrastructure incident should have at least one stage event.",
     )
 
 
 def _check_event_timestamp_out_of_order(session: Session) -> QualityCheck:
     requests = {
-        request.maintenance_request_id: request
-        for request in session.scalars(select(MaintenanceRequest))
+        request.incident_id: request
+        for request in session.scalars(select(InfrastructureIncident))
     }
     failed = []
-    for event in session.scalars(select(MaintenanceStageEvent)):
-        request = requests.get(event.maintenance_request_id)
+    for event in session.scalars(select(IncidentStageEvent)):
+        request = requests.get(event.incident_id)
         if request and event.occurred_at < request.reported_at:
             failed.append(event.event_id)
 
     return QualityCheck(
         check_name="stage_event_timestamp_out_of_order",
-        target_table="maintenance_stage_events",
+        target_table="incident_stage_events",
         severity="ERROR",
         failed_keys=failed,
-        message="Maintenance stage event timestamps should not occur before request reporting.",
+        message="Infrastructure stage event timestamps should not occur before request reporting.",
     )
 
 
 def _check_work_order_without_request(session: Session) -> QualityCheck:
     request_ids = {
         row[0]
-        for row in session.execute(select(MaintenanceRequest.maintenance_request_id))
+        for row in session.execute(select(InfrastructureIncident.incident_id))
     }
     failed = [
         work_order.work_order_id
-        for work_order in session.scalars(select(MaintenanceWorkOrder))
-        if work_order.maintenance_request_id not in request_ids
+        for work_order in session.scalars(select(FacilityWorkOrder))
+        if work_order.incident_id not in request_ids
     ]
     return QualityCheck(
         check_name="work_order_without_request",
-        target_table="maintenance_work_orders",
+        target_table="facility_work_orders",
         severity="CRITICAL",
         failed_keys=failed,
-        message="Every maintenance work order should reference an existing core maintenance request.",
+        message="Every infrastructure work order should reference an existing core infrastructure request.",
     )
 
 
-def _check_inspection_without_completed_work(session: Session) -> QualityCheck:
+def _check_validation_without_completed_work(session: Session) -> QualityCheck:
     completed_work_request_ids = {
         row[0]
         for row in session.execute(
-            select(MaintenanceWorkOrder.maintenance_request_id).where(
-                MaintenanceWorkOrder.work_order_status.in_(["WORK_COMPLETED", "COMPLETED"]),
+            select(FacilityWorkOrder.incident_id).where(
+                FacilityWorkOrder.work_order_status.in_(["REPAIR_COMPLETED", "RESTORED"]),
             )
         )
     }
     failed = [
-        inspection.inspection_id
-        for inspection in session.scalars(select(InspectionResult))
-        if inspection.maintenance_request_id not in completed_work_request_ids
+        validation.validation_id
+        for validation in session.scalars(select(ValidationResult))
+        if validation.incident_id not in completed_work_request_ids
     ]
     return QualityCheck(
-        check_name="inspection_without_completed_work",
-        target_table="inspection_results",
+        check_name="validation_without_completed_work",
+        target_table="validation_results",
         severity="ERROR",
         failed_keys=failed,
-        message="Inspection records should only exist after maintenance work is completed.",
+        message="Validation records should only exist after infrastructure work is completed.",
     )
 
 
-def _check_parts_waiting_without_required_part(session: Session) -> QualityCheck:
+def _check_spare_waiting_without_required_spare(session: Session) -> QualityCheck:
     failed = [
         work_order.work_order_id
-        for work_order in session.scalars(select(MaintenanceWorkOrder))
-        if work_order.work_order_status == "WAITING_PARTS" and not work_order.required_part_id
+        for work_order in session.scalars(select(FacilityWorkOrder))
+        if work_order.work_order_status == "WAITING_SPARE_VENDOR" and not work_order.required_spare_id
     ]
     return QualityCheck(
-        check_name="parts_waiting_without_required_part",
-        target_table="maintenance_work_orders",
+        check_name="spare_waiting_without_required_spare",
+        target_table="facility_work_orders",
         severity="ERROR",
         failed_keys=failed,
-        message="Work orders in parts-waiting status should identify the required part.",
+        message="Work orders waiting on a spare or vendor should identify the required spare when applicable.",
     )
 
 
-def _check_sensor_alert_without_equipment(session: Session) -> QualityCheck:
-    equipment_ids = {
+def _check_telemetry_alert_without_equipment(session: Session) -> QualityCheck:
+    asset_ids = {
         row[0]
-        for row in session.execute(select(Equipment.equipment_id))
+        for row in session.execute(select(InfrastructureAsset.asset_id))
     }
     failed = [
-        alert.sensor_alert_id
-        for alert in session.scalars(select(SensorAlert))
-        if alert.equipment_id not in equipment_ids
+        alert.telemetry_alert_id
+        for alert in session.scalars(select(TelemetryAlert))
+        if alert.asset_id not in asset_ids
     ]
     return QualityCheck(
-        check_name="sensor_alert_without_equipment",
-        target_table="sensor_alerts",
+        check_name="telemetry_alert_without_equipment",
+        target_table="telemetry_alerts",
         severity="ERROR",
         failed_keys=failed,
-        message="Sensor alerts should reference known equipment.",
+        message="Telemetry alerts should reference known infrastructure assets.",
     )
 
 

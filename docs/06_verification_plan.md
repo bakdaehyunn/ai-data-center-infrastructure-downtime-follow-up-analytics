@@ -40,9 +40,9 @@ Use the local dashboard to verify:
 
 - dashboard loads without failed API fetches
 - follow-up queue renders
-- stage filter excludes `Completed`
-- filtering the queue updates the request drilldown selection
-- dashboard wording stays focused on maintenance downtime follow-up analytics
+- stage filter excludes `Restored`
+- filtering the queue updates the incident drilldown selection
+- dashboard wording stays focused on AI data center infrastructure follow-up analytics
 
 ## Source Scan
 

@@ -1,0 +1,270 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+
+INFRASTRUCTURE_SOURCE_SYSTEM = "sample_ai_data_center_infrastructure_system"
+
+INFRASTRUCTURE_STAGE_FLOW = [
+    "INCIDENT_REPORTED",
+    "FACILITIES_TRIAGE",
+    "ENGINEER_ASSIGNED",
+    "SPARE_VENDOR_WAITING",
+    "REPAIR_IN_PROGRESS",
+    "VALIDATION",
+    "RESTORED",
+]
+
+INFRASTRUCTURE_STAGE_THRESHOLDS_HOURS = {
+    "INCIDENT_REPORTED": 2,
+    "FACILITIES_TRIAGE": 8,
+    "ENGINEER_ASSIGNED": 6,
+    "SPARE_VENDOR_WAITING": 18,
+    "REPAIR_IN_PROGRESS": 24,
+    "VALIDATION": 8,
+}
+
+INFRASTRUCTURE_EXIT_EVENT_BY_STAGE = {
+    "INCIDENT_REPORTED": "INCIDENT_ACCEPTED",
+    "FACILITIES_TRIAGE": "TRIAGE_COMPLETED",
+    "ENGINEER_ASSIGNED": "ENGINEER_ASSIGNED",
+    "SPARE_VENDOR_WAITING": "SPARE_OR_VENDOR_READY",
+    "REPAIR_IN_PROGRESS": "REPAIR_COMPLETED",
+    "VALIDATION": "VALIDATION_PASSED",
+}
+
+TERMINAL_STAGE = "RESTORED"
+TERMINAL_STATUS = "RESTORED"
+ACTIVE_STATUS = "IN_PROGRESS"
+
+
+@dataclass(frozen=True)
+class InfrastructureScenarioProfile:
+    scenario_key: str
+    title: str
+    asset_id: str
+    required_spare_id: str | None
+    assigned_engineer_id: str | None
+    incident_type: str
+    priority_level: str
+    failure_mode: str
+    business_impact: str
+    needed_by_offset_hours: int
+    estimated_downtime_hours: int
+    stage_durations_hours: dict[str, int]
+    stop_stage: str | None = None
+    validation_failed_once: bool = False
+    telemetry_alert_type: str | None = None
+
+
+INFRASTRUCTURE_SCENARIO_PROFILES = [
+    InfrastructureScenarioProfile(
+        scenario_key="completed_crac_fan_replacement",
+        title="Routine CRAH fan array replacement",
+        asset_id="ASSET-CRAH-01",
+        required_spare_id="SPARE-CRAH-FAN",
+        assigned_engineer_id="ENG-MECH-01",
+        incident_type="PREVENTIVE",
+        priority_level="MEDIUM",
+        failure_mode="FAN_BEARING_WEAR",
+        business_impact="PLANNED_COOLING_MAINTENANCE",
+        needed_by_offset_hours=120,
+        estimated_downtime_hours=4,
+        stage_durations_hours={
+            "INCIDENT_REPORTED": 1,
+            "FACILITIES_TRIAGE": 3,
+            "ENGINEER_ASSIGNED": 2,
+            "SPARE_VENDOR_WAITING": 2,
+            "REPAIR_IN_PROGRESS": 5,
+            "VALIDATION": 2,
+        },
+    ),
+    InfrastructureScenarioProfile(
+        scenario_key="ups_module_triage_delay",
+        title="UPS module alarm triage delay",
+        asset_id="ASSET-UPS-01",
+        required_spare_id="SPARE-UPS-MODULE",
+        assigned_engineer_id=None,
+        incident_type="CORRECTIVE",
+        priority_level="HIGH",
+        failure_mode="UPS_BYPASS_ALARM",
+        business_impact="POWER_REDUNDANCY_RISK",
+        needed_by_offset_hours=36,
+        estimated_downtime_hours=10,
+        stage_durations_hours={
+            "INCIDENT_REPORTED": 1,
+            "FACILITIES_TRIAGE": 38,
+        },
+        stop_stage="FACILITIES_TRIAGE",
+        telemetry_alert_type="UPS_BYPASS_ALARM",
+    ),
+    InfrastructureScenarioProfile(
+        scenario_key="pdu_breaker_assignment_delay",
+        title="PDU breaker trip engineer assignment",
+        asset_id="ASSET-PDU-01",
+        required_spare_id="SPARE-BREAKER-MODULE",
+        assigned_engineer_id=None,
+        incident_type="BREAKDOWN",
+        priority_level="HIGH",
+        failure_mode="BREAKER_TRIP",
+        business_impact="GPU_RACK_POWER_RISK",
+        needed_by_offset_hours=24,
+        estimated_downtime_hours=14,
+        stage_durations_hours={
+            "INCIDENT_REPORTED": 1,
+            "FACILITIES_TRIAGE": 5,
+            "ENGINEER_ASSIGNED": 29,
+        },
+        stop_stage="ENGINEER_ASSIGNED",
+        telemetry_alert_type="BRANCH_CIRCUIT_TRIP",
+    ),
+    InfrastructureScenarioProfile(
+        scenario_key="chiller_spare_waiting_delay",
+        title="Chiller compressor replacement waiting on vendor",
+        asset_id="ASSET-CHILLER-01",
+        required_spare_id="SPARE-CHILLER-COMPRESSOR",
+        assigned_engineer_id="ENG-MECH-02",
+        incident_type="BREAKDOWN",
+        priority_level="CRITICAL",
+        failure_mode="COMPRESSOR_FAILURE",
+        business_impact="GPU_COOLING_CAPACITY_AT_RISK",
+        needed_by_offset_hours=12,
+        estimated_downtime_hours=22,
+        stage_durations_hours={
+            "INCIDENT_REPORTED": 1,
+            "FACILITIES_TRIAGE": 3,
+            "ENGINEER_ASSIGNED": 4,
+            "SPARE_VENDOR_WAITING": 86,
+        },
+        stop_stage="SPARE_VENDOR_WAITING",
+        telemetry_alert_type="CHILLED_WATER_TEMP_HIGH",
+    ),
+    InfrastructureScenarioProfile(
+        scenario_key="cdu_repair_in_progress_delay",
+        title="CDU coolant flow repair in progress",
+        asset_id="ASSET-CDU-01",
+        required_spare_id="SPARE-COOLANT-PUMP-SEAL",
+        assigned_engineer_id="ENG-MECH-03",
+        incident_type="CORRECTIVE",
+        priority_level="HIGH",
+        failure_mode="COOLANT_FLOW_LOW",
+        business_impact="LIQUID_COOLING_LOOP_RISK",
+        needed_by_offset_hours=48,
+        estimated_downtime_hours=16,
+        stage_durations_hours={
+            "INCIDENT_REPORTED": 1,
+            "FACILITIES_TRIAGE": 4,
+            "ENGINEER_ASSIGNED": 3,
+            "SPARE_VENDOR_WAITING": 4,
+            "REPAIR_IN_PROGRESS": 72,
+        },
+        stop_stage="REPAIR_IN_PROGRESS",
+    ),
+    InfrastructureScenarioProfile(
+        scenario_key="thermal_validation_delay",
+        title="Data hall thermal validation delay",
+        asset_id="ASSET-CRAH-02",
+        required_spare_id="SPARE-TEMP-SENSOR",
+        assigned_engineer_id="ENG-ELEC-01",
+        incident_type="VALIDATION_FINDING",
+        priority_level="HIGH",
+        failure_mode="THERMAL_VALIDATION_FAILED",
+        business_impact="GPU_ZONE_RETURN_TO_SERVICE_HOLD",
+        needed_by_offset_hours=30,
+        estimated_downtime_hours=8,
+        stage_durations_hours={
+            "INCIDENT_REPORTED": 1,
+            "FACILITIES_TRIAGE": 3,
+            "ENGINEER_ASSIGNED": 2,
+            "SPARE_VENDOR_WAITING": 3,
+            "REPAIR_IN_PROGRESS": 10,
+            "VALIDATION": 44,
+        },
+        stop_stage="VALIDATION",
+        validation_failed_once=True,
+    ),
+    InfrastructureScenarioProfile(
+        scenario_key="generator_vendor_waiting_delay",
+        title="Backup generator fuel system vendor wait",
+        asset_id="ASSET-GEN-01",
+        required_spare_id="SPARE-FUEL-PUMP",
+        assigned_engineer_id="ENG-MECH-04",
+        incident_type="BREAKDOWN",
+        priority_level="CRITICAL",
+        failure_mode="FUEL_PUMP_FAILURE",
+        business_impact="BACKUP_POWER_CAPACITY_RISK",
+        needed_by_offset_hours=8,
+        estimated_downtime_hours=30,
+        stage_durations_hours={
+            "INCIDENT_REPORTED": 1,
+            "FACILITIES_TRIAGE": 2,
+            "ENGINEER_ASSIGNED": 4,
+            "SPARE_VENDOR_WAITING": 58,
+        },
+        stop_stage="SPARE_VENDOR_WAITING",
+        telemetry_alert_type="GENERATOR_START_FAILURE",
+    ),
+    InfrastructureScenarioProfile(
+        scenario_key="repeated_crah_fan_failure",
+        title="Repeated CRAH fan fault in GPU hall",
+        asset_id="ASSET-CRAH-01",
+        required_spare_id="SPARE-CRAH-FAN",
+        assigned_engineer_id="ENG-MECH-01",
+        incident_type="CORRECTIVE",
+        priority_level="HIGH",
+        failure_mode="FAN_SPEED_DRIFT",
+        business_impact="HOT_AISLE_TEMPERATURE_RISK",
+        needed_by_offset_hours=40,
+        estimated_downtime_hours=12,
+        stage_durations_hours={
+            "INCIDENT_REPORTED": 1,
+            "FACILITIES_TRIAGE": 4,
+            "ENGINEER_ASSIGNED": 4,
+            "SPARE_VENDOR_WAITING": 3,
+            "REPAIR_IN_PROGRESS": 18,
+            "VALIDATION": 4,
+        },
+    ),
+    InfrastructureScenarioProfile(
+        scenario_key="gpu_zone_temperature_assignment_delay",
+        title="GPU zone inlet temperature engineer assignment",
+        asset_id="ASSET-RACK-01",
+        required_spare_id="SPARE-RACK-TEMP-SENSOR",
+        assigned_engineer_id="ENG-ELEC-02",
+        incident_type="CORRECTIVE",
+        priority_level="MEDIUM",
+        failure_mode="INLET_TEMPERATURE_HIGH",
+        business_impact="AI_WORKLOAD_THROTTLING_RISK",
+        needed_by_offset_hours=56,
+        estimated_downtime_hours=9,
+        stage_durations_hours={
+            "INCIDENT_REPORTED": 1,
+            "FACILITIES_TRIAGE": 5,
+            "ENGINEER_ASSIGNED": 12,
+        },
+        stop_stage="ENGINEER_ASSIGNED",
+        telemetry_alert_type="RACK_INLET_TEMP_HIGH",
+    ),
+    InfrastructureScenarioProfile(
+        scenario_key="epms_telemetry_follow_up",
+        title="EPMS telemetry anomaly follow-up",
+        asset_id="ASSET-SWGR-01",
+        required_spare_id="SPARE-POWER-METER",
+        assigned_engineer_id="ENG-ELEC-01",
+        incident_type="TELEMETRY_TRIGGERED",
+        priority_level="MEDIUM",
+        failure_mode="POWER_METER_DRIFT",
+        business_impact="CAPACITY_PLANNING_TRUST_RISK",
+        needed_by_offset_hours=72,
+        estimated_downtime_hours=6,
+        stage_durations_hours={
+            "INCIDENT_REPORTED": 1,
+            "FACILITIES_TRIAGE": 5,
+            "ENGINEER_ASSIGNED": 4,
+            "SPARE_VENDOR_WAITING": 5,
+            "REPAIR_IN_PROGRESS": 8,
+            "VALIDATION": 3,
+        },
+        telemetry_alert_type="POWER_READING_MISMATCH",
+    ),
+]

@@ -66,10 +66,10 @@ function App() {
         if (!cancelled) {
           setDashboard(dashboardData)
           setSelectedId((current) => {
-            if (current && dashboardData.followUps.some((row) => row.maintenance_request_id === current)) {
+            if (current && dashboardData.followUps.some((row) => row.incident_id === current)) {
               return current
             }
-            return dashboardData.followUps[0]?.maintenance_request_id ?? null
+            return dashboardData.followUps[0]?.incident_id ?? null
           })
         }
       } catch (err) {
@@ -127,8 +127,8 @@ function App() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">Downtime follow-up</p>
-          <h1>Maintenance Downtime Follow-up Analytics</h1>
+          <p className="eyebrow">AI infrastructure operations</p>
+          <h1>AI Data Center Infrastructure Downtime Follow-up Analytics</h1>
         </div>
         <button className="icon-button" onClick={() => setFilters({})} title="Reset filters">
           <RefreshCcw size={18} />
@@ -139,8 +139,8 @@ function App() {
 
       <section className="filters" aria-label="Dashboard filters">
         <Filter size={18} />
-        <Select label="Line" value={filters.line_id ?? ''} options={metadata?.production_lines ?? []} onChange={(value) => setFilter('line_id', value)} />
-        <Select label="Equipment" value={filters.equipment_id ?? ''} options={metadata?.equipment ?? []} onChange={(value) => setFilter('equipment_id', value)} />
+        <Select label="Zone" value={filters.zone_id ?? ''} options={metadata?.infrastructure_zones ?? []} onChange={(value) => setFilter('zone_id', value)} />
+        <Select label="Asset" value={filters.asset_id ?? ''} options={metadata?.assets ?? []} onChange={(value) => setFilter('asset_id', value)} />
         <Select label="Priority" value={filters.priority_level ?? ''} values={metadata?.priority_levels ?? []} onChange={(value) => setFilter('priority_level', value)} />
         <Select label="Stage" value={filters.stage ?? ''} values={metadata?.stages ?? []} onChange={(value) => setFilter('stage', value)} />
       </section>
@@ -148,15 +148,15 @@ function App() {
       <section className="kpi-grid">
         <Kpi icon={<Wrench size={18} />} label="Open requests" value={dashboard?.overview.open_requests ?? 0} />
         <Kpi icon={<Clock3 size={18} />} label="Delayed requests" value={dashboard?.overview.delayed_requests ?? 0} tone="warning" />
-        <Kpi icon={<AlertTriangle size={18} />} label="Critical delayed" value={dashboard?.overview.critical_equipment_delayed ?? 0} tone="danger" />
-        <Kpi icon={<Boxes size={18} />} label="Parts wait" value={formatHours(dashboard?.overview.parts_waiting_delay_hours ?? 0)} />
+        <Kpi icon={<AlertTriangle size={18} />} label="Critical delayed" value={dashboard?.overview.critical_asset_delayed ?? 0} tone="danger" />
+        <Kpi icon={<Boxes size={18} />} label="Spare/vendor wait" value={formatHours(dashboard?.overview.spare_waiting_delay_hours ?? 0)} />
         <Kpi icon={<Database size={18} />} label="Latest-run trust" value={dashboard?.overview.data_quality_status ?? 'UNKNOWN'} tone={dashboard?.overview.data_quality_status === 'PASS' ? 'ok' : 'danger'} />
       </section>
 
       <section className="layout">
         <div className="primary-column">
           <section className="panel">
-            <PanelHeader title="Follow-up Queue" subtitle="Requests ranked by return-to-service delay, blocker stage, line impact, urgency, repeat failure, and parts risk" />
+            <PanelHeader title="Follow-up Queue" subtitle="Incidents ranked by return-to-service delay, blocker stage, zone impact, urgency, repeat failure, and spare risk" />
             {loading ? <div className="empty-state">Loading follow-up queue</div> : <FollowUpTable rows={dashboard?.followUps ?? []} selectedId={selectedId} onSelect={setSelectedId} />}
           </section>
 
@@ -176,25 +176,25 @@ function App() {
 
           <section className="split-panels">
             <section className="panel">
-              <PanelHeader title="Equipment Impact" subtitle="Where delayed requests concentrate by asset" />
-              <CompactRows rows={(dashboard?.equipmentDelays ?? []).slice(0, 5)} getKey={(row) => row.equipment_id} left={(row) => row.equipment_name} right={(row) => formatHours(row.total_downtime_hours)} />
+              <PanelHeader title="Asset Impact" subtitle="Where delayed incidents concentrate by infrastructure asset" />
+              <CompactRows rows={(dashboard?.assetDelays ?? []).slice(0, 5)} getKey={(row) => row.asset_id} left={(row) => row.asset_name} right={(row) => formatHours(row.total_downtime_hours)} />
             </section>
             <section className="panel">
-              <PanelHeader title="Line Impact" subtitle="Production lines carrying delayed maintenance work" />
-              <CompactRows rows={dashboard?.lineDelays ?? []} getKey={(row) => row.line_id} left={(row) => row.line_name} right={(row) => formatHours(row.total_downtime_hours)} />
+              <PanelHeader title="Zone Impact" subtitle="AI data center zones carrying delayed infrastructure work" />
+              <CompactRows rows={dashboard?.zoneDelays ?? []} getKey={(row) => row.zone_id} left={(row) => row.zone_name} right={(row) => formatHours(row.total_downtime_hours)} />
             </section>
           </section>
         </div>
 
         <aside className="detail-column">
           <section className="panel detail-panel">
-            <PanelHeader title="Request Drilldown" subtitle={detail?.request.request_number ?? 'Select a queued request'} />
+            <PanelHeader title="Incident Drilldown" subtitle={detail?.request.request_number ?? 'Select a queued incident'} />
             {detailLoading ? <div className="empty-state">Loading request detail</div> : <RequestDetailView detail={detail} />}
           </section>
 
           <section className="panel">
-            <PanelHeader title="Parts Waiting" subtitle="Follow-up work blocked by spare availability" />
-            <CompactRows rows={dashboard?.partsWaiting ?? []} getKey={(row) => row.part_id} left={(row) => row.part_name} right={(row) => formatHours(row.total_wait_hours)} />
+            <PanelHeader title="Spares and Vendor Waiting" subtitle="Follow-up work blocked by spare availability or vendor dispatch" />
+            <CompactRows rows={dashboard?.spareWaiting ?? []} getKey={(row) => row.spare_id} left={(row) => row.spare_name} right={(row) => formatHours(row.total_wait_hours)} />
           </section>
 
           <section className="panel">
@@ -263,7 +263,7 @@ function PanelHeader({ title, subtitle }: { title: string; subtitle: string }) {
 
 function FollowUpTable({ rows, selectedId, onSelect }: { rows: FollowUpItem[]; selectedId: string | null; onSelect: (id: string) => void }) {
   if (!rows.length) {
-    return <div className="empty-state">No delayed follow-up requests match the current filters</div>
+    return <div className="empty-state">No delayed follow-up incidents match the current filters</div>
   }
   return (
     <div className="table-wrap">
@@ -271,8 +271,8 @@ function FollowUpTable({ rows, selectedId, onSelect }: { rows: FollowUpItem[]; s
         <thead>
           <tr>
             <th>Rank</th>
-            <th>Request</th>
-            <th>Equipment</th>
+            <th>Incident</th>
+            <th>Asset</th>
             <th>Stage</th>
             <th>Delay</th>
             <th>Action</th>
@@ -281,15 +281,15 @@ function FollowUpTable({ rows, selectedId, onSelect }: { rows: FollowUpItem[]; s
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.maintenance_request_id} className={selectedId === row.maintenance_request_id ? 'selected' : ''} onClick={() => onSelect(row.maintenance_request_id)}>
+            <tr key={row.incident_id} className={selectedId === row.incident_id ? 'selected' : ''} onClick={() => onSelect(row.incident_id)}>
               <td>#{row.priority_rank}</td>
               <td>
                 <strong>{row.request_number}</strong>
                 <span>{row.priority_level}</span>
               </td>
               <td>
-                <strong>{row.equipment_name}</strong>
-                <span>{row.line_name}</span>
+                <strong>{row.asset_name}</strong>
+                <span>{row.zone_name}</span>
               </td>
               <td>{formatStage(row.current_stage)}</td>
               <td>{formatHours(row.hours_in_current_stage)}</td>
@@ -305,7 +305,7 @@ function FollowUpTable({ rows, selectedId, onSelect }: { rows: FollowUpItem[]; s
 
 function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
   if (!detail) {
-    return <div className="empty-state">Select a queued request to inspect the blocker</div>
+    return <div className="empty-state">Select a queued incident to inspect the blocker</div>
   }
   return (
     <div className="detail-stack">
@@ -326,8 +326,8 @@ function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
       <div className="score-grid">
         <Score label="Downtime" value={detail.request.downtime_score} />
         <Score label="Stage delay" value={detail.request.stage_delay_score} />
-        <Score label="Parts risk" value={detail.request.parts_risk_score} />
-        <Score label="Line impact" value={detail.request.production_line_impact_score} />
+        <Score label="Spare risk" value={detail.request.spare_risk_score} />
+        <Score label="Zone impact" value={detail.request.infrastructure_zone_impact_score} />
       </div>
       <div className="timeline">
         {detail.stage_lead_times.map((stage) => (
@@ -342,7 +342,7 @@ function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
           <div key={order.work_order_id}>
             <strong>{order.assigned_team}</strong>
             <span>{order.work_order_status}</span>
-            {order.required_part_name ? <span>{order.required_part_name} · {order.stock_status}</span> : null}
+            {order.required_spare_name ? <span>{order.required_spare_name} · {order.stock_status}</span> : null}
           </div>
         ))}
       </div>

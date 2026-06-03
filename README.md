@@ -1,83 +1,86 @@
-# Maintenance Downtime Follow-up Analytics
+# AI Data Center Infrastructure Downtime Follow-up Analytics
 
-Maintenance Downtime Follow-up Analytics is an operational analytics product for maintenance downtime follow-up.
+AI Data Center Infrastructure Downtime Follow-up Analytics is an operational analytics product for data center facilities teams.
 
 It answers one practical question:
 
-> Which maintenance requests are delaying equipment return-to-service, where is the blocker, and what should the team follow up next?
+> Which AI infrastructure incidents are delaying return-to-service, where is the blocker, and what should the team follow up next?
 
-## Why This Project Exists
+## Why This Exists
 
-In a production environment, downtime follow-up rarely lives in one clean table. The evidence is split across maintenance requests, workflow stage events, work orders, spare parts, inspection results, sensor alerts, equipment master data, and production line context.
+AI data center downtime evidence rarely lives in one clean system. Incident records, workflow events, facility work orders, critical spares, vendor waits, validation results, telemetry alerts, infrastructure assets, and facility zones are often scattered across different operational tools.
 
-That creates a common operational problem: teams can see that work is open, but they cannot quickly tell which request is hurting production, why it is stuck, whether the issue is waiting on parts or people, and which follow-up should happen first.
+That creates a real follow-up problem: teams may know that work is open, but they cannot quickly tell whether GPU capacity risk is blocked by triage, engineer assignment, a spare/vendor wait, repair execution, validation, or unreliable source data.
 
-This project builds an analytics layer for that problem. It reconstructs the current state from event history, measures how long requests wait in each stage, checks whether the data can be trusted, and produces a ranked follow-up queue for maintenance supervisors, planners, reliability engineers, and operations teams.
+This project builds an analytics layer for that problem. It preserves raw source records, normalizes them into a data center infrastructure model, reconstructs state from event history, checks trust issues, and produces a ranked follow-up queue.
 
 ## Operating Scenario
 
-The modeled maintenance workflow is:
+The modeled AI data center infrastructure workflow is:
 
 ```text
-Maintenance Request Submitted
--> Maintenance Review
--> Technician Assigned
--> Parts Waiting
--> Maintenance In Progress
--> Inspection
--> Completed
+Incident Reported
+-> Facilities Triage
+-> Engineer Assigned
+-> Spare/Vendor Waiting
+-> Repair In Progress
+-> Validation
+-> Restored
 ```
 
-The key point is not the workflow labels themselves. The key point is that every stage transition becomes analytical evidence:
+The workflow labels are not the main value. The value is turning every transition into analytical evidence:
 
-- how long the request waited
+- how long an incident waited
 - where delay accumulated
 - whether the delay is still actionable
-- which asset or line is affected
+- which asset and zone are affected
+- whether the evidence is trustworthy
 - what follow-up action is most useful now
 
 ## What It Analyzes
 
-- Open maintenance requests and delayed requests
+- Open infrastructure incidents and delayed incidents
 - Current stage and hours in current stage
-- Stage lead time compared with stage thresholds
-- Actionable bottlenecks, excluding terminal completed work from bottleneck charts
-- Downtime concentration by equipment and production line
-- Parts waiting impact and stock risk
+- Stage lead time compared with threshold hours
+- Actionable bottlenecks, excluding terminal restored work from bottleneck charts
+- Downtime concentration by infrastructure asset and facility zone
+- Spare/vendor waiting impact and stock risk
 - Repeat failure signals
-- Technician assignment and inspection delays
-- Data quality issues that affect trust in the analytics
+- Facilities engineer assignment and validation delays
+- Latest-run data quality and reconciliation issues
 - Ranked downtime follow-up queue with recommended actions
 
 ## Architecture
 
 ```text
-scattered maintenance source records
-  -> raw maintenance tables
-  -> core maintenance tables
+scattered AI infrastructure source records
+  -> raw source-preserving tables
+  -> core AI infrastructure tables
   -> analytics tables
+  -> reconciliation issues
   -> read-only FastAPI endpoints
   -> React dashboard
 ```
 
-The pipeline computes analytics before API reads. The API stays read-only because the product goal is operational decision support: surface what needs attention, explain why, and let existing maintenance systems remain the system of record.
+The pipeline computes analytics before API reads. The API is read-only because the product is an operational decision layer, not a replacement for the incident, work order, telemetry, or inventory systems of record.
 
 ## Data Layers
 
 - `raw_*`: source-shaped records with source IDs and pipeline run IDs for ingestion traceability
-- core tables: normalized maintenance entities such as equipment, production lines, requests, stage events, work orders, parts, inspections, and sensor alerts
-- analytics tables: current status, stage lead times, follow-up queue, bottleneck summary, equipment delay summary, line delay summary, and parts waiting summary
-- ops tables: pipeline run observability and data quality check results
+- core tables: `infrastructure_zones`, `infrastructure_assets`, `infrastructure_incidents`, `incident_stage_events`, `facilities_engineers`, `critical_spares`, `facility_work_orders`, `validation_results`, and `telemetry_alerts`
+- analytics tables: current status, stage lead times, follow-up queue, bottleneck summary, asset delay summary, zone delay summary, and spare waiting summary
+- ops tables: pipeline runs, data quality check results, and reconciliation issues
 
 ## Backend Responsibilities
 
-- Generate deterministic maintenance sample data
+- Generate deterministic AI data center infrastructure sample data
 - Load source-shaped raw records with duplicate rejection
 - Run raw and core data quality checks
-- Reconstruct current request state from maintenance stage events
+- Reconstruct current incident state from workflow events
 - Calculate stage lead time and delay hours
-- Build downtime, bottleneck, equipment, line, and parts summaries
-- Score follow-up priority using operational signals
+- Build downtime, bottleneck, asset, zone, and spare summaries
+- Detect reconciliation issues between core state, event history, and analytics outputs
+- Score follow-up priority using downtime, criticality, urgency, repeat failure, and spare/vendor risk
 - Expose read-only analytics endpoints
 
 Run backend checks:
@@ -101,28 +104,30 @@ Primary read-only endpoints:
 ```text
 GET /api/overview
 GET /api/follow-ups
-GET /api/follow-ups/{maintenance_request_id}
-GET /api/follow-ups/{maintenance_request_id}/timeline
+GET /api/follow-ups/{incident_id}
+GET /api/follow-ups/{incident_id}/timeline
 GET /api/downtime/stages
-GET /api/equipment/delays
-GET /api/lines/delays
-GET /api/parts/waiting
+GET /api/assets/delays
+GET /api/zones/delays
+GET /api/spares/waiting
 GET /api/metadata/filters
 GET /api/pipeline-runs
 GET /api/data-quality/checks
 GET /api/data-quality/checks/{check_result_id}
 ```
 
+Compatibility routes for the earlier naming are still available for asset, zone, and spare summaries.
+
 ## Dashboard
 
 The React dashboard is built for follow-up decisions:
 
-- KPI summary for open work, delayed work, critical delayed equipment, parts wait hours, and data quality status
+- KPI summary for open incidents, delayed incidents, critical delayed assets, spare/vendor wait hours, and latest-run data trust
 - Filterable downtime follow-up queue
-- Request drilldown with stage history, score components, work order context, part context, and quality flags
+- Incident drilldown with stage history, score components, work order context, spare context, telemetry context, and quality flags
 - Stage bottleneck chart focused on active delay stages
-- Equipment and production line impact summaries
-- Parts waiting and data trust panels
+- Asset and zone impact summaries
+- Spare/vendor waiting and data trust panels
 
 Run the frontend build:
 
@@ -144,16 +149,3 @@ npm run build
 - Recharts
 - Docker Compose
 - pytest
-
-## Operational Capabilities
-
-The system is designed around production-support needs:
-
-- reconstruct request state from workflow event history
-- preserve raw source records for traceability
-- normalize scattered maintenance records into a consistent operating model
-- compute repeatable analytics outputs by pipeline run
-- surface data quality and reconciliation flags before users rely on metrics
-- expose read-only analytics APIs for dashboards and integration consumers
-- rank follow-up work using downtime, delay, criticality, urgency, repeat failure, and parts risk signals
-- provide drilldown context for maintenance supervisors, planners, reliability engineers, and operations teams

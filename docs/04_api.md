@@ -1,50 +1,51 @@
 # API
 
-The API is read-only and analytics-oriented. It exists to answer follow-up questions, not to edit maintenance transactions.
+The FastAPI service exposes read-only analytics endpoints.
 
-## Operational Overview
+## Overview
 
 ```text
 GET /api/overview
 ```
 
-Returns the top-level operating picture: open requests, delayed requests, critical delayed equipment, average downtime, top active bottleneck stage, parts waiting hours, latest pipeline run status, and latest-run data quality status.
+Returns open incident count, delayed incident count, critical delayed assets, average downtime, top bottleneck stage, spare/vendor wait hours, latest pipeline status, and latest-run data quality status.
 
 ## Follow-up Queue
 
 ```text
 GET /api/follow-ups
-GET /api/follow-ups/{maintenance_request_id}
-GET /api/follow-ups/{maintenance_request_id}/timeline
+GET /api/follow-ups/{incident_id}
+GET /api/follow-ups/{incident_id}/timeline
 ```
 
-Returns ranked maintenance requests that need follow-up, plus drilldown context for a selected request. The detail endpoints support the dashboard path from "what should I handle first?" to "why is this request ranked here?"
+The queue supports filters by `zone_id`, `asset_id`, `priority_level`, and active `stage`. Drilldown returns the selected incident, stage lead times, timeline events, work orders, validation results, telemetry alerts, and quality flags.
 
-## Bottleneck and Impact
+## Downtime and Impact
 
 ```text
 GET /api/downtime/stages
+GET /api/assets/delays
+GET /api/zones/delays
+GET /api/spares/waiting
+```
+
+These endpoints explain where delay is accumulating across workflow stages, infrastructure assets, data center zones, and critical spares.
+
+Compatibility routes remain available:
+
+```text
 GET /api/equipment/delays
 GET /api/lines/delays
 GET /api/parts/waiting
 ```
 
-Returns delay concentration by active workflow stage, equipment, production line, and part. These endpoints explain where downtime risk is accumulating beyond the individual request queue.
-
-## Filter Metadata
+## Metadata and Trust
 
 ```text
 GET /api/metadata/filters
-```
-
-Returns filter choices for line, equipment, priority, and active request stage. Terminal completed stages are not exposed as actionable stage filters.
-
-## Observability and Trust
-
-```text
 GET /api/pipeline-runs
 GET /api/data-quality/checks
 GET /api/data-quality/checks/{check_result_id}
 ```
 
-Returns pipeline run history and data quality check results. Data quality list endpoints default to the latest pipeline run unless `all_runs=true` or a specific `pipeline_run_id` is supplied.
+Metadata powers dashboard filters. Data quality responses default to the latest pipeline run unless `all_runs=true` is supplied.

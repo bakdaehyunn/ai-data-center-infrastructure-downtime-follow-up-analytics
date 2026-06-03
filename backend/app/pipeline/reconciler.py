@@ -7,14 +7,14 @@ from typing import Any
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.models.analytics import MaintenanceCurrentStatus
-from app.models.maintenance import (
-    InspectionResult,
-    MaintenanceRequest,
-    MaintenanceStageEvent,
-    MaintenanceWorkOrder,
+from app.models.analytics import IncidentCurrentStatus
+from app.models.infrastructure import (
+    ValidationResult,
+    InfrastructureIncident,
+    IncidentStageEvent,
+    FacilityWorkOrder,
 )
-from app.models.ops import MaintenanceReconciliationIssue
+from app.models.ops import InfrastructureReconciliationIssue
 
 
 @dataclass(frozen=True)
@@ -24,8 +24,8 @@ class ReconciliationResult:
 
 @dataclass(frozen=True)
 class ReconciliationIssueDraft:
-    maintenance_request_id: str | None
-    equipment_id: str | None
+    incident_id: str | None
+    asset_id: str | None
     issue_type: str
     severity: str
     message: str
@@ -34,21 +34,21 @@ class ReconciliationIssueDraft:
 
 def run_reconciliation_checks(session: Session, pipeline_run_id: str) -> ReconciliationResult:
     session.execute(
-        delete(MaintenanceReconciliationIssue).where(
-            MaintenanceReconciliationIssue.pipeline_run_id == pipeline_run_id,
+        delete(InfrastructureReconciliationIssue).where(
+            InfrastructureReconciliationIssue.pipeline_run_id == pipeline_run_id,
         )
     )
 
-    requests = list(session.scalars(select(MaintenanceRequest)))
-    events = list(session.scalars(select(MaintenanceStageEvent)))
-    work_orders = list(session.scalars(select(MaintenanceWorkOrder)))
-    inspections = list(session.scalars(select(InspectionResult)))
+    requests = list(session.scalars(select(InfrastructureIncident)))
+    events = list(session.scalars(select(IncidentStageEvent)))
+    work_orders = list(session.scalars(select(FacilityWorkOrder)))
+    validations = list(session.scalars(select(ValidationResult)))
     current_status_ids = {
         row[0]
-        for row in session.execute(select(MaintenanceCurrentStatus.maintenance_request_id))
+        for row in session.execute(select(IncidentCurrentStatus.incident_id))
     }
 
-    request_by_id = {request.maintenance_request_id: request for request in requests}
+    request_by_id = {request.incident_id: request for request in requests}
     events_by_request = _events_by_request(events)
     work_orders_by_request = _work_orders_by_request(work_orders)
 
@@ -56,15 +56,15 @@ def run_reconciliation_checks(session: Session, pipeline_run_id: str) -> Reconci
     drafts.extend(_request_stage_evidence_issues(requests, events_by_request))
     drafts.extend(_event_sequence_issues(requests, events_by_request))
     drafts.extend(_work_order_issues(request_by_id, work_orders_by_request))
-    drafts.extend(_inspection_issues(request_by_id, work_orders_by_request, inspections))
+    drafts.extend(_validation_issues(request_by_id, work_orders_by_request, validations))
     drafts.extend(_analytics_output_issues(requests, current_status_ids))
 
     issues = [
-        MaintenanceReconciliationIssue(
+        InfrastructureReconciliationIssue(
             issue_id=f"REC-{pipeline_run_id}-{index:03d}",
             pipeline_run_id=pipeline_run_id,
-            maintenance_request_id=draft.maintenance_request_id,
-            equipment_id=draft.equipment_id,
+            incident_id=draft.incident_id,
+            asset_id=draft.asset_id,
             issue_type=draft.issue_type,
             severity=draft.severity,
             status="OPEN",
@@ -75,7 +75,7 @@ def run_reconciliation_checks(session: Session, pipeline_run_id: str) -> Reconci
             sorted(
                 drafts,
                 key=lambda item: (
-                    item.maintenance_request_id or "",
+                    item.incident_id or "",
                     item.issue_type,
                     item.severity,
                 ),
@@ -90,24 +90,24 @@ def run_reconciliation_checks(session: Session, pipeline_run_id: str) -> Reconci
 
 
 def _request_stage_evidence_issues(
-    requests: list[MaintenanceRequest],
-    events_by_request: dict[str, list[MaintenanceStageEvent]],
+    requests: list[InfrastructureIncident],
+    events_by_request: dict[str, list[IncidentStageEvent]],
 ) -> list[ReconciliationIssueDraft]:
     issues: list[ReconciliationIssueDraft] = []
     for request in requests:
-        request_events = events_by_request.get(request.maintenance_request_id, [])
+        request_events = events_by_request.get(request.incident_id, [])
         entered_stage_events = [event for event in request_events if event.event_type == "ENTERED_STAGE"]
         latest_entered_stage = entered_stage_events[-1].stage if entered_stage_events else None
-        completed_events = [event for event in request_events if event.event_type == "REQUEST_COMPLETED"]
+        completed_events = [event for event in request_events if event.event_type == "INCIDENT_RESTORED"]
 
         if latest_entered_stage is None:
             issues.append(
                 ReconciliationIssueDraft(
-                    maintenance_request_id=request.maintenance_request_id,
-                    equipment_id=request.equipment_id,
+                    incident_id=request.incident_id,
+                    asset_id=request.asset_id,
                     issue_type="state_reconstruction_missing_stage_event",
                     severity="ERROR",
-                    message="The request has no entered-stage event, so the current stage cannot be reconstructed from event history.",
+                    message="The incident has no entered-stage event, so the current stage cannot be reconstructed from event history.",
                     evidence={
                         "current_stage": request.current_stage,
                         "current_status": request.current_status,
@@ -119,8 +119,8 @@ def _request_stage_evidence_issues(
         if request.current_stage != latest_entered_stage:
             issues.append(
                 ReconciliationIssueDraft(
-                    maintenance_request_id=request.maintenance_request_id,
-                    equipment_id=request.equipment_id,
+                    incident_id=request.incident_id,
+                    asset_id=request.asset_id,
                     issue_type="state_reconstruction_stage_mismatch",
                     severity="ERROR",
                     message="The core current stage does not match the latest entered-stage event.",
@@ -132,26 +132,26 @@ def _request_stage_evidence_issues(
                 )
             )
 
-        if request.current_status == "COMPLETED" and not completed_events:
+        if request.current_status == "RESTORED" and not completed_events:
             issues.append(
                 ReconciliationIssueDraft(
-                    maintenance_request_id=request.maintenance_request_id,
-                    equipment_id=request.equipment_id,
+                    incident_id=request.incident_id,
+                    asset_id=request.asset_id,
                     issue_type="state_reconstruction_missing_completion_event",
                     severity="ERROR",
-                    message="The request is marked completed, but event history has no completion event.",
+                    message="The incident is marked restored, but event history has no restore event.",
                     evidence={"current_status": request.current_status},
                 )
             )
 
-        if request.current_status != "COMPLETED" and completed_events:
+        if request.current_status != "RESTORED" and completed_events:
             issues.append(
                 ReconciliationIssueDraft(
-                    maintenance_request_id=request.maintenance_request_id,
-                    equipment_id=request.equipment_id,
+                    incident_id=request.incident_id,
+                    asset_id=request.asset_id,
                     issue_type="state_reconstruction_active_with_completion_event",
                     severity="ERROR",
-                    message="The request is still active, but event history contains a completion event.",
+                    message="The incident is still active, but event history contains a restore event.",
                     evidence={
                         "current_status": request.current_status,
                         "completion_event_ids": [event.event_id for event in completed_events],
@@ -163,25 +163,25 @@ def _request_stage_evidence_issues(
 
 
 def _event_sequence_issues(
-    requests: list[MaintenanceRequest],
-    events_by_request: dict[str, list[MaintenanceStageEvent]],
+    requests: list[InfrastructureIncident],
+    events_by_request: dict[str, list[IncidentStageEvent]],
 ) -> list[ReconciliationIssueDraft]:
     issues: list[ReconciliationIssueDraft] = []
     for request in requests:
         out_of_order_events = [
             event
-            for event in events_by_request.get(request.maintenance_request_id, [])
+            for event in events_by_request.get(request.incident_id, [])
             if event.occurred_at < request.reported_at
         ]
         if not out_of_order_events:
             continue
         issues.append(
             ReconciliationIssueDraft(
-                maintenance_request_id=request.maintenance_request_id,
-                equipment_id=request.equipment_id,
+                incident_id=request.incident_id,
+                asset_id=request.asset_id,
                 issue_type="event_sequence_before_request",
                 severity="ERROR",
-                message="A stage event occurred before the maintenance request was reported.",
+                message="A stage event occurred before the infrastructure request was reported.",
                 evidence={
                     "reported_at": request.reported_at.isoformat(),
                     "event_ids": [event.event_id for event in out_of_order_events],
@@ -192,60 +192,60 @@ def _event_sequence_issues(
 
 
 def _work_order_issues(
-    request_by_id: dict[str, MaintenanceRequest],
-    work_orders_by_request: dict[str, list[MaintenanceWorkOrder]],
+    request_by_id: dict[str, InfrastructureIncident],
+    work_orders_by_request: dict[str, list[FacilityWorkOrder]],
 ) -> list[ReconciliationIssueDraft]:
     issues: list[ReconciliationIssueDraft] = []
     for request_id, work_orders in work_orders_by_request.items():
         missing_part_work_orders = [
             work_order
             for work_order in work_orders
-            if work_order.work_order_status == "WAITING_PARTS" and not work_order.required_part_id
+            if work_order.work_order_status == "WAITING_SPARE_VENDOR" and not work_order.required_spare_id
         ]
         if not missing_part_work_orders:
             continue
         request = request_by_id.get(request_id)
         issues.append(
             ReconciliationIssueDraft(
-                maintenance_request_id=request_id,
-                equipment_id=request.equipment_id if request else None,
-                issue_type="parts_waiting_missing_required_part",
+                incident_id=request_id,
+                asset_id=request.asset_id if request else None,
+                issue_type="spare_waiting_missing_required_spare",
                 severity="ERROR",
-                message="A work order is waiting for parts, but no required part is linked.",
+                message="A work order is waiting on a spare or vendor, but no required spare is linked.",
                 evidence={
                     "work_order_ids": [work_order.work_order_id for work_order in missing_part_work_orders],
-                    "work_order_status": "WAITING_PARTS",
+                    "work_order_status": "WAITING_SPARE_VENDOR",
                 },
             )
         )
     return issues
 
 
-def _inspection_issues(
-    request_by_id: dict[str, MaintenanceRequest],
-    work_orders_by_request: dict[str, list[MaintenanceWorkOrder]],
-    inspections: list[InspectionResult],
+def _validation_issues(
+    request_by_id: dict[str, InfrastructureIncident],
+    work_orders_by_request: dict[str, list[FacilityWorkOrder]],
+    validations: list[ValidationResult],
 ) -> list[ReconciliationIssueDraft]:
     issues: list[ReconciliationIssueDraft] = []
-    for inspection in inspections:
+    for validation in validations:
         completed_work_orders = [
             work_order
-            for work_order in work_orders_by_request.get(inspection.maintenance_request_id, [])
-            if work_order.work_order_status in {"WORK_COMPLETED", "COMPLETED"}
+            for work_order in work_orders_by_request.get(validation.incident_id, [])
+            if work_order.work_order_status in {"REPAIR_COMPLETED", "RESTORED"}
         ]
         if completed_work_orders:
             continue
-        request = request_by_id.get(inspection.maintenance_request_id)
+        request = request_by_id.get(validation.incident_id)
         issues.append(
             ReconciliationIssueDraft(
-                maintenance_request_id=inspection.maintenance_request_id,
-                equipment_id=request.equipment_id if request else None,
-                issue_type="inspection_without_completed_work",
+                incident_id=validation.incident_id,
+                asset_id=request.asset_id if request else None,
+                issue_type="validation_without_completed_work",
                 severity="ERROR",
-                message="An inspection result exists before any completed maintenance work is available.",
+                message="A validation result exists before any completed infrastructure work is available.",
                 evidence={
-                    "inspection_id": inspection.inspection_id,
-                    "inspection_status": inspection.inspection_status,
+                    "validation_id": validation.validation_id,
+                    "validation_status": validation.validation_status,
                 },
             )
         )
@@ -253,41 +253,41 @@ def _inspection_issues(
 
 
 def _analytics_output_issues(
-    requests: list[MaintenanceRequest],
+    requests: list[InfrastructureIncident],
     current_status_ids: set[str],
 ) -> list[ReconciliationIssueDraft]:
     return [
         ReconciliationIssueDraft(
-            maintenance_request_id=request.maintenance_request_id,
-            equipment_id=request.equipment_id,
+            incident_id=request.incident_id,
+            asset_id=request.asset_id,
             issue_type="analytics_output_missing_current_status",
             severity="ERROR",
-            message="Analytics did not produce a current-status row for a core maintenance request.",
+            message="Analytics did not produce a current-status row for a core infrastructure incident.",
             evidence={
                 "current_stage": request.current_stage,
                 "current_status": request.current_status,
             },
         )
         for request in requests
-        if request.maintenance_request_id not in current_status_ids
+        if request.incident_id not in current_status_ids
     ]
 
 
 def _events_by_request(
-    events: list[MaintenanceStageEvent],
-) -> dict[str, list[MaintenanceStageEvent]]:
-    grouped: dict[str, list[MaintenanceStageEvent]] = defaultdict(list)
+    events: list[IncidentStageEvent],
+) -> dict[str, list[IncidentStageEvent]]:
+    grouped: dict[str, list[IncidentStageEvent]] = defaultdict(list)
     for event in events:
-        grouped[event.maintenance_request_id].append(event)
+        grouped[event.incident_id].append(event)
     for request_events in grouped.values():
         request_events.sort(key=lambda event: (event.occurred_at, event.event_id))
     return grouped
 
 
 def _work_orders_by_request(
-    work_orders: list[MaintenanceWorkOrder],
-) -> dict[str, list[MaintenanceWorkOrder]]:
-    grouped: dict[str, list[MaintenanceWorkOrder]] = defaultdict(list)
+    work_orders: list[FacilityWorkOrder],
+) -> dict[str, list[FacilityWorkOrder]]:
+    grouped: dict[str, list[FacilityWorkOrder]] = defaultdict(list)
     for work_order in work_orders:
-        grouped[work_order.maintenance_request_id].append(work_order)
+        grouped[work_order.incident_id].append(work_order)
     return grouped

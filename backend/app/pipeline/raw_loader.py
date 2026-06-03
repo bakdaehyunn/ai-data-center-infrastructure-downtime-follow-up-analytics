@@ -9,11 +9,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.raw import (
-    RawInspectionResult,
-    RawMaintenanceRequest,
-    RawMaintenanceStageEvent,
-    RawMaintenanceWorkOrder,
-    RawSensorAlert,
+    RawValidationResult,
+    RawInfrastructureIncident,
+    RawIncidentStageEvent,
+    RawFacilityWorkOrder,
+    RawTelemetryAlert,
 )
 
 
@@ -22,20 +22,20 @@ class RawSourceSpec:
     file_name: str
     target_table: str
     model: Type[
-        RawMaintenanceRequest
-        | RawMaintenanceStageEvent
-        | RawMaintenanceWorkOrder
-        | RawInspectionResult
-        | RawSensorAlert
+        RawInfrastructureIncident
+        | RawIncidentStageEvent
+        | RawFacilityWorkOrder
+        | RawValidationResult
+        | RawTelemetryAlert
     ]
 
 
 RAW_SOURCE_SPECS = [
-    RawSourceSpec("maintenance_requests.json", "raw_maintenance_requests", RawMaintenanceRequest),
-    RawSourceSpec("maintenance_stage_events.json", "raw_maintenance_stage_events", RawMaintenanceStageEvent),
-    RawSourceSpec("maintenance_work_orders.json", "raw_maintenance_work_orders", RawMaintenanceWorkOrder),
-    RawSourceSpec("inspection_results.json", "raw_inspection_results", RawInspectionResult),
-    RawSourceSpec("sensor_alerts.json", "raw_sensor_alerts", RawSensorAlert),
+    RawSourceSpec("infrastructure_incidents.json", "raw_infrastructure_incidents", RawInfrastructureIncident),
+    RawSourceSpec("incident_stage_events.json", "raw_incident_stage_events", RawIncidentStageEvent),
+    RawSourceSpec("facility_work_orders.json", "raw_facility_work_orders", RawFacilityWorkOrder),
+    RawSourceSpec("validation_results.json", "raw_validation_results", RawValidationResult),
+    RawSourceSpec("telemetry_alerts.json", "raw_telemetry_alerts", RawTelemetryAlert),
 ]
 
 

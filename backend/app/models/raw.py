@@ -21,51 +21,51 @@ class RawIngestionMixin:
     pipeline_run_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
 
 
-class RawMaintenanceRequest(RawIngestionMixin, Base):
-    __tablename__ = "raw_maintenance_requests"
+class RawInfrastructureIncident(RawIngestionMixin, Base):
+    __tablename__ = "raw_infrastructure_incidents"
     __table_args__ = (
-        UniqueConstraint("source_system", "source_record_id", name="uq_raw_maintenance_request_source_record"),
-        Index("ix_raw_maintenance_request_pipeline_source", "pipeline_run_id", "source_system"),
+        UniqueConstraint("source_system", "source_record_id", name="uq_raw_infrastructure_request_source_record"),
+        Index("ix_raw_infrastructure_request_pipeline_source", "pipeline_run_id", "source_system"),
     )
 
     raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
 
-class RawMaintenanceStageEvent(RawIngestionMixin, Base):
-    __tablename__ = "raw_maintenance_stage_events"
+class RawIncidentStageEvent(RawIngestionMixin, Base):
+    __tablename__ = "raw_incident_stage_events"
     __table_args__ = (
-        UniqueConstraint("source_system", "source_record_id", name="uq_raw_maintenance_stage_event_source_record"),
-        Index("ix_raw_maintenance_stage_event_pipeline_source", "pipeline_run_id", "source_system"),
+        UniqueConstraint("source_system", "source_record_id", name="uq_raw_infrastructure_stage_event_source_record"),
+        Index("ix_raw_infrastructure_stage_event_pipeline_source", "pipeline_run_id", "source_system"),
     )
 
     raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
 
-class RawMaintenanceWorkOrder(RawIngestionMixin, Base):
-    __tablename__ = "raw_maintenance_work_orders"
+class RawFacilityWorkOrder(RawIngestionMixin, Base):
+    __tablename__ = "raw_facility_work_orders"
     __table_args__ = (
-        UniqueConstraint("source_system", "source_record_id", name="uq_raw_maintenance_work_order_source_record"),
-        Index("ix_raw_maintenance_work_order_pipeline_source", "pipeline_run_id", "source_system"),
+        UniqueConstraint("source_system", "source_record_id", name="uq_raw_infrastructure_work_order_source_record"),
+        Index("ix_raw_infrastructure_work_order_pipeline_source", "pipeline_run_id", "source_system"),
     )
 
     raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
 
-class RawInspectionResult(RawIngestionMixin, Base):
-    __tablename__ = "raw_inspection_results"
+class RawValidationResult(RawIngestionMixin, Base):
+    __tablename__ = "raw_validation_results"
     __table_args__ = (
-        UniqueConstraint("source_system", "source_record_id", name="uq_raw_inspection_result_source_record"),
-        Index("ix_raw_inspection_result_pipeline_source", "pipeline_run_id", "source_system"),
+        UniqueConstraint("source_system", "source_record_id", name="uq_raw_validation_result_source_record"),
+        Index("ix_raw_validation_result_pipeline_source", "pipeline_run_id", "source_system"),
     )
 
     raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
 
-class RawSensorAlert(RawIngestionMixin, Base):
-    __tablename__ = "raw_sensor_alerts"
+class RawTelemetryAlert(RawIngestionMixin, Base):
+    __tablename__ = "raw_telemetry_alerts"
     __table_args__ = (
-        UniqueConstraint("source_system", "source_record_id", name="uq_raw_sensor_alert_source_record"),
-        Index("ix_raw_sensor_alert_pipeline_source", "pipeline_run_id", "source_system"),
+        UniqueConstraint("source_system", "source_record_id", name="uq_raw_telemetry_alert_source_record"),
+        Index("ix_raw_telemetry_alert_pipeline_source", "pipeline_run_id", "source_system"),
     )
 
     raw_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

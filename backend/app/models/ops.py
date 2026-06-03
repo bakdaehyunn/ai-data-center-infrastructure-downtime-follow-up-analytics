@@ -56,18 +56,18 @@ class DataQualityCheckResult(Base):
     )
 
 
-class MaintenanceReconciliationIssue(Base):
-    __tablename__ = "maintenance_reconciliation_issues"
+class InfrastructureReconciliationIssue(Base):
+    __tablename__ = "infrastructure_reconciliation_issues"
     __table_args__ = (
-        Index("ix_reconciliation_issues_run_request", "pipeline_run_id", "maintenance_request_id"),
+        Index("ix_reconciliation_issues_run_request", "pipeline_run_id", "incident_id"),
         Index("ix_reconciliation_issues_type_severity", "issue_type", "severity"),
-        Index("ix_reconciliation_issues_request_status", "maintenance_request_id", "status"),
+        Index("ix_reconciliation_issues_request_status", "incident_id", "status"),
     )
 
     issue_id: Mapped[str] = mapped_column(String(80), primary_key=True)
     pipeline_run_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    maintenance_request_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
-    equipment_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    incident_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
+    asset_id: Mapped[Optional[str]] = mapped_column(String(64), index=True)
     issue_type: Mapped[str] = mapped_column(String(160), nullable=False)
     severity: Mapped[str] = mapped_column(String(40), nullable=False)
     status: Mapped[str] = mapped_column(String(40), nullable=False)

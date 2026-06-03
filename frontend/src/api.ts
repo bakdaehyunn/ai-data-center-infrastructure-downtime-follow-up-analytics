@@ -4,38 +4,38 @@ export type Overview = {
   total_requests: number
   open_requests: number
   delayed_requests: number
-  critical_equipment_delayed: number
+  critical_asset_delayed: number
   avg_downtime_hours: number
   top_bottleneck_stage: string | null
-  parts_waiting_delay_hours: number
-  repeat_failure_equipment_count: number
-  technician_assignment_delay_hours: number
+  spare_waiting_delay_hours: number
+  repeat_failure_asset_count: number
+  engineer_assignment_delay_hours: number
   latest_pipeline_run_status: string | null
   data_quality_status: string
 }
 
 export type FollowUpItem = {
   priority_rank: number
-  maintenance_request_id: string
+  incident_id: string
   request_number: string
   request_title: string
-  equipment_id: string
-  equipment_name: string
-  line_id: string
-  line_name: string
+  asset_id: string
+  asset_name: string
+  zone_id: string
+  zone_name: string
   current_stage: string
   current_status: string
   hours_in_current_stage: number
   needed_by_at: string
   priority_level: string
   business_impact: string
-  equipment_criticality_score: number
+  asset_criticality_score: number
   downtime_score: number
   stage_delay_score: number
-  production_line_impact_score: number
+  infrastructure_zone_impact_score: number
   needed_by_urgency_score: number
   repeat_failure_score: number
-  parts_risk_score: number
+  spare_risk_score: number
   total_priority_score: number
   recommended_action: string
   reason_summary: string
@@ -51,11 +51,11 @@ export type StageBottleneck = {
   total_delay_hours: number
 }
 
-export type EquipmentDelay = {
-  equipment_id: string
-  equipment_name: string
-  line_id: string
-  line_name: string
+export type InfrastructureAssetDelay = {
+  asset_id: string
+  asset_name: string
+  zone_id: string
+  zone_name: string
   request_count: number
   delayed_request_count: number
   repeat_failure_count: number
@@ -64,20 +64,20 @@ export type EquipmentDelay = {
   top_failure_mode: string
 }
 
-export type ProductionLineDelay = {
-  line_id: string
-  line_name: string
+export type InfrastructureZoneDelay = {
+  zone_id: string
+  zone_name: string
   open_request_count: number
   delayed_request_count: number
-  critical_equipment_delayed_count: number
+  critical_asset_delayed_count: number
   total_downtime_hours: number
   top_bottleneck_stage: string
 }
 
-export type PartsWaiting = {
-  part_id: string
-  part_name: string
-  part_category: string
+export type SpareWaiting = {
+  spare_id: string
+  spare_name: string
+  spare_category: string
   waiting_request_count: number
   total_wait_hours: number
   avg_wait_hours: number
@@ -122,13 +122,13 @@ export type TimelineEvent = {
 export type WorkOrder = {
   work_order_id: string
   assigned_team: string
-  assigned_technician_id: string | null
+  assigned_engineer_id: string | null
   work_order_status: string
   planned_start_at: string | null
   actual_start_at: string | null
   actual_completed_at: string | null
-  required_part_id: string | null
-  required_part_name: string | null
+  required_spare_id: string | null
+  required_spare_name: string | null
   stock_status: string | null
 }
 
@@ -137,17 +137,17 @@ export type RequestDetail = {
   stage_lead_times: StageLeadTime[]
   timeline: TimelineEvent[]
   work_orders: WorkOrder[]
-  inspection_results: {
-    inspection_id: string
-    inspection_status: string
-    inspector_id: string | null
-    inspection_started_at: string | null
-    inspection_completed_at: string | null
+  validation_results: {
+    validation_id: string
+    validation_status: string
+    validator_id: string | null
+    validation_started_at: string | null
+    validation_completed_at: string | null
     failure_reason: string | null
   }[]
-  sensor_alerts: {
-    sensor_alert_id: string
-    equipment_id: string
+  telemetry_alerts: {
+    telemetry_alert_id: string
+    asset_id: string
     alert_type: string
     severity: string
     triggered_at: string
@@ -162,11 +162,11 @@ export type FilterOption = {
 }
 
 export type FilterMetadata = {
-  production_lines: FilterOption[]
-  equipment: FilterOption[]
-  equipment_types: string[]
-  technician_teams: string[]
-  part_categories: string[]
+  infrastructure_zones: FilterOption[]
+  assets: FilterOption[]
+  asset_types: string[]
+  facilities_teams: string[]
+  spare_categories: string[]
   priority_levels: string[]
   request_types: string[]
   failure_modes: string[]
@@ -174,8 +174,8 @@ export type FilterMetadata = {
 }
 
 export type DashboardFilters = {
-  line_id?: string
-  equipment_id?: string
+  zone_id?: string
+  asset_id?: string
   priority_level?: string
   stage?: string
 }
@@ -184,34 +184,34 @@ export type DashboardData = {
   overview: Overview
   followUps: FollowUpItem[]
   stageBottlenecks: StageBottleneck[]
-  equipmentDelays: EquipmentDelay[]
-  lineDelays: ProductionLineDelay[]
-  partsWaiting: PartsWaiting[]
+  assetDelays: InfrastructureAssetDelay[]
+  zoneDelays: InfrastructureZoneDelay[]
+  spareWaiting: SpareWaiting[]
   qualityChecks: DataQualityCheck[]
 }
 
 export async function fetchDashboardData(filters: DashboardFilters = {}): Promise<DashboardData> {
   const query = buildQuery(filters)
-  const [overview, followUps, stageBottlenecks, equipmentDelays, lineDelays, partsWaiting, qualityChecks] =
+  const [overview, followUps, stageBottlenecks, assetDelays, zoneDelays, spareWaiting, qualityChecks] =
     await Promise.all([
       getJson<Overview>('/api/overview'),
       getJson<FollowUpItem[]>(`/api/follow-ups${query}`),
       getJson<StageBottleneck[]>('/api/downtime/stages'),
-      getJson<EquipmentDelay[]>('/api/equipment/delays'),
-      getJson<ProductionLineDelay[]>('/api/lines/delays'),
-      getJson<PartsWaiting[]>('/api/parts/waiting'),
+      getJson<InfrastructureAssetDelay[]>('/api/assets/delays'),
+      getJson<InfrastructureZoneDelay[]>('/api/zones/delays'),
+      getJson<SpareWaiting[]>('/api/spares/waiting'),
       getJson<DataQualityCheck[]>('/api/data-quality/checks?status=FAILED&limit=8'),
     ])
 
-  return { overview, followUps, stageBottlenecks, equipmentDelays, lineDelays, partsWaiting, qualityChecks }
+  return { overview, followUps, stageBottlenecks, assetDelays, zoneDelays, spareWaiting, qualityChecks }
 }
 
 export function fetchFilterMetadata(): Promise<FilterMetadata> {
   return getJson<FilterMetadata>('/api/metadata/filters')
 }
 
-export function fetchRequestDetail(maintenanceRequestId: string): Promise<RequestDetail> {
-  return getJson<RequestDetail>(`/api/follow-ups/${maintenanceRequestId}`)
+export function fetchRequestDetail(infrastructureRequestId: string): Promise<RequestDetail> {
+  return getJson<RequestDetail>(`/api/follow-ups/${infrastructureRequestId}`)
 }
 
 async function getJson<T>(path: string): Promise<T> {

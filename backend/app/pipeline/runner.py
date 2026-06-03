@@ -16,7 +16,7 @@ from app.pipeline.reconciler import run_reconciliation_checks
 from app.sample_data.generator import generate_sample_dataset, write_sample_dataset
 
 
-PIPELINE_NAME = "maintenance_downtime_followup"
+PIPELINE_NAME = "ai_data_center_infrastructure_followup"
 
 
 @dataclass(frozen=True)
@@ -135,25 +135,25 @@ def _utc_now() -> datetime:
 
 def _core_records_loaded(core_result) -> int:
     return (
-        core_result.production_lines_loaded
-        + core_result.equipment_loaded
-        + core_result.technicians_loaded
-        + core_result.parts_loaded
-        + core_result.maintenance_requests_loaded
-        + core_result.maintenance_stage_events_loaded
-        + core_result.maintenance_work_orders_loaded
-        + core_result.inspection_results_loaded
-        + core_result.sensor_alerts_loaded
+        core_result.infrastructure_zones_loaded
+        + core_result.infrastructure_assets_loaded
+        + core_result.facilities_engineers_loaded
+        + core_result.critical_spares_loaded
+        + core_result.infrastructure_incidents_loaded
+        + core_result.incident_stage_events_loaded
+        + core_result.facility_work_orders_loaded
+        + core_result.validation_results_loaded
+        + core_result.telemetry_alerts_loaded
     )
 
 
 def _analytics_records_loaded(analytics_result) -> int:
     return (
-        analytics_result.maintenance_current_status_count
-        + analytics_result.maintenance_stage_lead_times_count
+        analytics_result.incident_current_status_count
+        + analytics_result.incident_stage_lead_times_count
         + analytics_result.downtime_follow_up_queue_count
-        + analytics_result.maintenance_bottleneck_summary_count
-        + analytics_result.equipment_delay_summary_count
-        + analytics_result.production_line_delay_summary_count
-        + analytics_result.parts_waiting_summary_count
+        + analytics_result.infrastructure_bottleneck_summary_count
+        + analytics_result.asset_delay_summary_count
+        + analytics_result.zone_delay_summary_count
+        + analytics_result.spare_waiting_summary_count
     )

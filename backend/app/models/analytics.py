@@ -9,20 +9,20 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base, TimestampMixin
 
 
-class MaintenanceCurrentStatus(TimestampMixin, Base):
-    __tablename__ = "maintenance_current_status"
+class IncidentCurrentStatus(TimestampMixin, Base):
+    __tablename__ = "incident_current_status"
     __table_args__ = (
-        Index("ix_maintenance_current_status_stage_delayed", "current_stage", "is_delayed"),
-        Index("ix_maintenance_current_status_priority_delay", "priority_level", "delay_hours"),
-        Index("ix_maintenance_current_status_equipment_line", "equipment_id", "line_id"),
+        Index("ix_incident_current_status_stage_delayed", "current_stage", "is_delayed"),
+        Index("ix_incident_current_status_priority_delay", "priority_level", "delay_hours"),
+        Index("ix_incident_current_status_asset_zone", "asset_id", "zone_id"),
     )
 
-    maintenance_request_id: Mapped[str] = mapped_column(
-        ForeignKey("maintenance_requests.maintenance_request_id"),
+    incident_id: Mapped[str] = mapped_column(
+        ForeignKey("infrastructure_incidents.incident_id"),
         primary_key=True,
     )
-    equipment_id: Mapped[str] = mapped_column(ForeignKey("equipment.equipment_id"), nullable=False)
-    line_id: Mapped[str] = mapped_column(ForeignKey("production_lines.line_id"), nullable=False)
+    asset_id: Mapped[str] = mapped_column(ForeignKey("infrastructure_assets.asset_id"), nullable=False)
+    zone_id: Mapped[str] = mapped_column(ForeignKey("infrastructure_zones.zone_id"), nullable=False)
     current_stage: Mapped[str] = mapped_column(String(80), nullable=False)
     current_status: Mapped[str] = mapped_column(String(60), nullable=False)
     stage_entered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -36,16 +36,16 @@ class MaintenanceCurrentStatus(TimestampMixin, Base):
     next_owner_id: Mapped[Optional[str]] = mapped_column(String(64))
 
 
-class MaintenanceStageLeadTime(TimestampMixin, Base):
-    __tablename__ = "maintenance_stage_lead_times"
+class IncidentStageLeadTime(TimestampMixin, Base):
+    __tablename__ = "incident_stage_lead_times"
     __table_args__ = (
-        Index("ix_maintenance_stage_lead_times_request_stage", "maintenance_request_id", "stage"),
-        Index("ix_maintenance_stage_lead_times_stage_bottleneck", "stage", "is_bottleneck"),
+        Index("ix_incident_stage_lead_times_request_stage", "incident_id", "stage"),
+        Index("ix_incident_stage_lead_times_stage_bottleneck", "stage", "is_bottleneck"),
     )
 
     lead_time_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    maintenance_request_id: Mapped[str] = mapped_column(
-        ForeignKey("maintenance_requests.maintenance_request_id"),
+    incident_id: Mapped[str] = mapped_column(
+        ForeignKey("infrastructure_incidents.incident_id"),
         nullable=False,
     )
     stage: Mapped[str] = mapped_column(String(80), nullable=False)
@@ -65,36 +65,36 @@ class DowntimeFollowUpQueue(TimestampMixin, Base):
         Index("ix_downtime_follow_up_queue_stage", "current_stage"),
     )
 
-    maintenance_request_id: Mapped[str] = mapped_column(
-        ForeignKey("maintenance_requests.maintenance_request_id"),
+    incident_id: Mapped[str] = mapped_column(
+        ForeignKey("infrastructure_incidents.incident_id"),
         primary_key=True,
     )
     priority_rank: Mapped[int] = mapped_column(Integer, nullable=False)
-    equipment_id: Mapped[str] = mapped_column(ForeignKey("equipment.equipment_id"), nullable=False)
-    line_id: Mapped[str] = mapped_column(ForeignKey("production_lines.line_id"), nullable=False)
+    asset_id: Mapped[str] = mapped_column(ForeignKey("infrastructure_assets.asset_id"), nullable=False)
+    zone_id: Mapped[str] = mapped_column(ForeignKey("infrastructure_zones.zone_id"), nullable=False)
     current_stage: Mapped[str] = mapped_column(String(80), nullable=False)
-    equipment_criticality_score: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
+    asset_criticality_score: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
     downtime_score: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
     stage_delay_score: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
-    production_line_impact_score: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
+    infrastructure_zone_impact_score: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
     needed_by_urgency_score: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
     repeat_failure_score: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
-    parts_risk_score: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
+    spare_risk_score: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
     total_priority_score: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
     recommended_action: Mapped[str] = mapped_column(String(240), nullable=False)
     reason_summary: Mapped[str] = mapped_column(Text, nullable=False)
 
 
-class MaintenanceBottleneckSummary(TimestampMixin, Base):
-    __tablename__ = "maintenance_bottleneck_summary"
+class InfrastructureBottleneckSummary(TimestampMixin, Base):
+    __tablename__ = "infrastructure_bottleneck_summary"
     __table_args__ = (
         Index(
-            "ix_maintenance_bottleneck_summary_date_dimension",
+            "ix_infrastructure_bottleneck_summary_date_dimension",
             "summary_date",
             "dimension_type",
             "dimension_id",
         ),
-        Index("ix_maintenance_bottleneck_summary_stage_delay", "stage", "total_delay_hours"),
+        Index("ix_infrastructure_bottleneck_summary_stage_delay", "stage", "total_delay_hours"),
     )
 
     summary_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -110,17 +110,17 @@ class MaintenanceBottleneckSummary(TimestampMixin, Base):
     total_delay_hours: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
 
 
-class EquipmentDelaySummary(TimestampMixin, Base):
-    __tablename__ = "equipment_delay_summary"
+class AssetDelaySummary(TimestampMixin, Base):
+    __tablename__ = "asset_delay_summary"
     __table_args__ = (
-        Index("ix_equipment_delay_summary_delayed", "delayed_request_count"),
-        Index("ix_equipment_delay_summary_downtime", "total_downtime_hours"),
+        Index("ix_asset_delay_summary_delayed", "delayed_request_count"),
+        Index("ix_asset_delay_summary_downtime", "total_downtime_hours"),
     )
 
-    equipment_id: Mapped[str] = mapped_column(ForeignKey("equipment.equipment_id"), primary_key=True)
-    equipment_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    line_id: Mapped[str] = mapped_column(ForeignKey("production_lines.line_id"), nullable=False)
-    line_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    asset_id: Mapped[str] = mapped_column(ForeignKey("infrastructure_assets.asset_id"), primary_key=True)
+    asset_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    zone_id: Mapped[str] = mapped_column(ForeignKey("infrastructure_zones.zone_id"), nullable=False)
+    zone_name: Mapped[str] = mapped_column(String(160), nullable=False)
     request_count: Mapped[int] = mapped_column(Integer, nullable=False)
     delayed_request_count: Mapped[int] = mapped_column(Integer, nullable=False)
     repeat_failure_count: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -129,32 +129,32 @@ class EquipmentDelaySummary(TimestampMixin, Base):
     top_failure_mode: Mapped[str] = mapped_column(String(80), nullable=False)
 
 
-class ProductionLineDelaySummary(TimestampMixin, Base):
-    __tablename__ = "production_line_delay_summary"
+class ZoneDelaySummary(TimestampMixin, Base):
+    __tablename__ = "zone_delay_summary"
     __table_args__ = (
-        Index("ix_production_line_delay_summary_delayed", "delayed_request_count"),
-        Index("ix_production_line_delay_summary_downtime", "total_downtime_hours"),
+        Index("ix_zone_delay_summary_delayed", "delayed_request_count"),
+        Index("ix_zone_delay_summary_downtime", "total_downtime_hours"),
     )
 
-    line_id: Mapped[str] = mapped_column(ForeignKey("production_lines.line_id"), primary_key=True)
-    line_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    zone_id: Mapped[str] = mapped_column(ForeignKey("infrastructure_zones.zone_id"), primary_key=True)
+    zone_name: Mapped[str] = mapped_column(String(160), nullable=False)
     open_request_count: Mapped[int] = mapped_column(Integer, nullable=False)
     delayed_request_count: Mapped[int] = mapped_column(Integer, nullable=False)
-    critical_equipment_delayed_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    critical_asset_delayed_count: Mapped[int] = mapped_column(Integer, nullable=False)
     total_downtime_hours: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
     top_bottleneck_stage: Mapped[str] = mapped_column(String(80), nullable=False)
 
 
-class PartsWaitingSummary(TimestampMixin, Base):
-    __tablename__ = "parts_waiting_summary"
+class SpareWaitingSummary(TimestampMixin, Base):
+    __tablename__ = "spare_waiting_summary"
     __table_args__ = (
-        Index("ix_parts_waiting_summary_wait_hours", "total_wait_hours"),
-        Index("ix_parts_waiting_summary_category_stock", "part_category", "stock_status"),
+        Index("ix_spare_waiting_summary_wait_hours", "total_wait_hours"),
+        Index("ix_spare_waiting_summary_category_stock", "spare_category", "stock_status"),
     )
 
-    part_id: Mapped[str] = mapped_column(ForeignKey("parts.part_id"), primary_key=True)
-    part_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    part_category: Mapped[str] = mapped_column(String(80), nullable=False)
+    spare_id: Mapped[str] = mapped_column(ForeignKey("critical_spares.spare_id"), primary_key=True)
+    spare_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    spare_category: Mapped[str] = mapped_column(String(80), nullable=False)
     waiting_request_count: Mapped[int] = mapped_column(Integer, nullable=False)
     total_wait_hours: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
     avg_wait_hours: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
