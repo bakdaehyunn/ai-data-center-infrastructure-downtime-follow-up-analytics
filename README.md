@@ -1,6 +1,6 @@
 # Maintenance Downtime Follow-up Analytics
 
-Maintenance Downtime Follow-up Analytics is a portfolio project about operational visibility for delayed maintenance work.
+Maintenance Downtime Follow-up Analytics is an operational analytics product for maintenance downtime follow-up.
 
 It answers one practical question:
 
@@ -145,15 +145,15 @@ npm run build
 - Docker Compose
 - pytest
 
-## Portfolio Signal
+## Operational Capabilities
 
-This project is designed to show backend and operational data-platform judgment:
+The system is designed around production-support needs:
 
-- Workflow and state modeling from event history
-- SQLAlchemy data modeling across raw, core, analytics, and ops layers
-- Pipeline observability and repeatable analytics builds
-- Data quality checks that protect trust in metrics
-- Read-only analytics API design
-- Operational prioritization logic
-- Frontend drilldown for decision support
-- Ability to turn scattered workflow data into useful operational follow-up
+- reconstruct request state from workflow event history
+- preserve raw source records for traceability
+- normalize scattered maintenance records into a consistent operating model
+- compute repeatable analytics outputs by pipeline run
+- surface data quality and reconciliation flags before users rely on metrics
+- expose read-only analytics APIs for dashboards and integration consumers
+- rank follow-up work using downtime, delay, criticality, urgency, repeat failure, and parts risk signals
+- provide drilldown context for maintenance supervisors, planners, reliability engineers, and operations teams

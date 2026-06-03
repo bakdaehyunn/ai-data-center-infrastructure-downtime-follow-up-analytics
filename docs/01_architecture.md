@@ -22,7 +22,7 @@ The layer split keeps each responsibility clear:
 - analytics stores calculated state, lead time, bottleneck, impact, and follow-up outputs
 - ops records pipeline runs and data quality results
 
-This mirrors the portfolio problem: the value comes from connecting scattered records without pretending they came from one perfect source table.
+This mirrors the operating problem: the value comes from connecting scattered records without pretending they came from one perfect source table.
 
 ### Event History as Source of Truth
 
