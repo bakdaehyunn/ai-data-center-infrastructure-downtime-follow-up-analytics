@@ -155,10 +155,13 @@ function App() {
         <Kpi icon={<AlertTriangle size={18} />} label="Critical delayed" value={dashboard?.overview.critical_asset_delayed ?? 0} tone="danger" />
         <Kpi icon={<Zap size={18} />} label="Capacity at risk" value={`${(dashboard?.overview.capacity_risk_kw ?? 0).toFixed(0)} kW`} tone="danger" />
         <Kpi icon={<Cpu size={18} />} label="Affected GPUs" value={dashboard?.overview.affected_gpu_count ?? 0} tone="warning" />
-        <Kpi icon={<ShieldAlert size={18} />} label="Redundancy lost" value={dashboard?.overview.redundancy_lost_incidents ?? 0} tone="danger" />
-        <Kpi icon={<Clock3 size={18} />} label="Missed vendor ETA" value={dashboard?.overview.vendor_eta_missed_count ?? 0} tone="warning" />
-        <Kpi icon={<Boxes size={18} />} label="Spare/vendor wait" value={formatHours(dashboard?.overview.spare_waiting_delay_hours ?? 0)} />
-        <Kpi icon={<Database size={18} />} label="Latest-run trust" value={dashboard?.overview.data_quality_status ?? 'UNKNOWN'} tone={dashboard?.overview.data_quality_status === 'PASS' ? 'ok' : 'danger'} />
+      </section>
+
+      <section className="exposure-strip" aria-label="Operational exposure">
+        <ExposureMetric icon={<ShieldAlert size={16} />} label="Redundancy lost" value={dashboard?.overview.redundancy_lost_incidents ?? 0} tone="danger" />
+        <ExposureMetric icon={<Clock3 size={16} />} label="Missed vendor ETA" value={dashboard?.overview.vendor_eta_missed_count ?? 0} tone="warning" />
+        <ExposureMetric icon={<Boxes size={16} />} label="Spare/vendor wait" value={formatHours(dashboard?.overview.spare_waiting_delay_hours ?? 0)} />
+        <ExposureMetric icon={<Database size={16} />} label="Latest-run trust" value={dashboard?.overview.data_quality_status ?? 'UNKNOWN'} tone={dashboard?.overview.data_quality_status === 'PASS' ? 'ok' : 'danger'} />
       </section>
 
       <section className="layout">
@@ -249,6 +252,16 @@ function Kpi({ icon, label, value, tone }: { icon: ReactNode; label: string; val
   )
 }
 
+function ExposureMetric({ icon, label, value, tone }: { icon: ReactNode; label: string; value: ReactNode; tone?: 'ok' | 'warning' | 'danger' }) {
+  return (
+    <div className={`exposure-metric ${tone ?? ''}`}>
+      <div className="exposure-icon">{icon}</div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
 function Select({
   label,
   value,
@@ -297,38 +310,36 @@ function FollowUpTable({ rows, selectedId, onSelect }: { rows: FollowUpItem[]; s
           <tr>
             <th>Rank</th>
             <th>Incident</th>
-            <th>Asset</th>
-            <th>Stage</th>
+            <th>Asset / Zone</th>
+            <th>Blocker</th>
             <th>Impact</th>
             <th>Delay</th>
             <th>Action</th>
             <th>Trust</th>
-            <th>Score</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.incident_id} className={selectedId === row.incident_id ? 'selected' : ''} onClick={() => onSelect(row.incident_id)}>
-              <td>#{row.priority_rank}</td>
+              <td className="rank-cell">#{row.priority_rank}</td>
               <td>
                 <strong>{row.request_number}</strong>
                 <span>{row.priority_level}</span>
               </td>
-              <td>
+              <td className="asset-cell">
                 <strong>{row.asset_name}</strong>
                 <span>{row.zone_name}</span>
               </td>
-              <td>{formatStage(row.current_stage)}</td>
-              <td>
+              <td className="blocker-cell">{formatStage(row.current_stage)}</td>
+              <td className="impact-cell">
                 <strong>{row.affected_gpu_count ? `${row.affected_gpu_count} GPUs` : 'No GPU impact'}</strong>
                 <span>{impactLabel(row)}</span>
               </td>
-              <td>{formatHours(row.hours_in_current_stage)}</td>
-              <td>{row.recommended_action}</td>
-              <td>
+              <td className="delay-cell">{formatHours(row.hours_in_current_stage)}</td>
+              <td className="action-cell">{row.recommended_action}</td>
+              <td className="trust-cell">
                 <TrustBadge status={row.impact_confidence_status} count={row.impact_trust_issue_count} />
               </td>
-              <td>{row.total_priority_score.toFixed(1)}</td>
             </tr>
           ))}
         </tbody>
@@ -343,9 +354,20 @@ function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
   }
   return (
     <div className="detail-stack">
+      <div className="detail-hero">
+        <div>
+          <strong>{detail.request.request_title}</strong>
+          <span>{detail.request.priority_level} · {formatStage(detail.request.current_stage)}</span>
+        </div>
+        <TrustBadge status={detail.impact_confidence_status} count={detail.impact_trust_flags.length} />
+      </div>
+      <div className="detail-action">
+        <span>Recommended action</span>
+        <strong>{detail.request.recommended_action}</strong>
+      </div>
       <div className="detail-summary">
-        <strong>{detail.request.request_title}</strong>
-        <span>{detail.request.reason_summary}</span>
+        <span>Why it matters</span>
+        <p>{detail.request.reason_summary}</p>
       </div>
       {detail.quality_flags.length ? (
         <div className="detail-quality-flags" aria-label="Request quality flags">
@@ -357,40 +379,34 @@ function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
           ))}
         </div>
       ) : null}
-      <div className="score-grid">
-        <Score label="Downtime" value={detail.request.downtime_score} />
-        <Score label="Stage delay" value={detail.request.stage_delay_score} />
-        <Score label="Spare risk" value={detail.request.spare_risk_score} />
-        <Score label="Capacity risk" value={detail.request.capacity_risk_score} />
-        <Score label="Redundancy risk" value={detail.request.redundancy_risk_score} />
-        <Score label="Vendor ETA risk" value={detail.request.vendor_eta_risk_score} />
-        <Score label="Mitigation credit" value={detail.request.mitigation_credit_score} />
-      </div>
       {detail.impact_snapshot ? (
-        <div className="impact-context">
-          <div>
-            <span>Redundancy</span>
-            <strong>{detail.impact_snapshot.redundancy_state}</strong>
-          </div>
-          <div>
-            <span>Capacity risk</span>
-            <strong>{detail.impact_snapshot.estimated_capacity_risk_kw.toFixed(0)} kW</strong>
-          </div>
-          <div>
-            <span>Affected GPUs</span>
-            <strong>{detail.impact_snapshot.affected_gpu_count}</strong>
-          </div>
-          <div>
-            <span>Vendor</span>
-            <strong>{formatStage(detail.impact_snapshot.vendor_status)}</strong>
-          </div>
-          <div>
-            <span>Mitigation</span>
-            <strong>{formatStage(detail.impact_snapshot.mitigation_status)}</strong>
-          </div>
-          <div>
-            <span>Thermal breach</span>
-            <strong>{detail.impact_snapshot.thermal_breach_minutes}m</strong>
+        <div className="detail-section">
+          <strong className="detail-section-title">Impact context</strong>
+          <div className="impact-context">
+            <div>
+              <span>Redundancy</span>
+              <strong>{detail.impact_snapshot.redundancy_state}</strong>
+            </div>
+            <div>
+              <span>Capacity risk</span>
+              <strong>{detail.impact_snapshot.estimated_capacity_risk_kw.toFixed(0)} kW</strong>
+            </div>
+            <div>
+              <span>Affected GPUs</span>
+              <strong>{detail.impact_snapshot.affected_gpu_count}</strong>
+            </div>
+            <div>
+              <span>Vendor</span>
+              <strong>{formatStage(detail.impact_snapshot.vendor_status)}</strong>
+            </div>
+            <div>
+              <span>Mitigation</span>
+              <strong>{formatStage(detail.impact_snapshot.mitigation_status)}</strong>
+            </div>
+            <div>
+              <span>Thermal breach</span>
+              <strong>{detail.impact_snapshot.thermal_breach_minutes}m</strong>
+            </div>
           </div>
         </div>
       ) : null}
@@ -408,6 +424,18 @@ function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
             {Object.keys(flag.evidence).length ? <small>{formatEvidence(flag.evidence)}</small> : null}
           </div>
         ))}
+      </div>
+      <div className="detail-section">
+        <strong className="detail-section-title">Score components</strong>
+        <div className="score-grid">
+          <Score label="Downtime" value={detail.request.downtime_score} />
+          <Score label="Stage delay" value={detail.request.stage_delay_score} />
+          <Score label="Spare risk" value={detail.request.spare_risk_score} />
+          <Score label="Capacity risk" value={detail.request.capacity_risk_score} />
+          <Score label="Redundancy risk" value={detail.request.redundancy_risk_score} />
+          <Score label="Vendor ETA risk" value={detail.request.vendor_eta_risk_score} />
+          <Score label="Mitigation credit" value={detail.request.mitigation_credit_score} />
+        </div>
       </div>
       {detail.impact_snapshot?.telemetry_readings.length ? (
         <div className="telemetry-evidence">
