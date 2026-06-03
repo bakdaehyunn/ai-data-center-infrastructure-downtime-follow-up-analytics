@@ -42,7 +42,7 @@ Each row shows rank, incident number, priority, asset and zone, current blocker,
 
 ## Drilldown
 
-Selecting a queue row shows:
+The incident drilldown sits in the right operational stack beside the main follow-up and analytics stack. Selecting a queue row shows:
 
 - incident summary
 - recommended action
@@ -60,6 +60,8 @@ Selecting a queue row shows:
 - validation and telemetry context from the API
 
 ## Analytics Panels
+
+Supporting analytics panels are split between the main stack and right stack so the page does not collapse into a one-sided layout. Data trust stays in the main stack because it is a dashboard-level pipeline signal, while spare/vendor waiting and impact summary stay near the incident drilldown as operational context.
 
 - Active stage bottlenecks
 - Asset impact

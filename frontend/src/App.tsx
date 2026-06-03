@@ -92,7 +92,6 @@ function App() {
 
   useEffect(() => {
     if (!selectedId) {
-      setDetail(null)
       return
     }
     const requestId = selectedId
@@ -122,6 +121,8 @@ function App() {
       })),
     [dashboard],
   )
+  const visibleDetail = selectedId && detail?.request.incident_id === selectedId ? detail : null
+  const visibleDetailLoading = detailLoading || Boolean(selectedId && detail && detail.request.incident_id !== selectedId)
 
   const setFilter = (key: keyof DashboardFilters, value: string) => {
     setFilters((current) => ({ ...current, [key]: value || undefined }))
@@ -164,9 +165,9 @@ function App() {
         <ExposureMetric icon={<Database size={16} />} label="Latest-run trust" value={dashboard?.overview.data_quality_status ?? 'UNKNOWN'} tone={dashboard?.overview.data_quality_status === 'PASS' ? 'ok' : 'danger'} />
       </section>
 
-      <section className="layout">
-        <div className="primary-column">
-          <section className="panel">
+      <section className="dashboard-layout">
+        <div className="main-stack">
+          <section className="panel queue-panel">
             <PanelHeader title="Follow-up Queue" subtitle="Incidents ranked by delay, stage blocker, capacity exposure, redundancy state, vendor ETA, mitigation, and source trust" />
             {loading ? <div className="empty-state">Loading follow-up queue</div> : <FollowUpTable rows={dashboard?.followUps ?? []} selectedId={selectedId} onSelect={setSelectedId} />}
           </section>
@@ -190,17 +191,30 @@ function App() {
               <PanelHeader title="Asset Impact" subtitle="Where delayed incidents concentrate by infrastructure asset" />
               <CompactRows rows={(dashboard?.assetDelays ?? []).slice(0, 5)} getKey={(row) => row.asset_id} left={(row) => row.asset_name} right={(row) => formatHours(row.total_downtime_hours)} />
             </section>
+
             <section className="panel">
               <PanelHeader title="Zone Impact" subtitle="AI data center zones carrying delayed infrastructure work" />
               <CompactRows rows={dashboard?.zoneDelays ?? []} getKey={(row) => row.zone_id} left={(row) => row.zone_name} right={(row) => formatHours(row.total_downtime_hours)} />
             </section>
           </section>
+
+          <section className="panel">
+            <PanelHeader title="Data Trust" subtitle={`${dashboard?.qualityChecks.length ?? 0} failed latest-run checks`} />
+            <div className="quality-list">
+              {(dashboard?.qualityChecks ?? []).map((check) => (
+                <div className="quality-row" key={check.check_result_id}>
+                  <strong>{check.target_table}</strong>
+                  <span>{check.check_name}</span>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
 
-        <aside className="detail-column">
+        <aside className="side-stack">
           <section className="panel detail-panel">
-            <PanelHeader title="Incident Drilldown" subtitle={detail?.request.request_number ?? 'Select a queued incident'} />
-            {detailLoading ? <div className="empty-state">Loading request detail</div> : <RequestDetailView detail={detail} />}
+            <PanelHeader title="Incident Drilldown" subtitle={visibleDetail?.request.request_number ?? 'Select a queued incident'} />
+            {visibleDetailLoading ? <div className="empty-state">Loading request detail</div> : <RequestDetailView detail={visibleDetail} />}
           </section>
 
           <section className="panel">
@@ -223,18 +237,6 @@ function App() {
               left={(row) => row.label}
               right={(row) => row.value}
             />
-          </section>
-
-          <section className="panel">
-            <PanelHeader title="Data Trust" subtitle={`${dashboard?.qualityChecks.length ?? 0} failed latest-run checks`} />
-            <div className="quality-list">
-              {(dashboard?.qualityChecks ?? []).map((check) => (
-                <div className="quality-row" key={check.check_result_id}>
-                  <strong>{check.target_table}</strong>
-                  <span>{check.check_name}</span>
-                </div>
-              ))}
-            </div>
           </section>
         </aside>
       </section>
