@@ -7,6 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
+from app.domain.infrastructure_ontology import (
+    HIGH_IMPACT_MARKERS,
+    IMPACT_RECONCILIATION_ISSUE_TYPES,
+    TERMINAL_STATUS,
+)
 from app.db import get_db
 from app.models.analytics import (
     DowntimeFollowUpQueue,
@@ -72,23 +77,18 @@ RECONCILIATION_FLAG_LABELS = {
     "state_reconstruction_missing_completion_event": "State reconstruction gap",
     "state_reconstruction_missing_stage_event": "State reconstruction gap",
     "state_reconstruction_stage_mismatch": "State reconstruction mismatch",
-}
-IMPACT_RECONCILIATION_ISSUE_TYPES = {
-    "impact_capacity_risk_zero_for_critical_gpu_incident",
-    "impact_mitigation_without_event_evidence",
-    "impact_redundancy_event_snapshot_mismatch",
-    "impact_snapshot_missing_for_active_high_impact_incident",
-    "impact_snapshot_stale_after_latest_impact_event",
-    "impact_thermal_context_missing_evidence",
-    "impact_vendor_eta_event_snapshot_mismatch",
-    "impact_vendor_eta_past_not_missed",
-}
-HIGH_IMPACT_MARKERS = {
-    "CAPACITY",
-    "COOLING",
-    "GPU",
-    "POWER",
-    "REDUNDANCY",
+    "workflow_ontology_duplicate_stage_entry": "Workflow ontology duplicate stage",
+    "workflow_ontology_invalid_event_status": "Workflow ontology event status mismatch",
+    "workflow_ontology_invalid_event_type": "Workflow ontology event type mismatch",
+    "workflow_ontology_invalid_mitigation_status": "Workflow ontology mitigation mismatch",
+    "workflow_ontology_invalid_priority": "Workflow ontology priority mismatch",
+    "workflow_ontology_invalid_redundancy_state": "Workflow ontology redundancy mismatch",
+    "workflow_ontology_invalid_restored_state": "Workflow ontology restore mismatch",
+    "workflow_ontology_invalid_stage": "Workflow ontology stage mismatch",
+    "workflow_ontology_invalid_stage_event_type": "Workflow ontology stage event mismatch",
+    "workflow_ontology_invalid_stage_progression": "Workflow ontology transition mismatch",
+    "workflow_ontology_invalid_status": "Workflow ontology status mismatch",
+    "workflow_ontology_invalid_vendor_status": "Workflow ontology vendor mismatch",
 }
 
 
@@ -98,7 +98,7 @@ def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
     current_statuses = list(db.scalars(select(IncidentCurrentStatus)))
     asset_by_id = {asset.asset_id: asset for asset in db.scalars(select(InfrastructureAsset))}
     latest_impact_by_incident = _latest_impact_by_incident(db)
-    active_incident_ids = {request.incident_id for request in requests if request.current_status != "RESTORED"}
+    active_incident_ids = {request.incident_id for request in requests if request.current_status != TERMINAL_STATUS}
     active_impacts = [
         impact for incident_id, impact in latest_impact_by_incident.items()
         if incident_id in active_incident_ids
@@ -131,7 +131,7 @@ def get_overview(db: Session = Depends(get_db)) -> OverviewResponse:
 
     return OverviewResponse(
         total_requests=len(requests),
-        open_requests=sum(1 for request in requests if request.current_status != "RESTORED"),
+        open_requests=sum(1 for request in requests if request.current_status != TERMINAL_STATUS),
         delayed_requests=sum(1 for status in current_statuses if status.is_delayed),
         critical_asset_delayed=sum(
             1
@@ -267,7 +267,7 @@ def get_impact_summary(db: Session = Depends(get_db)) -> ImpactSummaryResponse:
         request.incident_id: request
         for request in db.scalars(select(InfrastructureIncident))
     }
-    active_requests = [request for request in requests.values() if request.current_status != "RESTORED"]
+    active_requests = [request for request in requests.values() if request.current_status != TERMINAL_STATUS]
     impact_issues_by_incident = _impact_issues_by_incident(
         db,
         [request.incident_id for request in active_requests],
@@ -275,7 +275,7 @@ def get_impact_summary(db: Session = Depends(get_db)) -> ImpactSummaryResponse:
     impacts = [
         impact
         for incident_id, impact in _latest_impact_by_incident(db).items()
-        if requests.get(incident_id) and requests[incident_id].current_status != "RESTORED"
+        if requests.get(incident_id) and requests[incident_id].current_status != TERMINAL_STATUS
     ]
     impact_by_incident = {impact.incident_id: impact for impact in impacts}
     impact_confidence_requests = [
@@ -525,7 +525,7 @@ def _empty_queue_row(request: InfrastructureIncident, current: IncidentCurrentSt
         vendor_eta_risk_score=0,
         mitigation_credit_score=0,
         total_priority_score=0,
-        recommended_action="No follow-up required" if request.current_status == "RESTORED" else "Review infrastructure incident status",
+        recommended_action="No follow-up required" if request.current_status == TERMINAL_STATUS else "Review infrastructure incident status",
         reason_summary=f"Incident is {request.current_status} in {current.current_stage}.",
     )
 

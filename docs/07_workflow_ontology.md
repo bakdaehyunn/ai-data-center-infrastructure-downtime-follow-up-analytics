@@ -4,6 +4,8 @@
 
 The workflow ontology defines how an AI infrastructure incident moves from report to safe return-to-service. It exists so the analytics layer can reconstruct state from events instead of trusting a single mutable status field.
 
+This is an application workflow ontology, not a formal RDF, OWL, SPARQL, or graph-database ontology. The enforceable contract lives in `backend/app/domain/infrastructure_ontology.py` and is used by pipeline quality checks and reconciliation.
+
 ## Lifecycle
 
 ```text
@@ -31,6 +33,32 @@ INCIDENT_REPORTED
 | Any active stage | `INCIDENT_RESTORED` | `RESTORED` | Incident is terminal if restoration evidence exists. |
 
 The implementation uses the latest `ENTERED_STAGE` event as the reconstructed current stage and stage-specific exit events to calculate duration and delay.
+
+## Controlled Vocabulary
+
+The backend centralizes the controlled vocabulary for:
+
+- workflow stages and terminal status
+- workflow and impact event types
+- event statuses
+- priority and criticality levels
+- work order, validation, telemetry, vendor, mitigation, redundancy, and spare-stock states
+- reconciliation issue types
+
+Core quality checks now verify that incidents, zones, assets, spares, work orders, validation records, telemetry alerts, stage events, and impact snapshots use this vocabulary. Reconciliation also converts invalid workflow evidence into operator-visible trust issues.
+
+## Transition Validation
+
+Transition validation checks the event history before it is treated as trusted workflow evidence:
+
+- incidents must enter through `INCIDENT_REPORTED`
+- `ENTERED_STAGE` events must follow the configured lifecycle order
+- a stage cannot have duplicate entered-stage evidence for the same incident
+- event types must be allowed for the stage where they appear
+- restored incidents must have terminal restore evidence
+- active incidents must not enter the terminal `RESTORED` stage
+
+Invalid transition evidence does not create a new workflow stage. It becomes a quality or reconciliation issue so operators can see that the analytics row needs source review.
 
 ## Exception States
 
@@ -75,6 +103,8 @@ The follow-up queue scores active incidents with these components:
 - Mitigation credit that reduces priority when evidence shows exposure was reduced.
 
 The recommended action is tied to the active workflow blocker. Impact context explains why the incident matters, but it should not replace the workflow action unless the active blocker is spare or vendor follow-up.
+
+This pass keeps the ranking weights unchanged. Future ranking improvements should be evaluated during trust calibration, especially how overdue needed-by commitments are scored once an incident is already late.
 
 ## Final Restoration Conditions
 

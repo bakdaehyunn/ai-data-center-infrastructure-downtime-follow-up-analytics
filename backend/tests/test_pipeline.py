@@ -1,4 +1,6 @@
+from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
@@ -33,7 +35,9 @@ from app.models.raw import (
     RawFacilityWorkOrder,
     RawTelemetryAlert,
 )
-from app.pipeline.quality import run_raw_quality_checks
+from app.domain.infrastructure_ontology import validate_stage_event_transitions
+from app.pipeline.quality import run_core_quality_checks, run_raw_quality_checks
+from app.pipeline.reconciler import run_reconciliation_checks
 from app.pipeline.raw_loader import read_raw_source_records
 from app.pipeline.runner import PIPELINE_NAME, run_ingestion_pipeline
 from app.sample_data.generator import generate_sample_dataset, write_sample_dataset
@@ -96,7 +100,7 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert _count(session, AssetDelaySummary) == 9
         assert _count(session, ZoneDelaySummary) == 5
         assert _count(session, SpareWaitingSummary) == 2
-        assert _count(session, DataQualityCheckResult) == 30
+        assert _count(session, DataQualityCheckResult) == 40
         assert _count(session, InfrastructureReconciliationIssue) == 8
 
         failures = {
@@ -110,6 +114,23 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert failures[("incident_stage_events", "stage_event_timestamp_out_of_order")] == 1
         assert failures[("facility_work_orders", "spare_waiting_without_required_spare")] == 1
         assert failures[("validation_results", "validation_without_completed_work")] == 1
+        ontology_checks = {
+            (result.target_table, result.check_name): result.status
+            for result in session.scalars(select(DataQualityCheckResult))
+            if result.check_name.startswith("workflow_ontology_")
+        }
+        assert ontology_checks == {
+            ("infrastructure_incidents", "workflow_ontology_incident_vocabulary"): "PASS",
+            ("incident_stage_events", "workflow_ontology_stage_event_vocabulary"): "PASS",
+            ("infrastructure_impact_snapshots", "workflow_ontology_impact_vocabulary"): "PASS",
+            ("incident_stage_events", "workflow_ontology_transition_rules"): "PASS",
+            ("infrastructure_zones", "workflow_ontology_zone_vocabulary"): "PASS",
+            ("infrastructure_assets", "workflow_ontology_asset_vocabulary"): "PASS",
+            ("critical_spares", "workflow_ontology_spare_vocabulary"): "PASS",
+            ("facility_work_orders", "workflow_ontology_work_order_vocabulary"): "PASS",
+            ("validation_results", "workflow_ontology_validation_vocabulary"): "PASS",
+            ("telemetry_alerts", "workflow_ontology_telemetry_vocabulary"): "PASS",
+        }
         reconciliation_issue_types = {
             issue.issue_type
             for issue in session.scalars(select(InfrastructureReconciliationIssue))
@@ -151,6 +172,173 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
             select(InfrastructureBottleneckSummary).where(InfrastructureBottleneckSummary.stage == "RESTORED")
         )
         assert completed_stage_summary is None
+
+
+def test_core_quality_detects_workflow_ontology_vocabulary_violations(tmp_path: Path) -> None:
+    sample_dir = _write_sample_data(tmp_path)
+    session_factory = _session_factory()
+
+    with session_factory() as session:
+        run_ingestion_pipeline(session=session, sample_dir=sample_dir)
+        event = session.scalar(
+            select(IncidentStageEvent).where(
+                IncidentStageEvent.incident_id == "INC-0002",
+                IncidentStageEvent.stage == "INCIDENT_REPORTED",
+                IncidentStageEvent.event_type == "ENTERED_STAGE",
+            )
+        )
+        assert event is not None
+        event.stage = "UNKNOWN_STAGE"
+        session.flush()
+
+        results = run_core_quality_checks(session, pipeline_run_id="RUN-ONTOLOGY")
+        failures = {
+            (result.target_table, result.check_name): result
+            for result in results
+            if result.status != "PASS"
+        }
+
+        vocabulary_failure = failures[("incident_stage_events", "workflow_ontology_stage_event_vocabulary")]
+        transition_failure = failures[("incident_stage_events", "workflow_ontology_transition_rules")]
+        assert vocabulary_failure.failed_row_count == 1
+        assert vocabulary_failure.sample_failed_keys == [
+            f"{event.event_id} workflow_ontology_invalid_stage"
+        ]
+        assert transition_failure.failed_row_count >= 1
+
+
+def test_core_quality_detects_workflow_ontology_dependency_state_violations(tmp_path: Path) -> None:
+    sample_dir = _write_sample_data(tmp_path)
+    session_factory = _session_factory()
+
+    with session_factory() as session:
+        run_ingestion_pipeline(session=session, sample_dir=sample_dir)
+        work_order = session.scalar(
+            select(FacilityWorkOrder).where(FacilityWorkOrder.work_order_id == "MWO-0004")
+        )
+        assert work_order is not None
+        work_order.work_order_status = "WAITING_FOR_MAGIC"
+        session.flush()
+
+        results = run_core_quality_checks(session, pipeline_run_id="RUN-ONTOLOGY")
+        failures = {
+            (result.target_table, result.check_name): result
+            for result in results
+            if result.status != "PASS"
+        }
+
+        dependency_failure = failures[("facility_work_orders", "workflow_ontology_work_order_vocabulary")]
+        assert dependency_failure.failed_row_count == 1
+        assert dependency_failure.sample_failed_keys == [
+            "MWO-0004 workflow_ontology_invalid_work_order_status"
+        ]
+
+
+def test_workflow_ontology_restore_rules_accept_restored_event_shortcut() -> None:
+    incident = SimpleNamespace(
+        incident_id="INC-RESTORE",
+        asset_id="ASSET-RESTORE",
+        priority_level="HIGH",
+        current_stage="RESTORED",
+        current_status="RESTORED",
+    )
+    shortcut_events = [
+        SimpleNamespace(
+            event_id="EVT-RESTORE-001",
+            incident_id="INC-RESTORE",
+            stage="INCIDENT_REPORTED",
+            event_type="ENTERED_STAGE",
+            event_status="SUCCESS",
+            occurred_at=datetime(2026, 1, 1, 0, 0),
+        ),
+        SimpleNamespace(
+            event_id="EVT-RESTORE-002",
+            incident_id="INC-RESTORE",
+            stage="INCIDENT_REPORTED",
+            event_type="INCIDENT_ACCEPTED",
+            event_status="SUCCESS",
+            occurred_at=datetime(2026, 1, 1, 1, 0),
+        ),
+        SimpleNamespace(
+            event_id="EVT-RESTORE-003",
+            incident_id="INC-RESTORE",
+            stage="FACILITIES_TRIAGE",
+            event_type="ENTERED_STAGE",
+            event_status="SUCCESS",
+            occurred_at=datetime(2026, 1, 1, 1, 0),
+        ),
+        SimpleNamespace(
+            event_id="EVT-RESTORE-004",
+            incident_id="INC-RESTORE",
+            stage="FACILITIES_TRIAGE",
+            event_type="INCIDENT_RESTORED",
+            event_status="SUCCESS",
+            occurred_at=datetime(2026, 1, 1, 2, 0),
+        ),
+    ]
+    missing_evidence_events = shortcut_events[:-1]
+
+    shortcut_issues = validate_stage_event_transitions(
+        {"INC-RESTORE": list(reversed(shortcut_events))},
+        {"INC-RESTORE": incident},
+    )
+    missing_evidence_issues = validate_stage_event_transitions(
+        {"INC-RESTORE": missing_evidence_events},
+        {"INC-RESTORE": incident},
+    )
+
+    assert {
+        issue.issue_type for issue in shortcut_issues
+    } == set()
+    assert {
+        issue.issue_type for issue in missing_evidence_issues
+    } == {"workflow_ontology_invalid_restored_state"}
+
+
+def test_reconciliation_detects_workflow_ontology_transition_violations(tmp_path: Path) -> None:
+    sample_dir = _write_sample_data(tmp_path)
+    session_factory = _session_factory()
+
+    with session_factory() as session:
+        run_ingestion_pipeline(session=session, sample_dir=sample_dir)
+        existing_event = session.scalar(
+            select(IncidentStageEvent).where(
+                IncidentStageEvent.incident_id == "INC-0002",
+                IncidentStageEvent.stage == "FACILITIES_TRIAGE",
+                IncidentStageEvent.event_type == "ENTERED_STAGE",
+            )
+        )
+        assert existing_event is not None
+        session.add(
+            IncidentStageEvent(
+                event_id="EVT-ONTOLOGY-SKIP",
+                incident_id="INC-0002",
+                stage="VALIDATION",
+                event_type="ENTERED_STAGE",
+                event_status="SUCCESS",
+                occurred_at=existing_event.occurred_at,
+                actor_type="SYSTEM",
+                actor_id="TEST",
+                reason_code="TEST_INVALID_SKIP",
+                metadata_json={"test": "invalid_stage_skip"},
+                source_system="test",
+            )
+        )
+        session.flush()
+
+        result = run_reconciliation_checks(session, pipeline_run_id="RUN-ONTOLOGY")
+
+        assert result.issues_created > 0
+        transition_issue = session.scalar(
+            select(InfrastructureReconciliationIssue).where(
+                InfrastructureReconciliationIssue.pipeline_run_id == "RUN-ONTOLOGY",
+                InfrastructureReconciliationIssue.incident_id == "INC-0002",
+                InfrastructureReconciliationIssue.issue_type == "workflow_ontology_invalid_stage_progression",
+            )
+        )
+        assert transition_issue is not None
+        assert transition_issue.severity == "ERROR"
+        assert transition_issue.evidence_json["current_stage"] == "VALIDATION"
 
 
 def test_analytics_identifies_seeded_downtime_bottlenecks(tmp_path: Path) -> None:

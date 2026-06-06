@@ -8,6 +8,21 @@ from typing import Any
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.domain.infrastructure_ontology import (
+    HIGH_IMPACT_MARKERS,
+    IMPACT_MATERIAL_EVENT_TYPES,
+    IMPACT_RECONCILIATION_ISSUE_TYPES,
+    INFRASTRUCTURE_EXIT_EVENT_BY_STAGE,
+    MITIGATION_STATUS_SET,
+    REDUNDANCY_STATE_SET,
+    TERMINAL_STATUS,
+    VENDOR_STATUS_SET,
+    OntologyIssue,
+    validate_event_vocabulary,
+    validate_impact_vocabulary,
+    validate_incident_vocabulary,
+    validate_stage_event_transitions,
+)
 from app.models.analytics import IncidentCurrentStatus
 from app.models.infrastructure import (
     ValidationResult,
@@ -17,34 +32,6 @@ from app.models.infrastructure import (
     FacilityWorkOrder,
 )
 from app.models.ops import InfrastructureReconciliationIssue
-from app.sample_data.infrastructure_scenarios import INFRASTRUCTURE_EXIT_EVENT_BY_STAGE
-
-
-IMPACT_MATERIAL_EVENT_TYPES = {
-    "REDUNDANCY_LOST",
-    "REDUNDANCY_RESTORED",
-    "VENDOR_ETA_UPDATED",
-    "VENDOR_ETA_MISSED",
-    "LOAD_SHIFTED",
-    "MITIGATION_APPLIED",
-}
-HIGH_IMPACT_MARKERS = {
-    "CAPACITY",
-    "COOLING",
-    "GPU",
-    "POWER",
-    "REDUNDANCY",
-}
-IMPACT_RECONCILIATION_ISSUE_TYPES = {
-    "impact_snapshot_missing_for_active_high_impact_incident",
-    "impact_snapshot_stale_after_latest_impact_event",
-    "impact_redundancy_event_snapshot_mismatch",
-    "impact_vendor_eta_event_snapshot_mismatch",
-    "impact_vendor_eta_past_not_missed",
-    "impact_mitigation_without_event_evidence",
-    "impact_thermal_context_missing_evidence",
-    "impact_capacity_risk_zero_for_critical_gpu_incident",
-}
 
 
 @dataclass(frozen=True)
@@ -86,6 +73,17 @@ def run_reconciliation_checks(session: Session, pipeline_run_id: str) -> Reconci
     as_of = _default_as_of(events)
 
     drafts: list[ReconciliationIssueDraft] = []
+    drafts.extend(
+        _ontology_issue_drafts(
+            validate_incident_vocabulary(requests)
+            + validate_event_vocabulary(events)
+            + validate_impact_vocabulary(
+                impact_snapshots,
+                {request.incident_id: request.asset_id for request in requests},
+            )
+            + validate_stage_event_transitions(events_by_request, request_by_id)
+        )
+    )
     drafts.extend(_request_stage_evidence_issues(requests, events_by_request))
     drafts.extend(_event_sequence_issues(requests, events_by_request))
     drafts.extend(_work_order_issues(request_by_id, work_orders_by_request))
@@ -121,6 +119,20 @@ def run_reconciliation_checks(session: Session, pipeline_run_id: str) -> Reconci
     session.flush()
 
     return ReconciliationResult(issues_created=len(issues))
+
+
+def _ontology_issue_drafts(issues: list[OntologyIssue]) -> list[ReconciliationIssueDraft]:
+    return [
+        ReconciliationIssueDraft(
+            incident_id=issue.incident_id,
+            asset_id=issue.asset_id,
+            issue_type=issue.issue_type,
+            severity=issue.severity,
+            message=issue.message,
+            evidence=issue.evidence,
+        )
+        for issue in issues
+    ]
 
 
 def _request_stage_evidence_issues(
@@ -166,7 +178,7 @@ def _request_stage_evidence_issues(
                 )
             )
 
-        if request.current_status == "RESTORED" and not completed_events:
+        if request.current_status == TERMINAL_STATUS and not completed_events:
             issues.append(
                 ReconciliationIssueDraft(
                     incident_id=request.incident_id,
@@ -178,7 +190,7 @@ def _request_stage_evidence_issues(
                 )
             )
 
-        if request.current_status != "RESTORED" and completed_events:
+        if request.current_status != TERMINAL_STATUS and completed_events:
             issues.append(
                 ReconciliationIssueDraft(
                     incident_id=request.incident_id,
@@ -317,7 +329,7 @@ def _impact_context_issues(
     for request in requests:
         request_events = events_by_request.get(request.incident_id, [])
         impact = impact_by_request.get(request.incident_id)
-        active = request.current_status != "RESTORED"
+        active = request.current_status != TERMINAL_STATUS
         high_impact = _is_high_impact_incident(request)
 
         if active and high_impact and impact is None:
@@ -370,7 +382,7 @@ def _impact_snapshot_freshness_issues(
     events: list[IncidentStageEvent],
     impact: InfrastructureImpactSnapshot,
 ) -> list[ReconciliationIssueDraft]:
-    if request.current_status == "RESTORED":
+    if request.current_status == TERMINAL_STATUS:
         return []
     latest_event = _latest_event_of_types(events, IMPACT_MATERIAL_EVENT_TYPES)
     if latest_event is None or latest_event.occurred_at <= impact.snapshot_at:
@@ -403,7 +415,7 @@ def _impact_redundancy_issues(
         return []
 
     lost_in_snapshot = (
-        impact.redundancy_state in {"N", "N-1"}
+        impact.redundancy_state in {state for state in REDUNDANCY_STATE_SET if state != "N+1"}
         or impact.power_redundancy_lost
         or impact.cooling_redundancy_lost
     )
@@ -458,10 +470,10 @@ def _impact_vendor_issues(
         )
 
     if (
-        request.current_status != "RESTORED"
+        request.current_status != TERMINAL_STATUS
         and impact.vendor_eta_at
         and impact.vendor_eta_at < as_of
-        and impact.vendor_status in {"WAITING_VENDOR_DISPATCH", "ETA_CONFIRMED"}
+        and impact.vendor_status in (VENDOR_STATUS_SET - {"NOT_REQUIRED", "ETA_MISSED"})
     ):
         issues.append(
             ReconciliationIssueDraft(
@@ -488,7 +500,7 @@ def _impact_mitigation_issues(
     expected_event_type = {
         "LOAD_SHIFTED": "LOAD_SHIFTED",
         "RUNNING_DEGRADED": "MITIGATION_APPLIED",
-    }.get(impact.mitigation_status)
+    }.get(impact.mitigation_status if impact.mitigation_status in MITIGATION_STATUS_SET else "")
     if expected_event_type is None:
         return []
     matching_events = [
@@ -519,7 +531,7 @@ def _impact_thermal_issues(
     request: InfrastructureIncident,
     impact: InfrastructureImpactSnapshot,
 ) -> list[ReconciliationIssueDraft]:
-    if request.current_status == "RESTORED" or impact.thermal_breach_minutes <= 0:
+    if request.current_status == TERMINAL_STATUS or impact.thermal_breach_minutes <= 0:
         return []
     readings = impact.telemetry_readings_json or []
     has_abnormal_reading = any(

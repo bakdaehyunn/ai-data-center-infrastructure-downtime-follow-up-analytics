@@ -8,6 +8,12 @@ from statistics import mean
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.domain.infrastructure_ontology import (
+    INFRASTRUCTURE_EXIT_EVENT_BY_STAGE,
+    INFRASTRUCTURE_STAGE_THRESHOLDS_HOURS,
+    TERMINAL_STAGE,
+    TERMINAL_STATUS,
+)
 from app.models.analytics import (
     DowntimeFollowUpQueue,
     AssetDelaySummary,
@@ -26,11 +32,6 @@ from app.models.infrastructure import (
     CriticalSpare,
     InfrastructureZone,
 )
-from app.sample_data.infrastructure_scenarios import (
-    INFRASTRUCTURE_EXIT_EVENT_BY_STAGE,
-    INFRASTRUCTURE_STAGE_THRESHOLDS_HOURS,
-)
-
 
 @dataclass(frozen=True)
 class AnalyticsBuildResult:
@@ -284,7 +285,7 @@ def _build_bottleneck_summary_rows(
 ) -> list[InfrastructureBottleneckSummary]:
     grouped: dict[tuple[str, str, str], list[LeadTimeRecord]] = defaultdict(list)
     for record in lead_records:
-        if record.stage == "RESTORED":
+        if record.stage == TERMINAL_STAGE:
             continue
         request = request_by_id.get(record.request_id)
         if request is None:
@@ -406,7 +407,7 @@ def _build_zone_delay_summary_rows(
             ZoneDelaySummary(
                 zone_id=zone_id,
                 zone_name=zone.zone_name,
-                open_request_count=sum(1 for request in zone_requests if request.current_status != "RESTORED"),
+                open_request_count=sum(1 for request in zone_requests if request.current_status != TERMINAL_STATUS),
                 delayed_request_count=sum(
                     1 for request in zone_requests if request.incident_id in delayed_request_ids
                 ),
@@ -487,7 +488,7 @@ def _build_downtime_follow_up_queue_rows(
 
     scored_rows = []
     for request in requests:
-        if request.current_status == "RESTORED":
+        if request.current_status == TERMINAL_STATUS:
             continue
         current = current_by_request.get(request.incident_id)
         asset = asset_by_id.get(request.asset_id)

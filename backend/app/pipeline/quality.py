@@ -7,8 +7,24 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.domain.infrastructure_ontology import (
+    TERMINAL_STATUS,
+    validate_asset_vocabulary,
+    validate_event_vocabulary,
+    validate_impact_vocabulary,
+    validate_incident_vocabulary,
+    validate_spare_vocabulary,
+    validate_stage_event_transitions,
+    validate_telemetry_vocabulary,
+    validate_validation_vocabulary,
+    validate_work_order_vocabulary,
+    validate_zone_vocabulary,
+)
 from app.models.infrastructure import (
+    CriticalSpare,
+    InfrastructureImpactSnapshot,
     InfrastructureAsset,
+    InfrastructureZone,
     ValidationResult,
     InfrastructureIncident,
     IncidentStageEvent,
@@ -118,6 +134,16 @@ def run_core_quality_checks(
     checks = [
         _check_request_without_stage_event(session),
         _check_event_timestamp_out_of_order(session),
+        _check_incident_vocabulary(session),
+        _check_stage_event_vocabulary(session),
+        _check_impact_vocabulary(session),
+        _check_stage_event_transition_rules(session),
+        _check_zone_vocabulary(session),
+        _check_asset_vocabulary(session),
+        _check_spare_vocabulary(session),
+        _check_work_order_vocabulary(session),
+        _check_validation_vocabulary(session),
+        _check_telemetry_vocabulary(session),
         _check_work_order_without_request(session),
         _check_validation_without_completed_work(session),
         _check_spare_waiting_without_required_spare(session),
@@ -358,7 +384,7 @@ def _check_validation_without_completed_work(session: Session) -> QualityCheck:
         row[0]
         for row in session.execute(
             select(FacilityWorkOrder.incident_id).where(
-                FacilityWorkOrder.work_order_status.in_(["REPAIR_COMPLETED", "RESTORED"]),
+                FacilityWorkOrder.work_order_status.in_(["REPAIR_COMPLETED", TERMINAL_STATUS]),
             )
         )
     }
@@ -388,6 +414,162 @@ def _check_spare_waiting_without_required_spare(session: Session) -> QualityChec
         severity="ERROR",
         failed_keys=failed,
         message="Work orders waiting on a spare or vendor should identify the required spare when applicable.",
+    )
+
+
+def _check_incident_vocabulary(session: Session) -> QualityCheck:
+    issues = validate_incident_vocabulary(session.scalars(select(InfrastructureIncident)))
+    return QualityCheck(
+        check_name="workflow_ontology_incident_vocabulary",
+        target_table="infrastructure_incidents",
+        severity="ERROR",
+        failed_keys=[
+            f"{issue.incident_id} {issue.issue_type}"
+            for issue in issues
+        ],
+        message="Incident stage, status, and priority values must match the workflow ontology vocabulary.",
+    )
+
+
+def _check_stage_event_vocabulary(session: Session) -> QualityCheck:
+    issues = validate_event_vocabulary(session.scalars(select(IncidentStageEvent)))
+    return QualityCheck(
+        check_name="workflow_ontology_stage_event_vocabulary",
+        target_table="incident_stage_events",
+        severity="ERROR",
+        failed_keys=[
+            f"{issue.evidence.get('event_id')} {issue.issue_type}"
+            for issue in issues
+        ],
+        message="Stage event stages, event types, and event statuses must match the workflow ontology vocabulary.",
+    )
+
+
+def _check_impact_vocabulary(session: Session) -> QualityCheck:
+    incidents = {
+        incident.incident_id: incident.asset_id
+        for incident in session.scalars(select(InfrastructureIncident))
+    }
+    issues = validate_impact_vocabulary(
+        session.scalars(select(InfrastructureImpactSnapshot)),
+        incidents,
+    )
+    return QualityCheck(
+        check_name="workflow_ontology_impact_vocabulary",
+        target_table="infrastructure_impact_snapshots",
+        severity="ERROR",
+        failed_keys=[
+            f"{issue.evidence.get('impact_snapshot_id')} {issue.issue_type}"
+            for issue in issues
+        ],
+        message="Impact redundancy, mitigation, and vendor states must match the workflow ontology vocabulary.",
+    )
+
+
+def _check_stage_event_transition_rules(session: Session) -> QualityCheck:
+    incidents = {
+        incident.incident_id: incident
+        for incident in session.scalars(select(InfrastructureIncident))
+    }
+    events_by_incident: dict[str, list[IncidentStageEvent]] = {}
+    for event in session.scalars(select(IncidentStageEvent)):
+        events_by_incident.setdefault(event.incident_id, []).append(event)
+    for events in events_by_incident.values():
+        events.sort(key=lambda event: (event.occurred_at, event.event_id))
+    issues = validate_stage_event_transitions(events_by_incident, incidents)
+    return QualityCheck(
+        check_name="workflow_ontology_transition_rules",
+        target_table="incident_stage_events",
+        severity="ERROR",
+        failed_keys=[
+            f"{issue.incident_id} {issue.issue_type} {issue.evidence.get('event_id', '')}".strip()
+            for issue in issues
+        ],
+        message="Stage event history must follow the workflow ontology transition rules.",
+    )
+
+
+def _check_zone_vocabulary(session: Session) -> QualityCheck:
+    issues = validate_zone_vocabulary(session.scalars(select(InfrastructureZone)))
+    return QualityCheck(
+        check_name="workflow_ontology_zone_vocabulary",
+        target_table="infrastructure_zones",
+        severity="ERROR",
+        failed_keys=[
+            f"{issue.evidence.get('zone_id')} {issue.issue_type}"
+            for issue in issues
+        ],
+        message="Zone priority and operational status values must match the workflow ontology vocabulary.",
+    )
+
+
+def _check_asset_vocabulary(session: Session) -> QualityCheck:
+    issues = validate_asset_vocabulary(session.scalars(select(InfrastructureAsset)))
+    return QualityCheck(
+        check_name="workflow_ontology_asset_vocabulary",
+        target_table="infrastructure_assets",
+        severity="ERROR",
+        failed_keys=[
+            f"{issue.evidence.get('asset_id')} {issue.issue_type}"
+            for issue in issues
+        ],
+        message="Asset criticality and operational status values must match the workflow ontology vocabulary.",
+    )
+
+
+def _check_spare_vocabulary(session: Session) -> QualityCheck:
+    issues = validate_spare_vocabulary(session.scalars(select(CriticalSpare)))
+    return QualityCheck(
+        check_name="workflow_ontology_spare_vocabulary",
+        target_table="critical_spares",
+        severity="ERROR",
+        failed_keys=[
+            f"{issue.evidence.get('spare_id')} {issue.issue_type}"
+            for issue in issues
+        ],
+        message="Critical spare stock status values must match the workflow ontology vocabulary.",
+    )
+
+
+def _check_work_order_vocabulary(session: Session) -> QualityCheck:
+    issues = validate_work_order_vocabulary(session.scalars(select(FacilityWorkOrder)))
+    return QualityCheck(
+        check_name="workflow_ontology_work_order_vocabulary",
+        target_table="facility_work_orders",
+        severity="ERROR",
+        failed_keys=[
+            f"{issue.evidence.get('work_order_id')} {issue.issue_type}"
+            for issue in issues
+        ],
+        message="Facility work order status values must match the workflow ontology vocabulary.",
+    )
+
+
+def _check_validation_vocabulary(session: Session) -> QualityCheck:
+    issues = validate_validation_vocabulary(session.scalars(select(ValidationResult)))
+    return QualityCheck(
+        check_name="workflow_ontology_validation_vocabulary",
+        target_table="validation_results",
+        severity="ERROR",
+        failed_keys=[
+            f"{issue.evidence.get('validation_id')} {issue.issue_type}"
+            for issue in issues
+        ],
+        message="Validation status values must match the workflow ontology vocabulary.",
+    )
+
+
+def _check_telemetry_vocabulary(session: Session) -> QualityCheck:
+    issues = validate_telemetry_vocabulary(session.scalars(select(TelemetryAlert)))
+    return QualityCheck(
+        check_name="workflow_ontology_telemetry_vocabulary",
+        target_table="telemetry_alerts",
+        severity="ERROR",
+        failed_keys=[
+            f"{issue.evidence.get('telemetry_alert_id')} {issue.issue_type}"
+            for issue in issues
+        ],
+        message="Telemetry severity values must match the workflow ontology vocabulary.",
     )
 
 

@@ -37,12 +37,20 @@ Streaming or orchestration tools should be added only when source latency or ope
 
 - Incident without stage event
 - Stage event timestamp before incident reporting
+- Workflow ontology incident vocabulary
+- Workflow ontology stage event vocabulary
+- Workflow ontology impact vocabulary
+- Workflow ontology transition rules
+- Workflow ontology zone and asset vocabulary
+- Workflow ontology spare, work order, validation, and telemetry vocabulary
 - Work order without incident
 - Spare/vendor waiting without required spare
 - Validation without completed infrastructure work
 - Telemetry alert without known asset
 
 Impact snapshots are loaded after core incidents, assets, and zones are known. Invalid incident, asset, or zone references are skipped before analytics is built.
+
+The workflow ontology checks are application-level checks backed by `backend/app/domain/infrastructure_ontology.py`. They validate controlled vocabulary and event progression without introducing RDF, OWL, SPARQL, graph storage, or a new ontology dependency.
 
 ## Reconciliation Checks
 
@@ -53,6 +61,11 @@ Impact snapshots are loaded after core incidents, assets, and zones are known. I
 - Spare/vendor wait lacks required spare evidence
 - Validation exists before completed work
 - Core incident missing generated current-status analytics row
+- Invalid workflow vocabulary
+- Invalid stage event type for a stage
+- Duplicate entered-stage evidence
+- Invalid stage progression
+- Invalid restored-state evidence
 - Active high-impact incident missing impact snapshot
 - Material impact event newer than latest impact snapshot
 - Redundancy event and impact snapshot disagree
@@ -79,6 +92,8 @@ The latest impact snapshot per incident is used during follow-up scoring. The qu
 - mitigation credit for load shifting, degraded operation, or verified normal state
 
 The final priority score increases when capacity, redundancy, thermal, or vendor risk is high and decreases when mitigation evidence reduces immediate exposure.
+
+The ranking model was reviewed during the ontology hardening pass, but scoring weights and queue order are intentionally unchanged. Tuning overdue commitment scoring, false positives, or missed blockers should happen as a separate trust-calibration change after operator review.
 
 ## Impact Confidence
 

@@ -48,6 +48,8 @@ This keeps analytics independent from source-specific message formats.
 
 `analytics_builder.py` reconstructs workflow state from `incident_stage_events`.
 
+The workflow vocabulary and transition contract are centralized in `backend/app/domain/infrastructure_ontology.py`. That module is the shared source for workflow stages, exit events, terminal state, dependency states, impact states, and ontology-specific validation.
+
 Implementation examples:
 
 - `_events_by_request()` groups events by `incident_id` and sorts by `(occurred_at, event_id)`.
@@ -64,6 +66,8 @@ delay_hours = max(duration_hours - threshold_hours, 0)
 ```
 
 Current stage output is materialized into `incident_current_status`. Stage durations are materialized into `incident_stage_lead_times`.
+
+Ontology validation runs beside this reconstruction path. It flags unknown stages, unknown event types or statuses, invalid stage/event combinations, duplicate entered-stage evidence, skipped or backward stage progression, and restored-state conflicts.
 
 ## Analytics Materialization
 
@@ -109,6 +113,9 @@ Core checks validate normalized records:
 
 - incident without stage event
 - event before incident reporting
+- workflow ontology vocabulary
+- workflow ontology transition rules
+- dependency-state vocabulary for zones, assets, spares, work orders, validation, and telemetry
 - work order without incident
 - spare/vendor waiting without required spare
 - validation without completed work
@@ -130,6 +137,16 @@ State and workflow issue types:
 - `spare_waiting_missing_required_spare`
 - `validation_without_completed_work`
 - `analytics_output_missing_current_status`
+- `workflow_ontology_invalid_stage`
+- `workflow_ontology_invalid_event_type`
+- `workflow_ontology_invalid_event_status`
+- `workflow_ontology_invalid_stage_event_type`
+- `workflow_ontology_invalid_stage_progression`
+- `workflow_ontology_duplicate_stage_entry`
+- `workflow_ontology_invalid_restored_state`
+- `workflow_ontology_invalid_vendor_status`
+- `workflow_ontology_invalid_mitigation_status`
+- `workflow_ontology_invalid_redundancy_state`
 
 Impact-context issue types:
 
@@ -170,6 +187,8 @@ Drilldown also exposes the latest impact snapshot and its telemetry readings. Th
 - `Validation sequence mismatch`
 
 Impact trust flags preserve structured evidence from `infrastructure_reconciliation_issues.evidence_json`. For example, a stale vendor ETA flag includes the snapshot vendor status, `vendor_eta_at`, and analytics `as_of` time.
+
+Workflow ontology flags use the same reconciliation surface, so an operator can distinguish a normal blocker from source evidence that violates the workflow contract.
 
 ## Trust Boundary
 
