@@ -12,6 +12,22 @@ scattered AI infrastructure source records
   -> React dashboard
 ```
 
+## Source System Integration Model
+
+The project simulates seven source families that are commonly fragmented in AI data center operations:
+
+| Source family | Simulated records | Operational question answered | Trust risk |
+| --- | --- | --- | --- |
+| Incident system | `raw_infrastructure_incidents` | What is open, priority, asset, zone, needed-by time, and current system-of-record status? | Missing required fields, stale current stage, duplicate source incident |
+| Workflow event history | `raw_incident_stage_events` | Which state transitions actually happened and when? | Missing stage event, event before incident report, state mismatch |
+| Facility work orders | `raw_facility_work_orders` | Who owns repair work and whether work is waiting, started, or complete? | Work order without incident, waiting state without spare evidence |
+| Spare and inventory context | `critical_spares` plus work-order spare links | Is the blocker stock, critical spare availability, or vendor dispatch? | Out-of-stock spare, missing required spare link |
+| Vendor ETA context | stage-event metadata and `infrastructure_impact_snapshots` | Is external recovery late, confirmed, or not required? | ETA in the past without missed status, event/snapshot mismatch |
+| Telemetry | `raw_telemetry_alerts` and impact telemetry readings | Is thermal, power, or redundancy exposure supported by monitoring evidence? | Alert without known asset, thermal breach without abnormal reading |
+| Validation and impact | `raw_validation_results` and `infrastructure_impact_snapshots` | Is return-to-service safe, and how much rack/GPU/capacity exposure remains? | Validation before completed work, stale or missing impact snapshot |
+
+Each feed remains source-shaped in the raw layer, then maps into a canonical infrastructure model. The pipeline is intentionally batch-oriented for the case study: it proves the reconciliation and follow-up decision logic before introducing streaming or orchestration technology.
+
 ## Layer Responsibilities
 
 - Raw layer preserves source payloads, source record IDs, pipeline run IDs, and ingestion timestamps.
@@ -56,3 +72,7 @@ The API does not mutate incidents, work orders, inventory, or telemetry. The pro
 ### Latest-Run Trust Scope
 
 Data quality checks and reconciliation flags are scoped to the latest pipeline run by default. This prevents stale failures from polluting current dashboard trust signals.
+
+### Technology Boundary
+
+Docker, scheduled execution, observability, and future Kubernetes CronJobs are production support choices. They are not the system's value proposition. The value proposition is the decision model: reconstruct state, rank follow-up work, expose trust issues, and make the next operator action clear.

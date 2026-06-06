@@ -16,6 +16,23 @@ That creates a real follow-up problem: teams may know that work is open, but the
 
 This project builds an analytics layer for that problem. It preserves raw source records, normalizes them into a data center infrastructure model, reconstructs state from event history, checks trust issues, and produces a ranked follow-up queue.
 
+## Customer Problem
+
+The fictional customer is an AI infrastructure operations team responsible for GPU data halls. During downtime, facilities supervisors, reliability engineers, capacity operations, and data engineers each see part of the truth:
+
+- incident tickets show priority and current status
+- work orders show team ownership and repair state
+- spare and vendor notes show external dependencies
+- telemetry shows power, cooling, thermal, and sensor evidence
+- validation records show whether return-to-service is safe
+- impact snapshots show affected racks, GPUs, kW at risk, redundancy, and mitigation
+
+Before this system, the blocked operational decision was:
+
+> Which open infrastructure incident should the operator chase next so GPU capacity can safely return to service?
+
+The follow-up queue is the core product answer. Charts and summaries support the decision, but they are not the main product surface.
+
 ## Operating Scenario
 
 The modeled AI data center infrastructure workflow is:
@@ -69,6 +86,21 @@ scattered AI infrastructure source records
 
 The pipeline computes analytics before API reads. The API is read-only because the product is an operational decision layer, not a replacement for the incident, work order, telemetry, or inventory systems of record.
 
+## Source Integration Model
+
+The simulated sources represent the systems an operator normally has to reconcile manually:
+
+- incident system
+- workflow event history
+- facility work order system
+- critical spare and inventory context
+- vendor ETA context
+- telemetry alerts and readings
+- validation results
+- impact snapshots
+
+See `docs/01_architecture.md` for the source-to-question mapping and trust risks.
+
 ## Data Layers
 
 - `raw_*`: source-shaped records with source IDs and pipeline run IDs for ingestion traceability
@@ -88,6 +120,20 @@ The pipeline computes analytics before API reads. The API is read-only because t
 - Detect impact-context trust issues such as missing snapshots, stale snapshots, vendor ETA mismatch, mitigation evidence gaps, and unexplained thermal or capacity risk
 - Score follow-up priority using downtime, criticality, urgency, repeat failure, spare/vendor risk, capacity risk, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit
 - Expose read-only analytics endpoints
+
+## Production Story
+
+The practical production path is intentionally modest:
+
+- Dockerized API and frontend build targets
+- scheduled pipeline execution against source extracts
+- PostgreSQL analytics database
+- API health check
+- latest-run pipeline status
+- data quality and reconciliation report surfaces
+- deployment and rollback notes
+
+Kubernetes, Airflow, Kafka, and OpenTelemetry can be added later if they solve a specific operational need. They are deployment and integration choices, not the story. The story is faster, more trusted return-to-service follow-up.
 
 Run backend checks:
 
@@ -156,3 +202,12 @@ npm run build
 - Recharts
 - Docker Compose
 - pytest
+
+## Reading Path
+
+- `docs/00_project_brief.md`: customer problem, users, success questions, and scope
+- `docs/07_workflow_ontology.md`: lifecycle, allowed transitions, exceptions, dependency states, and restoration rules
+- `docs/01_architecture.md`: source integration model and layer responsibilities
+- `docs/08_analytics_control_layer.md`: state reconstruction, scoring, reconciliation, and trust boundary
+- `docs/09_production_rollout.md`: deployment, scheduling, health, observability, data quality reporting, and rollback
+- `docs/10_operational_case_study.md`: Problem -> Discovery -> Data sources -> Workflow model -> System design -> Tradeoffs -> Production rollout plan -> Measured impact

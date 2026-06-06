@@ -11,6 +11,20 @@
 7. Run reconciliation checks between core, event history, and analytics outputs.
 8. Commit the pipeline run with load, quality, analytics, and reconciliation counts.
 
+## Operational Cadence
+
+In production, the pipeline should run on a schedule that matches shift handoff and incident response needs. A first production cadence can be every 15 minutes during active operations and hourly during quiet periods.
+
+The pipeline is batch-oriented by design. That keeps the V1 operating contract simple:
+
+- each run has a `pipeline_run_id`
+- raw records preserve source IDs
+- duplicate records are rejected idempotently
+- data quality and reconciliation results are scoped to the latest run
+- the API reads already-materialized analytics outputs
+
+Streaming or orchestration tools should be added only when source latency or operational scale requires them.
+
 ## Raw Quality Checks
 
 - Unknown source system
@@ -79,3 +93,26 @@ The dashboard uses this confidence state to separate the operational priority sc
 ## Latest-Run Scoping
 
 API quality endpoints default to the latest pipeline run. Drilldown quality flags also use latest-run data quality and reconciliation results.
+
+## Data Quality Report
+
+The latest-run report should be used during shift handoff:
+
+```text
+GET /api/pipeline-runs
+GET /api/data-quality/checks?status=FAILED
+GET /api/impact/summary
+```
+
+Operators should treat `PARTIAL_SUCCESS` as usable only after reviewing failed checks. A warning or unverified impact row can still be operationally important, but the source evidence should be checked before relying on the impact context.
+
+## Production Acceptance Signals
+
+The pipeline is production-ready only when the team can answer:
+
+- Did the latest scheduled run finish within the expected interval?
+- How many source rows were extracted, loaded, and rejected?
+- Which quality checks failed, and which incidents are affected?
+- Which reconciliation issues are open by severity?
+- How many follow-up rows have trusted, warning, or unverified impact context?
+- Does the top-ranked follow-up match operator judgment during shadow mode?

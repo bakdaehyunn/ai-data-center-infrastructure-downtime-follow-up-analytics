@@ -51,12 +51,23 @@ Use the local dashboard to verify:
 - filtering the queue updates the incident drilldown selection
 - dashboard wording stays focused on AI data center infrastructure follow-up analytics
 
+## Production Artifacts
+
+Build Docker images when validating deployment packaging:
+
+```bash
+docker build -t ai-infra-followup-api ./backend
+docker build -t ai-infra-followup-frontend ./frontend
+```
+
+The Docker build confirms packaging, not full production readiness. Production readiness still depends on configured database connectivity, scheduled pipeline execution, health checks, and latest-run data quality review.
+
 ## Source Scan
 
 Search active source and docs for removed domain framing:
 
 ```bash
-rg -n -i "procurement|manufacturing|ev battery|maintenance|production line|parts waiting|portfolio|interview" backend/app backend/tests frontend/src README.md docs
+rg -n -i "procurement|manufacturing|ev battery|production line|parts waiting|portfolio|interview" backend/app backend/tests frontend/src README.md docs --glob '!docs/06_verification_plan.md'
 ```
 
 Expected result: no active source or documentation references to removed domain framing. Backward-compatible endpoint aliases may remain in API code, but the primary product surface should use infrastructure assets, zones, and critical spares.
