@@ -95,6 +95,10 @@ MITIGATION_STATUS_SET = frozenset(
 VENDOR_STATUS_SET = frozenset(
     {"NOT_REQUIRED", "ETA_CONFIRMED", "WAITING_VENDOR_DISPATCH", "ETA_MISSED"}
 )
+INFRASTRUCTURE_DEPENDENCY_TYPE_SET = frozenset(
+    {"POWER_PATH", "COOLING_PATH", "CONTROL_TELEMETRY", "REDUNDANCY_SUPPORT"}
+)
+INFRASTRUCTURE_DEPENDENCY_ROLE_SET = frozenset({"PRIMARY", "SECONDARY", "BACKUP"})
 
 HIGH_IMPACT_MARKERS = frozenset(
     {
@@ -132,6 +136,10 @@ STATE_RECONCILIATION_ISSUE_TYPES = frozenset(
         "workflow_ontology_invalid_zone_status",
         "workflow_ontology_invalid_asset_criticality",
         "workflow_ontology_invalid_asset_status",
+        "workflow_ontology_invalid_dependency_asset",
+        "workflow_ontology_invalid_dependency_edge",
+        "workflow_ontology_invalid_dependency_role",
+        "workflow_ontology_invalid_dependency_type",
         "workflow_ontology_invalid_spare_stock_status",
         "workflow_ontology_invalid_work_order_status",
         "workflow_ontology_invalid_validation_status",
@@ -177,6 +185,14 @@ class AssetLike(Protocol):
     asset_id: str
     criticality_level: str
     current_status: str
+
+
+class DependencyLike(Protocol):
+    dependency_id: str
+    dependent_asset_id: str
+    dependency_asset_id: str
+    dependency_type: str
+    dependency_role: str
 
 
 class SpareLike(Protocol):
@@ -319,6 +335,76 @@ def validate_asset_vocabulary(assets: Iterable[AssetLike]) -> list[OntologyIssue
                     severity="ERROR",
                     message="The infrastructure asset status is not part of the workflow ontology.",
                     evidence={"asset_id": asset.asset_id, "current_status": asset.current_status},
+                )
+            )
+    return issues
+
+
+def validate_dependency_vocabulary(
+    dependencies: Iterable[DependencyLike],
+    known_asset_ids: set[str],
+) -> list[OntologyIssue]:
+    issues: list[OntologyIssue] = []
+    for dependency in dependencies:
+        if dependency.dependent_asset_id == dependency.dependency_asset_id:
+            issues.append(
+                OntologyIssue(
+                    incident_id=None,
+                    asset_id=dependency.dependent_asset_id,
+                    issue_type="workflow_ontology_invalid_dependency_edge",
+                    severity="ERROR",
+                    message="An infrastructure dependency cannot point an asset at itself.",
+                    evidence={"dependency_id": dependency.dependency_id},
+                )
+            )
+        if dependency.dependent_asset_id not in known_asset_ids:
+            issues.append(
+                OntologyIssue(
+                    incident_id=None,
+                    asset_id=dependency.dependent_asset_id,
+                    issue_type="workflow_ontology_invalid_dependency_asset",
+                    severity="ERROR",
+                    message="The dependent asset is not part of the infrastructure asset inventory.",
+                    evidence={"dependency_id": dependency.dependency_id},
+                )
+            )
+        if dependency.dependency_asset_id not in known_asset_ids:
+            issues.append(
+                OntologyIssue(
+                    incident_id=None,
+                    asset_id=dependency.dependency_asset_id,
+                    issue_type="workflow_ontology_invalid_dependency_asset",
+                    severity="ERROR",
+                    message="The dependency asset is not part of the infrastructure asset inventory.",
+                    evidence={"dependency_id": dependency.dependency_id},
+                )
+            )
+        if dependency.dependency_type not in INFRASTRUCTURE_DEPENDENCY_TYPE_SET:
+            issues.append(
+                OntologyIssue(
+                    incident_id=None,
+                    asset_id=dependency.dependent_asset_id,
+                    issue_type="workflow_ontology_invalid_dependency_type",
+                    severity="ERROR",
+                    message="The infrastructure dependency type is not part of the workflow ontology.",
+                    evidence={
+                        "dependency_id": dependency.dependency_id,
+                        "dependency_type": dependency.dependency_type,
+                    },
+                )
+            )
+        if dependency.dependency_role not in INFRASTRUCTURE_DEPENDENCY_ROLE_SET:
+            issues.append(
+                OntologyIssue(
+                    incident_id=None,
+                    asset_id=dependency.dependent_asset_id,
+                    issue_type="workflow_ontology_invalid_dependency_role",
+                    severity="ERROR",
+                    message="The infrastructure dependency role is not part of the workflow ontology.",
+                    evidence={
+                        "dependency_id": dependency.dependency_id,
+                        "dependency_role": dependency.dependency_role,
+                    },
                 )
             )
     return issues

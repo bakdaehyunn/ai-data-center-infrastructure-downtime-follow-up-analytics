@@ -17,6 +17,7 @@ def test_infrastructure_downtime_schema_tables_are_registered() -> None:
         "spare_waiting_summary",
         "infrastructure_zones",
         "infrastructure_assets",
+        "infrastructure_dependencies",
         "facilities_engineers",
         "critical_spares",
         "infrastructure_incidents",

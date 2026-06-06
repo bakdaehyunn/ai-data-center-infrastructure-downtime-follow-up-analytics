@@ -137,6 +137,7 @@ def _core_records_loaded(core_result) -> int:
     return (
         core_result.infrastructure_zones_loaded
         + core_result.infrastructure_assets_loaded
+        + core_result.infrastructure_dependencies_loaded
         + core_result.facilities_engineers_loaded
         + core_result.critical_spares_loaded
         + core_result.infrastructure_incidents_loaded

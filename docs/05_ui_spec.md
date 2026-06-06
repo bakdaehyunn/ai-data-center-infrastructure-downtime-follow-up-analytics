@@ -63,14 +63,17 @@ Evidence supports the operational decision. It should not be presented before th
 
 ## Analytics Panels
 
-Supporting analytics panels are split between the main stack and right stack so the page does not collapse into a one-sided layout. Data trust stays in the main stack because it is a dashboard-level pipeline signal, while spare/vendor waiting and impact summary stay near the incident drilldown as operational context.
+Supporting analytics panels are split between the main stack and right stack so the page does not collapse into a one-sided layout. Data trust stays in the main stack because it is a dashboard-level pipeline signal, while spare/vendor waiting, topology dependencies, and impact summary stay near the incident drilldown as operational context.
 
 - Active stage bottlenecks
 - Asset impact
 - Zone impact
 - Spare/vendor waiting
+- Infrastructure topology
 - Impact summary
 - Data trust
+
+The topology panel lists compact dependency paths. Each row shows the dependent asset, the upstream dependency asset, dependency type, and whether either side has active incidents. This is not a free-form graph editor; it is a scanning aid for power and cooling blast-radius context.
 
 ## Trust Wording
 

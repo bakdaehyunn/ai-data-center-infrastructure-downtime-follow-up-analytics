@@ -42,15 +42,18 @@ Streaming or orchestration tools should be added only when source latency or ope
 - Workflow ontology impact vocabulary
 - Workflow ontology transition rules
 - Workflow ontology zone and asset vocabulary
+- Workflow ontology topology dependency vocabulary
 - Workflow ontology spare, work order, validation, and telemetry vocabulary
 - Work order without incident
 - Spare/vendor waiting without required spare
 - Validation without completed infrastructure work
 - Telemetry alert without known asset
 
+Infrastructure dependency edges are loaded as master/reference data after assets are known. Invalid topology references are skipped before analytics is built. Core quality checks then validate dependency type, dependency role, known-asset references, and self-dependency errors.
+
 Impact snapshots are loaded after core incidents, assets, and zones are known. Invalid incident, asset, or zone references are skipped before analytics is built.
 
-The workflow ontology checks are application-level checks backed by `backend/app/domain/infrastructure_ontology.py`. They validate controlled vocabulary and event progression without introducing RDF, OWL, SPARQL, graph storage, or a new ontology dependency.
+The workflow ontology checks are application-level checks backed by `backend/app/domain/infrastructure_ontology.py`. They validate controlled vocabulary, event progression, and topology edge semantics without introducing graph storage or a new ontology runtime dependency. RDF/OWL-lite output is exposed separately as an additive semantic export.
 
 ## Reconciliation Checks
 

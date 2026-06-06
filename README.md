@@ -118,8 +118,9 @@ See `docs/01_architecture.md` for the source-to-question mapping and trust risks
 - Build downtime, bottleneck, asset, zone, and spare summaries
 - Detect reconciliation issues between core state, event history, and analytics outputs
 - Detect impact-context trust issues such as missing snapshots, stale snapshots, vendor ETA mismatch, mitigation evidence gaps, and unexplained thermal or capacity risk
+- Model infrastructure topology dependencies across rack, power, cooling, switchgear, generator, CRAH, CDU, and chiller assets
 - Score follow-up priority using downtime, criticality, urgency, repeat failure, spare/vendor risk, capacity risk, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit
-- Expose read-only analytics endpoints
+- Expose read-only analytics, topology, semantic export, and connector-contract endpoints
 
 ## Production Story
 
@@ -163,6 +164,9 @@ GET /api/downtime/stages
 GET /api/assets/delays
 GET /api/zones/delays
 GET /api/spares/waiting
+GET /api/topology/dependencies
+GET /api/semantic/infrastructure.ttl
+GET /api/connectors/contracts
 GET /api/metadata/filters
 GET /api/pipeline-runs
 GET /api/data-quality/checks
@@ -180,7 +184,7 @@ The React dashboard is built for follow-up decisions:
 - Incident drilldown with stage history, score components, work order context, spare context, impact snapshot context, telemetry evidence, vendor/mitigation status, impact trust flags, and quality flags
 - Stage bottleneck chart focused on active delay stages
 - Asset and zone impact summaries
-- Spare/vendor waiting, impact summary, and data trust panels
+- Spare/vendor waiting, infrastructure topology, impact summary, and data trust panels
 
 Run the frontend build:
 
@@ -211,3 +215,4 @@ npm run build
 - `docs/08_analytics_control_layer.md`: state reconstruction, scoring, reconciliation, and trust boundary
 - `docs/09_production_rollout.md`: deployment, scheduling, health, observability, data quality reporting, and rollback
 - `docs/10_operational_case_study.md`: Problem -> Discovery -> Data sources -> Workflow model -> System design -> Tradeoffs -> Production rollout plan -> Measured impact
+- `docs/11_topology_semantic_connectors.md`: phase-two topology graph, RDF/OWL-lite export, and connector contracts

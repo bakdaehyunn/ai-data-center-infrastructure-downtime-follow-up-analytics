@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.domain.infrastructure_ontology import (
     TERMINAL_STATUS,
     validate_asset_vocabulary,
+    validate_dependency_vocabulary,
     validate_event_vocabulary,
     validate_impact_vocabulary,
     validate_incident_vocabulary,
@@ -24,6 +25,7 @@ from app.models.infrastructure import (
     CriticalSpare,
     InfrastructureImpactSnapshot,
     InfrastructureAsset,
+    InfrastructureDependency,
     InfrastructureZone,
     ValidationResult,
     InfrastructureIncident,
@@ -140,6 +142,7 @@ def run_core_quality_checks(
         _check_stage_event_transition_rules(session),
         _check_zone_vocabulary(session),
         _check_asset_vocabulary(session),
+        _check_dependency_vocabulary(session),
         _check_spare_vocabulary(session),
         _check_work_order_vocabulary(session),
         _check_validation_vocabulary(session),
@@ -514,6 +517,27 @@ def _check_asset_vocabulary(session: Session) -> QualityCheck:
             for issue in issues
         ],
         message="Asset criticality and operational status values must match the workflow ontology vocabulary.",
+    )
+
+
+def _check_dependency_vocabulary(session: Session) -> QualityCheck:
+    asset_ids = {
+        asset_id
+        for asset_id, in session.execute(select(InfrastructureAsset.asset_id))
+    }
+    issues = validate_dependency_vocabulary(
+        session.scalars(select(InfrastructureDependency)).all(),
+        asset_ids,
+    )
+    return QualityCheck(
+        check_name="workflow_ontology_dependency_vocabulary",
+        target_table="infrastructure_dependencies",
+        severity="ERROR",
+        failed_keys=[
+            f"{issue.evidence.get('dependency_id')} {issue.issue_type}"
+            for issue in issues
+        ],
+        message="Infrastructure topology dependency edges must reference known assets and use allowed type and role values.",
     )
 
 

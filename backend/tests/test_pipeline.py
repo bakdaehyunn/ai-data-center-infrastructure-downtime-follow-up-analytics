@@ -17,6 +17,7 @@ from app.models.analytics import (
 )
 from app.models.infrastructure import (
     InfrastructureAsset,
+    InfrastructureDependency,
     InfrastructureImpactSnapshot,
     ValidationResult,
     InfrastructureIncident,
@@ -70,7 +71,7 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert result.rows_loaded == 141
         assert result.rows_rejected == 1
         assert result.quality_failed_checks == 6
-        assert result.core_records_loaded == 180
+        assert result.core_records_loaded == 188
         assert result.core_records_skipped == 1
         assert result.analytics_records_loaded == 348
         assert result.reconciliation_issues_created == 8
@@ -85,6 +86,7 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert _count(session, RawTelemetryAlert) == 6
         assert _count(session, InfrastructureZone) == 5
         assert _count(session, InfrastructureAsset) == 9
+        assert _count(session, InfrastructureDependency) == 8
         assert _count(session, FacilitiesEngineer) == 7
         assert _count(session, CriticalSpare) == 9
         assert _count(session, InfrastructureIncident) == 11
@@ -100,7 +102,7 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
         assert _count(session, AssetDelaySummary) == 9
         assert _count(session, ZoneDelaySummary) == 5
         assert _count(session, SpareWaitingSummary) == 2
-        assert _count(session, DataQualityCheckResult) == 40
+        assert _count(session, DataQualityCheckResult) == 41
         assert _count(session, InfrastructureReconciliationIssue) == 8
 
         failures = {
@@ -126,6 +128,7 @@ def test_ingestion_pipeline_loads_raw_core_analytics_and_quality_results(tmp_pat
             ("incident_stage_events", "workflow_ontology_transition_rules"): "PASS",
             ("infrastructure_zones", "workflow_ontology_zone_vocabulary"): "PASS",
             ("infrastructure_assets", "workflow_ontology_asset_vocabulary"): "PASS",
+            ("infrastructure_dependencies", "workflow_ontology_dependency_vocabulary"): "PASS",
             ("critical_spares", "workflow_ontology_spare_vocabulary"): "PASS",
             ("facility_work_orders", "workflow_ontology_work_order_vocabulary"): "PASS",
             ("validation_results", "workflow_ontology_validation_vocabulary"): "PASS",
@@ -231,6 +234,33 @@ def test_core_quality_detects_workflow_ontology_dependency_state_violations(tmp_
         assert dependency_failure.failed_row_count == 1
         assert dependency_failure.sample_failed_keys == [
             "MWO-0004 workflow_ontology_invalid_work_order_status"
+        ]
+
+
+def test_core_quality_detects_topology_dependency_violations(tmp_path: Path) -> None:
+    sample_dir = _write_sample_data(tmp_path)
+    session_factory = _session_factory()
+
+    with session_factory() as session:
+        run_ingestion_pipeline(session=session, sample_dir=sample_dir)
+        dependency = session.scalar(
+            select(InfrastructureDependency).where(InfrastructureDependency.dependency_id == "DEP-RACK-PDU")
+        )
+        assert dependency is not None
+        dependency.dependency_type = "MAGIC_PATH"
+        session.flush()
+
+        results = run_core_quality_checks(session, pipeline_run_id="RUN-TOPOLOGY")
+        failures = {
+            (result.target_table, result.check_name): result
+            for result in results
+            if result.status != "PASS"
+        }
+
+        topology_failure = failures[("infrastructure_dependencies", "workflow_ontology_dependency_vocabulary")]
+        assert topology_failure.failed_row_count == 1
+        assert topology_failure.sample_failed_keys == [
+            "DEP-RACK-PDU workflow_ontology_invalid_dependency_type"
         ]
 
 

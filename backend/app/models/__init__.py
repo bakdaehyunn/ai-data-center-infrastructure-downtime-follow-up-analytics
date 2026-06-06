@@ -10,6 +10,7 @@ from app.models.analytics import (
 from app.models.base import Base
 from app.models.infrastructure import (
     InfrastructureAsset,
+    InfrastructureDependency,
     ValidationResult,
     InfrastructureIncident,
     InfrastructureImpactSnapshot,
@@ -34,6 +35,7 @@ __all__ = [
     "DataQualityCheckResult",
     "DowntimeFollowUpQueue",
     "InfrastructureAsset",
+    "InfrastructureDependency",
     "AssetDelaySummary",
     "ValidationResult",
     "InfrastructureBottleneckSummary",

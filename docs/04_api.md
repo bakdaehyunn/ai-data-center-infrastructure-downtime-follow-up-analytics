@@ -36,6 +36,20 @@ GET /api/spares/waiting
 
 These endpoints explain where delay and operational exposure are accumulating across workflow stages, infrastructure assets, data center zones, critical spares, capacity risk, redundancy state, vendor ETA, mitigation status, and impact-confidence state.
 
+## Topology, Semantic Export, and Connector Contracts
+
+```text
+GET /api/topology/dependencies
+GET /api/semantic/infrastructure.ttl
+GET /api/connectors/contracts
+```
+
+Topology dependencies expose directed asset relationships such as rack -> PDU -> UPS -> switchgear -> generator and rack -> CRAH/CDU/chiller. Each row returns the dependent asset, dependency asset, dependency type, dependency role, impact scope, current asset statuses, and active incident counts on both sides of the edge.
+
+The semantic endpoint returns RDF/OWL-lite Turtle generated from the relational model. It is an additive projection for portfolio and validation use; it is not a graph database, SPARQL service, or replacement persistence layer.
+
+Connector contracts describe expected mounted extract files, target raw/core tables, required payload fields, cadence, and notes. They do not contain credentials and do not perform live source-system access.
+
 Compatibility aliases remain available for older local clients, but they are not the primary AI infrastructure product surface:
 
 ```text

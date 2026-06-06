@@ -106,6 +106,21 @@ def test_sample_dataset_contains_ai_infrastructure_impact_context() -> None:
     } == expected_trust_issues
 
 
+def test_sample_dataset_contains_infrastructure_topology_graph() -> None:
+    dataset = generate_sample_dataset()
+    dependencies = {
+        record["dependency_id"]: record
+        for record in dataset["infrastructure_dependencies"]
+    }
+
+    assert len(dependencies) == 8
+    assert dependencies["DEP-RACK-PDU"]["dependent_asset_id"] == "ASSET-RACK-01"
+    assert dependencies["DEP-RACK-PDU"]["dependency_asset_id"] == "ASSET-PDU-01"
+    assert dependencies["DEP-PDU-UPS"]["dependency_asset_id"] == "ASSET-UPS-01"
+    assert dependencies["DEP-RACK-CRAH"]["dependency_type"] == "COOLING_PATH"
+    assert dependencies["DEP-CDU-CHILLER"]["dependency_asset_id"] == "ASSET-CHILLER-01"
+
+
 def test_write_sample_dataset_creates_expected_files(tmp_path) -> None:
     dataset = generate_sample_dataset()
     written = write_sample_dataset(dataset, tmp_path)
@@ -114,6 +129,7 @@ def test_write_sample_dataset_creates_expected_files(tmp_path) -> None:
         "manifest.json",
         "infrastructure_zones.json",
         "infrastructure_assets.json",
+        "infrastructure_dependencies.json",
         "facilities_engineers.json",
         "critical_spares.json",
         "infrastructure_incidents.json",

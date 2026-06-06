@@ -174,6 +174,33 @@ class ImpactSummaryResponse(BaseModel):
     unverified_impact_count: int
 
 
+class InfrastructureDependencyResponse(BaseModel):
+    dependency_id: str
+    dependent_asset_id: str
+    dependent_asset_name: str
+    dependent_asset_type: str
+    dependent_status: str
+    dependency_asset_id: str
+    dependency_asset_name: str
+    dependency_asset_type: str
+    dependency_status: str
+    dependency_type: str
+    dependency_role: str
+    impact_scope: str
+    dependent_active_incident_count: int
+    dependency_active_incident_count: int
+
+
+class ConnectorContractResponse(BaseModel):
+    source_name: str
+    extract_file: str
+    target_table: str
+    cadence: str
+    required_payload_fields: list[str] = Field(default_factory=list)
+    optional_payload_fields: list[str] = Field(default_factory=list)
+    notes: str
+
+
 class RequestDetailResponse(BaseModel):
     request: FollowUpItemResponse
     stage_lead_times: list[StageLeadTimeResponse]

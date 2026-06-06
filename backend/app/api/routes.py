@@ -4,14 +4,18 @@ from statistics import mean
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import PlainTextResponse
 from sqlalchemy import desc, func, select
+from sqlalchemy.orm import aliased
 from sqlalchemy.orm import Session
 
+from app.connectors.contracts import connector_contracts_payload
 from app.domain.infrastructure_ontology import (
     HIGH_IMPACT_MARKERS,
     IMPACT_RECONCILIATION_ISSUE_TYPES,
     TERMINAL_STATUS,
 )
+from app.domain.semantic_export import build_infrastructure_semantic_turtle
 from app.db import get_db
 from app.models.analytics import (
     DowntimeFollowUpQueue,
@@ -24,6 +28,7 @@ from app.models.analytics import (
 )
 from app.models.infrastructure import (
     InfrastructureAsset,
+    InfrastructureDependency,
     InfrastructureImpactSnapshot,
     ValidationResult,
     InfrastructureIncident,
@@ -35,11 +40,13 @@ from app.models.infrastructure import (
 from app.models.ops import DataQualityCheckResult, InfrastructureReconciliationIssue, PipelineRun
 from app.schemas.analytics import (
     DataQualityCheckResponse,
+    ConnectorContractResponse,
     InfrastructureAssetDelayResponse,
     FilterMetadataResponse,
     FilterOption,
     FollowUpItemResponse,
     ImpactSummaryResponse,
+    InfrastructureDependencyResponse,
     InfrastructureImpactSnapshotResponse,
     ImpactTelemetryReadingResponse,
     ImpactTrustFlagResponse,
@@ -417,6 +424,62 @@ def get_filter_metadata(db: Session = Depends(get_db)) -> FilterMetadataResponse
     )
 
 
+@router.get("/topology/dependencies", response_model=list[InfrastructureDependencyResponse])
+def list_topology_dependencies(
+    asset_id: Optional[str] = None,
+    dependency_type: Optional[str] = None,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+) -> list[InfrastructureDependencyResponse]:
+    dependent_asset = aliased(InfrastructureAsset)
+    dependency_asset = aliased(InfrastructureAsset)
+    stmt = (
+        select(InfrastructureDependency, dependent_asset, dependency_asset)
+        .join(dependent_asset, dependent_asset.asset_id == InfrastructureDependency.dependent_asset_id)
+        .join(dependency_asset, dependency_asset.asset_id == InfrastructureDependency.dependency_asset_id)
+    )
+    if asset_id:
+        stmt = stmt.where(
+            (InfrastructureDependency.dependent_asset_id == asset_id)
+            | (InfrastructureDependency.dependency_asset_id == asset_id)
+        )
+    if dependency_type:
+        stmt = stmt.where(InfrastructureDependency.dependency_type == dependency_type)
+    rows = db.execute(
+        stmt.order_by(
+            InfrastructureDependency.dependency_type,
+            InfrastructureDependency.dependent_asset_id,
+            InfrastructureDependency.dependency_asset_id,
+        ).limit(limit)
+    ).all()
+    active_incident_counts = _active_incident_count_by_asset(db)
+    return [
+        _topology_dependency_response(
+            dependency,
+            dependent,
+            upstream,
+            active_incident_counts,
+        )
+        for dependency, dependent, upstream in rows
+    ]
+
+
+@router.get("/semantic/infrastructure.ttl", response_class=PlainTextResponse)
+def get_infrastructure_semantic_turtle(db: Session = Depends(get_db)) -> PlainTextResponse:
+    return PlainTextResponse(
+        build_infrastructure_semantic_turtle(db),
+        media_type="text/turtle; charset=utf-8",
+    )
+
+
+@router.get("/connectors/contracts", response_model=list[ConnectorContractResponse])
+def list_connector_contracts() -> list[ConnectorContractResponse]:
+    return [
+        ConnectorContractResponse.model_validate(contract)
+        for contract in connector_contracts_payload()
+    ]
+
+
 @router.get("/pipeline-runs", response_model=list[PipelineRunResponse])
 def list_pipeline_runs(limit: int = 10, db: Session = Depends(get_db)) -> list[PipelineRunResponse]:
     rows = db.scalars(select(PipelineRun).order_by(desc(PipelineRun.started_at)).limit(limit)).all()
@@ -569,6 +632,30 @@ def _work_order_response(db: Session, work_order: FacilityWorkOrder) -> WorkOrde
         required_spare_id=work_order.required_spare_id,
         required_spare_name=part.spare_name if part else None,
         stock_status=part.stock_status if part else None,
+    )
+
+
+def _topology_dependency_response(
+    dependency: InfrastructureDependency,
+    dependent_asset: InfrastructureAsset,
+    dependency_asset: InfrastructureAsset,
+    active_incident_counts: dict[str, int],
+) -> InfrastructureDependencyResponse:
+    return InfrastructureDependencyResponse(
+        dependency_id=dependency.dependency_id,
+        dependent_asset_id=dependent_asset.asset_id,
+        dependent_asset_name=dependent_asset.asset_name,
+        dependent_asset_type=dependent_asset.asset_type,
+        dependent_status=dependent_asset.current_status,
+        dependency_asset_id=dependency_asset.asset_id,
+        dependency_asset_name=dependency_asset.asset_name,
+        dependency_asset_type=dependency_asset.asset_type,
+        dependency_status=dependency_asset.current_status,
+        dependency_type=dependency.dependency_type,
+        dependency_role=dependency.dependency_role,
+        impact_scope=dependency.impact_scope,
+        dependent_active_incident_count=active_incident_counts.get(dependent_asset.asset_id, 0),
+        dependency_active_incident_count=active_incident_counts.get(dependency_asset.asset_id, 0),
     )
 
 
@@ -755,6 +842,18 @@ def _is_high_impact_request(request: InfrastructureIncident) -> bool:
 
 def _latest_pipeline_run(db: Session) -> PipelineRun | None:
     return db.scalar(select(PipelineRun).order_by(desc(PipelineRun.started_at)).limit(1))
+
+
+def _active_incident_count_by_asset(db: Session) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    rows = db.execute(
+        select(InfrastructureIncident.asset_id, func.count())
+        .where(InfrastructureIncident.current_status != TERMINAL_STATUS)
+        .group_by(InfrastructureIncident.asset_id)
+    ).all()
+    for asset_id, count in rows:
+        counts[str(asset_id)] = int(count)
+    return counts
 
 
 def _failed_quality_count(db: Session, pipeline_run_id: str | None) -> int:

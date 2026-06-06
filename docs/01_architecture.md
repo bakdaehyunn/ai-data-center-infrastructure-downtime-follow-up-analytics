@@ -25,16 +25,17 @@ The project simulates seven source families that are commonly fragmented in AI d
 | Vendor ETA context | stage-event metadata and `infrastructure_impact_snapshots` | Is external recovery late, confirmed, or not required? | ETA in the past without missed status, event/snapshot mismatch |
 | Telemetry | `raw_telemetry_alerts` and impact telemetry readings | Is thermal, power, or redundancy exposure supported by monitoring evidence? | Alert without known asset, thermal breach without abnormal reading |
 | Validation and impact | `raw_validation_results` and `infrastructure_impact_snapshots` | Is return-to-service safe, and how much rack/GPU/capacity exposure remains? | Validation before completed work, stale or missing impact snapshot |
+| Infrastructure topology | `infrastructure_dependencies` | Which upstream power, cooling, telemetry, or redundancy assets does an affected asset depend on? | Missing asset reference, invalid dependency type, stale topology extract |
 
 Each feed remains source-shaped in the raw layer, then maps into a canonical infrastructure model. The pipeline is intentionally batch-oriented for the case study: it proves the reconciliation and follow-up decision logic before introducing streaming or orchestration technology.
 
 ## Layer Responsibilities
 
 - Raw layer preserves source payloads, source record IDs, pipeline run IDs, and ingestion timestamps.
-- Core layer normalizes source records into incidents, stage events, work orders, assets, zones, spares, engineers, validations, telemetry alerts, and impact snapshots.
+- Core layer normalizes source records into incidents, stage events, work orders, assets, zones, topology dependencies, spares, engineers, validations, telemetry alerts, and impact snapshots.
 - Analytics layer stores calculated current status, lead times, bottlenecks, follow-up scores, impact score components, and impact summaries.
 - Control layer persists reconciliation issues when core state, event history, impact snapshots, and analytics outputs do not agree.
-- API layer serves read-only analytics and drilldown views.
+- API layer serves read-only analytics, topology, semantic export, connector-contract, and drilldown views.
 
 ## Pipeline Order
 
@@ -52,6 +53,8 @@ generate/read sample source files
 Reconciliation runs after analytics materialization because some issues require comparing core incidents with generated analytics rows, for example a core incident missing `incident_current_status`.
 
 Impact snapshots are loaded into the core layer before analytics materialization. The analytics builder uses the latest snapshot per incident to add capacity risk, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit to the follow-up queue.
+
+Topology dependencies are loaded as reference data after assets are known. They are exposed through read-only API and UI surfaces and through the RDF/OWL-lite semantic export. They do not replace SQL persistence or add a graph database runtime.
 
 The control layer then validates those impact snapshots against event evidence. This is where V1.2 confidence is assigned: impact context is `TRUSTED` when the latest snapshot has no open impact reconciliation issue, `WARNING` when the snapshot exists but contradicts or lags event evidence, and `UNVERIFIED` when no usable snapshot exists for the active incident.
 

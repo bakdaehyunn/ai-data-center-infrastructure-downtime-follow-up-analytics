@@ -195,6 +195,38 @@ def test_downtime_and_impact_endpoints_return_analytics(api_client: TestClient) 
     }
 
 
+def test_topology_semantic_and_connector_endpoints_expose_phase_two(api_client: TestClient) -> None:
+    topology_response = api_client.get("/api/topology/dependencies")
+    semantic_response = api_client.get("/api/semantic/infrastructure.ttl")
+    contracts_response = api_client.get("/api/connectors/contracts")
+
+    assert topology_response.status_code == 200
+    assert semantic_response.status_code == 200
+    assert contracts_response.status_code == 200
+
+    topology = topology_response.json()
+    rack_power = next(row for row in topology if row["dependency_id"] == "DEP-RACK-PDU")
+    assert rack_power["dependent_asset_id"] == "ASSET-RACK-01"
+    assert rack_power["dependency_asset_id"] == "ASSET-PDU-01"
+    assert rack_power["dependency_type"] == "POWER_PATH"
+    assert rack_power["dependency_active_incident_count"] == 1
+
+    semantic = semantic_response.text
+    assert "@prefix owl:" in semantic
+    assert "@prefix sh:" in semantic
+    assert "dcai:DEP-RACK-PDU a dcai:Dependency" in semantic
+    assert "dcai:dependsOn dcai:ASSET-PDU-01" in semantic
+
+    contracts = contracts_response.json()
+    topology_contract = next(row for row in contracts if row["source_name"] == "infrastructure_topology")
+    assert topology_contract["extract_file"] == "infrastructure_dependencies.json"
+    assert "dependency_asset_id" in topology_contract["required_payload_fields"]
+    assert not any(
+        field in {"password", "secret", "token", "credential"}
+        for field in topology_contract["required_payload_fields"]
+    )
+
+
 def test_data_quality_endpoints_expose_failed_checks(api_client: TestClient) -> None:
     response = api_client.get("/api/data-quality/checks?status=FAILED")
 

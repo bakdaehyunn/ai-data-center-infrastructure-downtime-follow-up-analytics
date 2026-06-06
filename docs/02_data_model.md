@@ -14,6 +14,7 @@ Raw tables keep source-shaped payloads for traceability and duplicate detection.
 
 - `infrastructure_zones`: AI data center halls, power paths, cooling loops, backup power areas, and monitoring zones
 - `infrastructure_assets`: CRAH, UPS, PDU, chiller, CDU, generator, rack sensor, and switchgear assets
+- `infrastructure_dependencies`: directed topology edges where one asset depends on another asset for power, cooling, control telemetry, or redundancy support
 - `facilities_engineers`: facilities teams and skill groups
 - `critical_spares`: cooling, power, generator, sensor, and metering spares
 - `infrastructure_incidents`: normalized downtime follow-up incidents
@@ -42,6 +43,7 @@ Raw tables keep source-shaped payloads for traceability and duplicate detection.
 ## Relationship Summary
 
 - An incident belongs to one infrastructure asset and one infrastructure zone.
+- An infrastructure dependency links a dependent asset to an upstream dependency asset. Example paths include rack -> PDU -> UPS -> switchgear -> generator and rack -> CRAH/CDU/chiller.
 - Stage events belong to an incident and reconstruct its timeline.
 - Work orders belong to an incident and may reference a facilities engineer and critical spare.
 - Validation results belong to an incident and indicate restore readiness.

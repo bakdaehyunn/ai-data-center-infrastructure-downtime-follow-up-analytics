@@ -53,6 +53,37 @@ class InfrastructureAsset(TimestampMixin, Base):
     impact_snapshots: Mapped[list["InfrastructureImpactSnapshot"]] = relationship(back_populates="asset")
 
 
+class InfrastructureDependency(TimestampMixin, Base):
+    __tablename__ = "infrastructure_dependencies"
+    __table_args__ = (
+        UniqueConstraint(
+            "dependent_asset_id",
+            "dependency_asset_id",
+            "dependency_type",
+            name="uq_infrastructure_dependency_edge",
+        ),
+        Index("ix_infrastructure_dependencies_dependent", "dependent_asset_id", "dependency_type"),
+        Index("ix_infrastructure_dependencies_dependency", "dependency_asset_id", "dependency_type"),
+        Index("ix_infrastructure_dependencies_type_role", "dependency_type", "dependency_role"),
+    )
+
+    dependency_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    dependent_asset_id: Mapped[str] = mapped_column(ForeignKey("infrastructure_assets.asset_id"), nullable=False)
+    dependency_asset_id: Mapped[str] = mapped_column(ForeignKey("infrastructure_assets.asset_id"), nullable=False)
+    dependency_type: Mapped[str] = mapped_column(String(60), nullable=False)
+    dependency_role: Mapped[str] = mapped_column(String(40), nullable=False)
+    impact_scope: Mapped[str] = mapped_column(String(80), nullable=False)
+    source_system: Mapped[str] = mapped_column(String(80), nullable=False)
+    metadata_json: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
+
+    dependent_asset: Mapped[InfrastructureAsset] = relationship(
+        foreign_keys=[dependent_asset_id],
+    )
+    dependency_asset: Mapped[InfrastructureAsset] = relationship(
+        foreign_keys=[dependency_asset_id],
+    )
+
+
 class FacilitiesEngineer(TimestampMixin, Base):
     __tablename__ = "facilities_engineers"
     __table_args__ = (

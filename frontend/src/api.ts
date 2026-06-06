@@ -128,6 +128,23 @@ export type ImpactSummary = {
   unverified_impact_count: number
 }
 
+export type InfrastructureDependency = {
+  dependency_id: string
+  dependent_asset_id: string
+  dependent_asset_name: string
+  dependent_asset_type: string
+  dependent_status: string
+  dependency_asset_id: string
+  dependency_asset_name: string
+  dependency_asset_type: string
+  dependency_status: string
+  dependency_type: string
+  dependency_role: string
+  impact_scope: string
+  dependent_active_incident_count: number
+  dependency_active_incident_count: number
+}
+
 export type StageLeadTime = {
   stage: string
   entered_at: string
@@ -251,11 +268,22 @@ export type DashboardData = {
   spareWaiting: SpareWaiting[]
   qualityChecks: DataQualityCheck[]
   impactSummary: ImpactSummary
+  topologyDependencies: InfrastructureDependency[]
 }
 
 export async function fetchDashboardData(filters: DashboardFilters = {}): Promise<DashboardData> {
   const query = buildQuery(filters)
-  const [overview, followUps, stageBottlenecks, assetDelays, zoneDelays, spareWaiting, qualityChecks, impactSummary] =
+  const [
+    overview,
+    followUps,
+    stageBottlenecks,
+    assetDelays,
+    zoneDelays,
+    spareWaiting,
+    qualityChecks,
+    impactSummary,
+    topologyDependencies,
+  ] =
     await Promise.all([
       getJson<Overview>('/api/overview'),
       getJson<FollowUpItem[]>(`/api/follow-ups${query}`),
@@ -265,9 +293,20 @@ export async function fetchDashboardData(filters: DashboardFilters = {}): Promis
       getJson<SpareWaiting[]>('/api/spares/waiting'),
       getJson<DataQualityCheck[]>('/api/data-quality/checks?status=FAILED&limit=8'),
       getJson<ImpactSummary>('/api/impact/summary'),
+      getJson<InfrastructureDependency[]>('/api/topology/dependencies?limit=8'),
     ])
 
-  return { overview, followUps, stageBottlenecks, assetDelays, zoneDelays, spareWaiting, qualityChecks, impactSummary }
+  return {
+    overview,
+    followUps,
+    stageBottlenecks,
+    assetDelays,
+    zoneDelays,
+    spareWaiting,
+    qualityChecks,
+    impactSummary,
+    topologyDependencies,
+  }
 }
 
 export function fetchFilterMetadata(): Promise<FilterMetadata> {

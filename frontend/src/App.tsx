@@ -6,6 +6,7 @@ import {
   Cpu,
   Database,
   Filter,
+  Network,
   RefreshCcw,
   ShieldAlert,
   ShieldCheck,
@@ -25,6 +26,7 @@ import {
   type DashboardFilters,
   type FilterMetadata,
   type FollowUpItem,
+  type InfrastructureDependency,
   type RequestDetail,
   fetchDashboardData,
   fetchFilterMetadata,
@@ -221,6 +223,11 @@ function App() {
           <section className="panel">
             <PanelHeader title="Spares and Vendor Waiting" subtitle="Follow-up work blocked by spare availability or vendor dispatch" />
             <CompactRows rows={dashboard?.spareWaiting ?? []} getKey={(row) => row.spare_id} left={(row) => row.spare_name} right={(row) => formatHours(row.total_wait_hours)} />
+          </section>
+
+          <section className="panel">
+            <PanelHeader title="Infrastructure Topology" subtitle="Power and cooling dependency paths behind active follow-up risk" />
+            <TopologyRows rows={dashboard?.topologyDependencies ?? []} />
           </section>
 
           <section className="panel">
@@ -515,6 +522,37 @@ function CompactRows<T>({ rows, getKey, left, right }: { rows: T[]; getKey: (row
       ))}
     </div>
   )
+}
+
+function TopologyRows({ rows }: { rows: InfrastructureDependency[] }) {
+  if (!rows.length) {
+    return <div className="empty-state">No topology edges</div>
+  }
+  return (
+    <div className="topology-list">
+      {rows.slice(0, 6).map((row) => (
+        <div className="topology-row" key={row.dependency_id}>
+          <Network size={16} />
+          <div>
+            <strong>{row.dependent_asset_name}</strong>
+            <span>depends on {row.dependency_asset_name}</span>
+          </div>
+          <div>
+            <strong>{formatStage(row.dependency_type)}</strong>
+            <span>{topologyExposure(row)}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function topologyExposure(row: InfrastructureDependency) {
+  const count = row.dependent_active_incident_count + row.dependency_active_incident_count
+  if (!count) {
+    return formatStage(row.dependency_role)
+  }
+  return `${count} active incident${count === 1 ? '' : 's'}`
 }
 
 function formatHours(value: number) {

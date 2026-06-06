@@ -32,6 +32,27 @@ python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
 
 Production would replace `--generate-sample` with mounted extracts or connector output from the real source systems. The pipeline is idempotent at the raw layer through source-system and source-record IDs.
 
+## Connector Contracts
+
+The repository now exposes connector contracts at:
+
+```text
+GET /api/connectors/contracts
+```
+
+The contracts define expected extract file names, target raw/core tables, required payload fields, optional payload fields, and practical cadence. They are contracts for mounted extracts or future connector output; they are not live integrations.
+
+Current contract surfaces:
+
+- `infrastructure_incidents.json`
+- `incident_stage_events.json`
+- `facility_work_orders.json`
+- `validation_results.json`
+- `telemetry_alerts.json`
+- `infrastructure_dependencies.json`
+
+Real production connectors still require source schemas, authentication design, secret management, scheduling ownership, network access, data retention rules, and privacy review. No credential field or live external system access is part of the current implementation.
+
 ## Health and Readiness
 
 Required checks:

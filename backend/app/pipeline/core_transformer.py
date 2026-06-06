@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models.infrastructure import (
     InfrastructureAsset,
+    InfrastructureDependency,
     InfrastructureImpactSnapshot,
     ValidationResult,
     InfrastructureIncident,
@@ -35,6 +36,7 @@ from app.pipeline.quality import REQUIRED_PAYLOAD_FIELDS
 class CoreTransformResult:
     infrastructure_zones_loaded: int
     infrastructure_assets_loaded: int
+    infrastructure_dependencies_loaded: int
     facilities_engineers_loaded: int
     critical_spares_loaded: int
     infrastructure_incidents_loaded: int
@@ -52,12 +54,19 @@ def transform_raw_to_core(session: Session, sample_dir: Path) -> CoreTransformRe
 
     infrastructure_zones_loaded = _merge_infrastructure_zones(session, masters["infrastructure_zones"])
     infrastructure_assets_loaded = _merge_infrastructure_assets(session, masters["infrastructure_assets"])
-    facilities_engineers_loaded = _merge_facilities_engineers(session, masters["facilities_engineers"])
-    critical_spares_loaded = _merge_critical_spares(session, masters["critical_spares"])
     session.flush()
 
     valid_zone_ids = _id_set(session, InfrastructureZone.zone_id)
     valid_asset_ids = _id_set(session, InfrastructureAsset.asset_id)
+    infrastructure_dependencies_loaded = _merge_infrastructure_dependencies(
+        session,
+        masters["infrastructure_dependencies"],
+        valid_asset_ids,
+    )
+    facilities_engineers_loaded = _merge_facilities_engineers(session, masters["facilities_engineers"])
+    critical_spares_loaded = _merge_critical_spares(session, masters["critical_spares"])
+    session.flush()
+
     valid_engineer_ids = _id_set(session, FacilitiesEngineer.engineer_id)
     valid_spare_ids = _id_set(session, CriticalSpare.spare_id)
 
@@ -151,6 +160,7 @@ def transform_raw_to_core(session: Session, sample_dir: Path) -> CoreTransformRe
     return CoreTransformResult(
         infrastructure_zones_loaded=infrastructure_zones_loaded,
         infrastructure_assets_loaded=infrastructure_assets_loaded,
+        infrastructure_dependencies_loaded=infrastructure_dependencies_loaded,
         facilities_engineers_loaded=facilities_engineers_loaded,
         critical_spares_loaded=critical_spares_loaded,
         infrastructure_incidents_loaded=infrastructure_incidents_loaded,
@@ -165,7 +175,13 @@ def transform_raw_to_core(session: Session, sample_dir: Path) -> CoreTransformRe
 
 def _load_master_records(sample_dir: Path) -> dict[str, list[dict[str, Any]]]:
     records = {}
-    for name in ["infrastructure_zones", "infrastructure_assets", "facilities_engineers", "critical_spares"]:
+    for name in [
+        "infrastructure_zones",
+        "infrastructure_assets",
+        "infrastructure_dependencies",
+        "facilities_engineers",
+        "critical_spares",
+    ]:
         path = sample_dir / f"{name}.json"
         if not path.exists():
             raise FileNotFoundError(f"Missing master data file: {path}")
@@ -218,6 +234,33 @@ def _merge_infrastructure_assets(session: Session, records: list[dict[str, Any]]
             )
         )
     return len(records)
+
+
+def _merge_infrastructure_dependencies(
+    session: Session,
+    records: list[dict[str, Any]],
+    valid_asset_ids: set[str],
+) -> int:
+    loaded = 0
+    for record in records:
+        if record["dependent_asset_id"] not in valid_asset_ids:
+            continue
+        if record["dependency_asset_id"] not in valid_asset_ids:
+            continue
+        session.merge(
+            InfrastructureDependency(
+                dependency_id=record["dependency_id"],
+                dependent_asset_id=record["dependent_asset_id"],
+                dependency_asset_id=record["dependency_asset_id"],
+                dependency_type=record["dependency_type"],
+                dependency_role=record["dependency_role"],
+                impact_scope=record["impact_scope"],
+                source_system=record["source_system"],
+                metadata_json=record.get("metadata_json"),
+            )
+        )
+        loaded += 1
+    return loaded
 
 
 def _merge_facilities_engineers(session: Session, records: list[dict[str, Any]]) -> int:
