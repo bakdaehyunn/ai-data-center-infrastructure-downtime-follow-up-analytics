@@ -257,6 +257,13 @@ export type DashboardFilters = {
   asset_id?: string
   priority_level?: string
   stage?: string
+  delayed_only?: boolean
+  critical_asset_delayed?: boolean
+  capacity_risk?: boolean
+  affected_gpu?: boolean
+  evidence_review?: boolean
+  redundancy_lost?: boolean
+  vendor_eta_missed?: boolean
 }
 
 export type DashboardData = {
@@ -317,6 +324,10 @@ export function fetchRequestDetail(infrastructureRequestId: string): Promise<Req
   return getJson<RequestDetail>(`/api/follow-ups/${infrastructureRequestId}`)
 }
 
+export function fetchTopologyDependencies(): Promise<InfrastructureDependency[]> {
+  return getJson<InfrastructureDependency[]>('/api/topology/dependencies?limit=8')
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`)
   if (!response.ok) {
@@ -329,7 +340,7 @@ function buildQuery(filters: DashboardFilters): string {
   const params = new URLSearchParams()
   Object.entries(filters).forEach(([key, value]) => {
     if (value) {
-      params.set(key, value)
+      params.set(key, String(value))
     }
   })
   const query = params.toString()

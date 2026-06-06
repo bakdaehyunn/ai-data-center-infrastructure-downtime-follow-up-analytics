@@ -8,6 +8,8 @@ It answers one practical question:
 
 ![AI data center infrastructure downtime follow-up dashboard](docs/assets/dashboard-preview.png)
 
+![Selected follow-up detail page](docs/assets/follow-up-detail-preview.png)
+
 ## Why This Exists
 
 AI data center downtime evidence rarely lives in one clean system. Incident records, workflow events, facility work orders, critical spares, vendor waits, validation results, telemetry alerts, impact snapshots, infrastructure assets, and facility zones are often scattered across different operational tools.
@@ -31,7 +33,7 @@ Before this system, the blocked operational decision was:
 
 > Which open infrastructure incident should the operator chase next so GPU capacity can safely return to service?
 
-The follow-up queue is the core product answer. Charts and summaries support the decision, but they are not the main product surface.
+The follow-up queue is the core product answer. Summaries, selected-row context, and detail pages support the decision, but they are not the main product surface.
 
 ## Operating Scenario
 
@@ -62,7 +64,7 @@ The workflow labels are not the main value. The value is turning every transitio
 - Open infrastructure incidents and delayed incidents
 - Current stage and hours in current stage
 - Stage lead time compared with threshold hours
-- Actionable bottlenecks, excluding terminal restored work from bottleneck charts
+- Actionable bottlenecks, excluding terminal restored work from active follow-up surfaces
 - Downtime concentration by infrastructure asset and facility zone
 - Spare/vendor waiting impact and stock risk
 - Capacity-at-risk, affected GPU, redundancy-loss, thermal-breach, vendor ETA, and mitigation context
@@ -179,12 +181,12 @@ Compatibility routes for the earlier naming are still available for asset, zone,
 
 The React dashboard is built for follow-up decisions:
 
-- KPI summary for open incidents, delayed incidents, critical delayed assets, capacity at risk, affected GPUs, redundancy loss, missed vendor ETA, spare/vendor wait hours, and latest-run data trust
-- Filterable downtime follow-up queue with compact impact and confidence badges
-- Incident drilldown with stage history, score components, work order context, spare context, impact snapshot context, telemetry evidence, vendor/mitigation status, impact trust flags, and quality flags
-- Stage bottleneck chart focused on active delay stages
-- Asset and zone impact summaries
-- Spare/vendor waiting, infrastructure topology, impact summary, and data trust panels
+- Read-only KPI and exposure summaries for the currently visible follow-up queue
+- Queue Intelligence cards that summarize the visible queue or the selected row
+- Queue scope controls for clear queue subsets such as vendor ETA missed, spare/vendor wait, evidence review, and N-1 exposure
+- Compact desktop follow-up table with one value per column and explicit `View details` links
+- Dedicated follow-up detail route with Summary, Impact, Trust, and Dependencies tabs
+- Detail evidence for stage history, work order context, spare context, impact snapshot context, telemetry evidence, vendor/mitigation status, impact trust flags, dependency paths, and quality flags
 
 Run the frontend build:
 
@@ -203,7 +205,6 @@ npm run build
 - React
 - TypeScript
 - Vite
-- Recharts
 - Docker Compose
 - pytest
 

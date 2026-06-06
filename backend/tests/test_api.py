@@ -82,14 +82,43 @@ def test_follow_ups_endpoint_filters_queue(api_client: TestClient) -> None:
     stage_response = api_client.get("/api/follow-ups?stage=ENGINEER_ASSIGNED")
     zone_response = api_client.get("/api/follow-ups?zone_id=ZONE-POWER-A")
     priority_response = api_client.get("/api/follow-ups?priority_level=CRITICAL")
+    delayed_response = api_client.get("/api/follow-ups?delayed_only=true")
+    critical_asset_response = api_client.get("/api/follow-ups?critical_asset_delayed=true")
+    capacity_response = api_client.get("/api/follow-ups?capacity_risk=true")
+    gpu_response = api_client.get("/api/follow-ups?affected_gpu=true")
+    evidence_response = api_client.get("/api/follow-ups?evidence_review=true")
+    redundancy_response = api_client.get("/api/follow-ups?redundancy_lost=true")
+    vendor_response = api_client.get("/api/follow-ups?vendor_eta_missed=true")
 
     assert stage_response.status_code == 200
     assert zone_response.status_code == 200
     assert priority_response.status_code == 200
+    assert delayed_response.status_code == 200
+    assert critical_asset_response.status_code == 200
+    assert capacity_response.status_code == 200
+    assert gpu_response.status_code == 200
+    assert evidence_response.status_code == 200
+    assert redundancy_response.status_code == 200
+    assert vendor_response.status_code == 200
 
     assert [row["incident_id"] for row in stage_response.json()] == ["INC-0003", "INC-0009"]
     assert {row["zone_id"] for row in zone_response.json()} == {"ZONE-POWER-A"}
     assert {row["priority_level"] for row in priority_response.json()} == {"CRITICAL"}
+    assert [row["incident_id"] for row in delayed_response.json()] == [
+        "INC-0007",
+        "INC-0004",
+        "INC-0006",
+        "INC-0002",
+        "INC-0003",
+        "INC-0005",
+        "INC-0009",
+    ]
+    assert len(critical_asset_response.json()) == 3
+    assert all(row["estimated_capacity_risk_kw"] > 0 for row in capacity_response.json())
+    assert all(row["affected_gpu_count"] > 0 for row in gpu_response.json())
+    assert all(row["impact_confidence_status"] in {"WARNING", "UNVERIFIED"} for row in evidence_response.json())
+    assert {row["redundancy_state"] for row in redundancy_response.json()} == {"N-1"}
+    assert {row["vendor_status"] for row in vendor_response.json()} == {"ETA_MISSED"}
 
 
 def test_follow_up_detail_returns_state_timeline_and_related_records(api_client: TestClient) -> None:

@@ -18,11 +18,23 @@ GET /api/follow-ups/{incident_id}
 GET /api/follow-ups/{incident_id}/timeline
 ```
 
-The queue supports filters by `zone_id`, `asset_id`, `priority_level`, and active `stage`. Queue rows include impact context fields such as redundancy state, affected GPUs, estimated kW at risk, mitigation status, vendor status, `impact_confidence_status`, and `impact_trust_issue_count`.
+The queue supports filters by `zone_id`, `asset_id`, `priority_level`, active `stage`, and row-level queue predicates:
+
+- `delayed_only=true`
+- `critical_asset_delayed=true`
+- `capacity_risk=true`
+- `affected_gpu=true`
+- `evidence_review=true`
+- `redundancy_lost=true`
+- `vendor_eta_missed=true`
+
+Queue rows include impact context fields such as redundancy state, affected GPUs, estimated kW at risk, mitigation status, vendor status, `impact_confidence_status`, and `impact_trust_issue_count`.
+
+The UI exposes only the predicates that clearly narrow or reset the visible queue as queue scope controls. KPI cards remain read-only visible-queue summaries.
 
 `recommended_action` is the next workflow follow-up. `reason_summary` explains why the row matters, including delay and impact context. This keeps operational action separate from impact rationale.
 
-Drilldown returns the selected incident, stage lead times, timeline events, work orders, validation results, telemetry alerts, the latest impact snapshot, impact telemetry readings, general quality flags, `impact_confidence_status`, and structured `impact_trust_flags`.
+The dedicated follow-up detail endpoint powers `/follow-ups/{incident_id}` in the UI. Drilldown returns the selected incident, stage lead times, timeline events, work orders, validation results, telemetry alerts, the latest impact snapshot, impact telemetry readings, general quality flags, `impact_confidence_status`, and structured `impact_trust_flags`.
 
 ## Downtime and Impact
 

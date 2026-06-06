@@ -1,3 +1,5 @@
+name: ai-data-center-infrastructure
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -18,3 +20,4 @@ services:
 
 volumes:
   postgres_data:
+    name: ai-data-center-infrastructure-postgres-data

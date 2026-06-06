@@ -171,6 +171,13 @@ def list_follow_ups(
     asset_id: Optional[str] = None,
     priority_level: Optional[str] = None,
     stage: Optional[str] = None,
+    delayed_only: bool = False,
+    critical_asset_delayed: bool = False,
+    capacity_risk: bool = False,
+    affected_gpu: bool = False,
+    evidence_review: bool = False,
+    redundancy_lost: bool = False,
+    vendor_eta_missed: bool = False,
     limit: int = 50,
     db: Session = Depends(get_db),
 ) -> list[FollowUpItemResponse]:
@@ -189,13 +196,18 @@ def list_follow_ups(
         stmt = stmt.where(InfrastructureIncident.priority_level == priority_level)
     if stage:
         stmt = stmt.where(DowntimeFollowUpQueue.current_stage == stage)
+    if delayed_only:
+        stmt = stmt.where(IncidentCurrentStatus.is_delayed.is_(True))
+    if critical_asset_delayed:
+        stmt = stmt.where(IncidentCurrentStatus.is_delayed.is_(True))
+        stmt = stmt.where(InfrastructureAsset.criticality_level == "CRITICAL")
 
-    rows = db.execute(stmt.order_by(DowntimeFollowUpQueue.priority_rank).limit(limit)).all()
+    rows = db.execute(stmt.order_by(DowntimeFollowUpQueue.priority_rank)).all()
     impact_issues_by_incident = _impact_issues_by_incident(
         db,
         [request.incident_id for _, request, _, _, _ in rows],
     )
-    return [
+    follow_ups = [
         _follow_up_response(
             queue,
             request,
@@ -206,6 +218,18 @@ def list_follow_ups(
         )
         for queue, request, asset, zone, current in rows
     ]
+    return [
+        row
+        for row in follow_ups
+        if _matches_follow_up_kpi_filters(
+            row,
+            capacity_risk=capacity_risk,
+            affected_gpu=affected_gpu,
+            evidence_review=evidence_review,
+            redundancy_lost=redundancy_lost,
+            vendor_eta_missed=vendor_eta_missed,
+        )
+    ][:limit]
 
 
 @router.get("/follow-ups/{incident_id}", response_model=RequestDetailResponse)
@@ -566,6 +590,28 @@ def _follow_up_response(
         impact_confidence_status=_impact_confidence_status(impact, impact_issues),
         impact_trust_issue_count=len(impact_issues),
     )
+
+
+def _matches_follow_up_kpi_filters(
+    row: FollowUpItemResponse,
+    *,
+    capacity_risk: bool,
+    affected_gpu: bool,
+    evidence_review: bool,
+    redundancy_lost: bool,
+    vendor_eta_missed: bool,
+) -> bool:
+    if capacity_risk and row.estimated_capacity_risk_kw <= 0:
+        return False
+    if affected_gpu and row.affected_gpu_count <= 0:
+        return False
+    if evidence_review and row.impact_confidence_status not in {"WARNING", "UNVERIFIED"}:
+        return False
+    if redundancy_lost and row.redundancy_state != "N-1":
+        return False
+    if vendor_eta_missed and row.vendor_status != "ETA_MISSED":
+        return False
+    return True
 
 
 def _empty_queue_row(request: InfrastructureIncident, current: IncidentCurrentStatus) -> DowntimeFollowUpQueue:
