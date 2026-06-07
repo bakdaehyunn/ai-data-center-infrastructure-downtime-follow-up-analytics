@@ -1,0 +1,17 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase13-semantic-service-runnable-baseline
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 13 semantic service runnable baseline release" ;
+  dcterms:description "Implementation release that makes the Kotlin/JVM semantic service runnable and testable as a contract-validation baseline. This release does not implement public HTTP endpoints, graph execution, Fuseki clients, SPARQL execution, reasoning orchestration, UI redesign, old-runtime removal, commit, or push." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase12-cutover-implementation-readiness ;
+  dcterms:hasPart
+    <../../semantic-service/build.gradle.kts>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplication.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplicationTest.kt>,
+    <../../docs/ontology-native/phase13_semantic_service_runnable_baseline.md> .

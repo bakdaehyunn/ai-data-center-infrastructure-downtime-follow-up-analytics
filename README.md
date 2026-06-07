@@ -252,3 +252,4 @@ npm run build
 - `docs/ontology-native/phase10_semantic_service_project_scaffold.md`: Phase 10 minimal non-running Java/Kotlin semantic service project scaffold with build metadata, package layout placeholders, and contract wiring
 - `docs/ontology-native/phase11_contract_loading_static_validation.md`: Phase 11 first Kotlin implementation slice for contract loading and static validation only
 - `docs/ontology-native/phase12_cutover_implementation_readiness.md`: Phase 12 cutover and implementation-readiness checkpoint for old-runtime reference use, later-removal triggers, and gates before real semantic endpoints or graph execution
+- `docs/ontology-native/phase13_semantic_service_runnable_baseline.md`: Phase 13 runnable Kotlin/JVM semantic-service baseline for contract validation before graph access

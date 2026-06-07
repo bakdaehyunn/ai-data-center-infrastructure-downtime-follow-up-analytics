@@ -49,10 +49,9 @@ object SemanticServiceContractCatalog {
         "@RestController",
         "@Controller",
         "@SpringBootApplication",
-        "fun main(",
         "HttpClient",
         "SPARQLRepository",
         "RDFConnection",
-        "Fuseki",
+        "SPARQLUpdate",
     )
 }

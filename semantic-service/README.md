@@ -39,3 +39,27 @@ Tracked readiness checkpoint:
 
 - `semantic-service/cutover-readiness.ttl`
 - `docs/ontology-native/phase12_cutover_implementation_readiness.md`
+
+Phase 13 adds the first runnable JVM baseline. The service can start as a
+command-line contract-validation runtime, validate the Phase 8-12 contract
+artifacts, print readiness state, and exit non-zero if validation fails. It
+still does not expose HTTP endpoints, connect to Fuseki/TDB2, execute SPARQL,
+write graphs, or orchestrate reasoning.
+
+Run with local Java and Gradle:
+
+```bash
+cd semantic-service
+gradle test
+gradle run --args="$(pwd)/.."
+```
+
+Run with Docker if local Java or Gradle is unavailable:
+
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon test run --args=/workspace
+```

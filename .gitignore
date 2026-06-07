@@ -15,6 +15,10 @@ node_modules/
 dist/
 coverage/
 
+# Gradle/JVM
+.gradle/
+build/
+
 # Environment
 .env
 
