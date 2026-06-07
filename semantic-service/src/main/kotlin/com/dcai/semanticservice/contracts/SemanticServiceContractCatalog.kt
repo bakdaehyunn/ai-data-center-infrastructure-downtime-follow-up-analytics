@@ -53,5 +53,8 @@ object SemanticServiceContractCatalog {
         "SPARQLRepository",
         "RDFConnection",
         "SPARQLUpdate",
+        "UpdateFactory",
+        "UpdateExecutionFactory",
+        "DatasetAccessor",
     )
 }

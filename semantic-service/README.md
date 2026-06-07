@@ -63,3 +63,28 @@ docker run --rm \
   gradle:8.10.2-jdk17 \
   gradle --no-daemon test run --args=/workspace
 ```
+
+Phase 14 adds a read-only Fuseki/TDB2 graph access boundary. It introduces
+Apache Jena dependencies, read-only graph configuration, and a connectivity
+client that can check the Fuseki query endpoint without exposing public HTTP
+routes, writing RDF graphs, executing approved application queries, or running
+reasoning.
+
+Run the service baseline with a read-only graph connectivity check:
+
+```bash
+cd semantic-service
+DCAI_FUSEKI_DATASET_URL=http://localhost:3030/infrastructure \
+  gradle run --args="--repo-root=$(pwd)/.. --check-graph"
+```
+
+Docker equivalent:
+
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  -e DCAI_FUSEKI_DATASET_URL=http://host.docker.internal:3030/infrastructure \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon run --args="--repo-root=/workspace --check-graph"
+```

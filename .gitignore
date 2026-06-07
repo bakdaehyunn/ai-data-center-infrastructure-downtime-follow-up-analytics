@@ -17,6 +17,7 @@ coverage/
 
 # Gradle/JVM
 .gradle/
+.kotlin/
 build/
 
 # Environment
