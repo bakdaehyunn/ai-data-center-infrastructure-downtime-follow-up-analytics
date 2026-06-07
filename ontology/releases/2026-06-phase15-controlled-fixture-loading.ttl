@@ -1,0 +1,20 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase15-controlled-fixture-loading
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 15 controlled fixture loading release" ;
+  dcterms:description "Implementation release that adds controlled RDF fixture loading into Fuseki named graphs through the Kotlin/JVM semantic service. This release does not implement public endpoints, unrestricted graph writes, SPARQL Update execution, reasoning orchestration, UI redesign, old-runtime removal, commit, or push." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase14-read-only-graph-access ;
+  dcterms:hasPart
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/fixtures/FixtureGraphLoadPlan.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/fixtures/FixtureValidationGate.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/fixtures/ControlledFixtureGraphLoader.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/graph/FusekiGraphStoreConfig.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/graph/FusekiNamedGraphWriter.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplication.kt>,
+    <../../docs/ontology-native/phase15_controlled_fixture_loading.md> .

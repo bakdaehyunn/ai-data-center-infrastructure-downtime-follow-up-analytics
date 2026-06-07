@@ -2,7 +2,14 @@ package com.dcai.semanticservice.runtime
 
 import com.dcai.semanticservice.contracts.ContractValidationReport
 import com.dcai.semanticservice.contracts.StaticContractValidator
+import com.dcai.semanticservice.fixtures.ControlledFixtureGraphLoader
+import com.dcai.semanticservice.fixtures.FixtureGraphLoadPlan
+import com.dcai.semanticservice.fixtures.FixtureGraphLoader
+import com.dcai.semanticservice.fixtures.FixtureLoadSummary
+import com.dcai.semanticservice.fixtures.FixtureValidationGate
+import com.dcai.semanticservice.graph.FusekiGraphStoreConfig
 import com.dcai.semanticservice.graph.FusekiReadOnlyConfig
+import com.dcai.semanticservice.graph.FusekiNamedGraphWriter
 import com.dcai.semanticservice.graph.GraphConnectionCheck
 import com.dcai.semanticservice.graph.JenaFusekiReadOnlyGraphClient
 import com.dcai.semanticservice.graph.ReadOnlyGraphClient
@@ -22,7 +29,19 @@ object SemanticServiceApplication {
         } else {
             null
         }
-        val report = run(repoRoot, graphClient)
+        val fixtureLoader = if (options.loadFixtures) {
+            ControlledFixtureGraphLoader(
+                validationGate = FixtureValidationGate(repoRoot),
+                writer = FusekiNamedGraphWriter(FusekiGraphStoreConfig.fromEnvironment()),
+            )
+        } else {
+            null
+        }
+        val report = run(
+            repoRoot = repoRoot,
+            graphClient = graphClient,
+            fixtureLoader = fixtureLoader,
+        )
 
         println("DCAI Semantic Service")
         println("mode=${report.mode}")
@@ -31,6 +50,7 @@ object SemanticServiceApplication {
         println("checkedContracts=${report.contractValidation.checkedArtifacts.size}")
         println("graphExecutionEnabled=${report.graphExecutionEnabled}")
         println("httpEndpointsEnabled=${report.httpEndpointsEnabled}")
+        println("fixtureLoadingEnabled=${report.fixtureLoadingEnabled}")
         report.graphConnectionCheck?.let { check ->
             println("graphReachable=${check.reachable}")
             println("graphDatasetUrl=${check.datasetUrl}")
@@ -38,12 +58,18 @@ object SemanticServiceApplication {
             println("namedGraphCount=${check.namedGraphCount ?: "unknown"}")
             println("graphMessage=${check.message}")
         }
+        report.fixtureLoadSummary?.let { summary ->
+            println("fixtureLoadSucceeded=${summary.succeeded}")
+            println("fixtureLoadAttempted=${summary.attemptedCount}")
+            println("fixtureGraphsPromoted=${summary.promotedCount}")
+        }
 
         if (!report.isReady) {
             report.contractValidation.errors.forEach { error -> println("error=$error") }
             report.graphConnectionCheck
                 ?.takeUnless { it.reachable }
                 ?.let { println("error=${it.message}") }
+            report.fixtureLoadSummary?.errors?.forEach { error -> println("error=$error") }
             exitProcess(1)
         }
     }
@@ -51,13 +77,19 @@ object SemanticServiceApplication {
     fun run(
         repoRoot: Path = locateRepoRoot(),
         graphClient: ReadOnlyGraphClient? = null,
+        fixtureLoader: FixtureGraphLoader? = null,
+        fixtureLoadPlan: FixtureGraphLoadPlan? = null,
     ): SemanticServiceRuntimeReport {
         val validation = StaticContractValidator().validate(repoRoot)
         val graphConnectionCheck = graphClient?.checkConnectivity()
+        val fixtureLoadSummary = fixtureLoader?.load(
+            fixtureLoadPlan ?: FixtureGraphLoadPlan.default(repoRoot),
+        )
         return SemanticServiceRuntimeReport(
             repoRoot = repoRoot,
             contractValidation = validation,
             graphConnectionCheck = graphConnectionCheck,
+            fixtureLoadSummary = fixtureLoadSummary,
         )
     }
 
@@ -81,27 +113,33 @@ data class SemanticServiceRuntimeReport(
     val repoRoot: Path,
     val contractValidation: ContractValidationReport,
     val graphConnectionCheck: GraphConnectionCheck? = null,
+    val fixtureLoadSummary: FixtureLoadSummary? = null,
 ) {
     val mode: String = "contract-validation-runtime"
     val isReady: Boolean = contractValidation.isValid &&
-        (graphConnectionCheck == null || graphConnectionCheck.reachable)
+        (graphConnectionCheck == null || graphConnectionCheck.reachable) &&
+        (fixtureLoadSummary == null || fixtureLoadSummary.succeeded)
     val status: String = if (isReady) "ready" else "blocked"
     val graphExecutionEnabled: Boolean = false
     val httpEndpointsEnabled: Boolean = false
+    val fixtureLoadingEnabled: Boolean = fixtureLoadSummary != null
 }
 
 data class SemanticServiceRuntimeOptions(
     val repoRoot: String? = null,
     val checkGraph: Boolean = false,
+    val loadFixtures: Boolean = false,
 ) {
     companion object {
         fun fromArgs(args: Array<String>): SemanticServiceRuntimeOptions {
             var repoRoot: String? = null
             var checkGraph = false
+            var loadFixtures = false
 
             for (arg in args) {
                 when {
                     arg == "--check-graph" -> checkGraph = true
+                    arg == "--load-fixtures" -> loadFixtures = true
                     arg.startsWith("--repo-root=") -> repoRoot = arg.substringAfter("=")
                     repoRoot == null -> repoRoot = arg
                     else -> error("Unknown argument: $arg")
@@ -111,6 +149,7 @@ data class SemanticServiceRuntimeOptions(
             return SemanticServiceRuntimeOptions(
                 repoRoot = repoRoot,
                 checkGraph = checkGraph,
+                loadFixtures = loadFixtures,
             )
         }
     }

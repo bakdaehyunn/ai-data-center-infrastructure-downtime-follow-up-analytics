@@ -55,7 +55,11 @@ class StaticContractValidator(
                     val relative = repoRoot.relativize(path).toString()
                     val content = Files.readString(path)
                     SemanticServiceContractCatalog.forbiddenMainSourceMarkers
-                        .filter { marker -> content.contains(marker) }
+                        .filter { marker ->
+                            content.contains(marker) &&
+                                relative !in SemanticServiceContractCatalog.allowedForbiddenMarkerPaths
+                                    .getOrDefault(marker, emptySet())
+                        }
                         .map { marker -> "Forbidden runtime marker '$marker' in $relative" }
                         .stream()
                 }

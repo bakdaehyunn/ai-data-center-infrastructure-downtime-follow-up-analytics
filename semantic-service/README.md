@@ -88,3 +88,30 @@ docker run --rm \
   gradle:8.10.2-jdk17 \
   gradle --no-daemon run --args="--repo-root=/workspace --check-graph"
 ```
+
+Phase 15 adds controlled RDF fixture loading into Fuseki named graphs. The
+runtime still has no public endpoints and does not run reasoning. Fixture
+loading is only available through the local CLI boundary, validates the fixture
+with SHACL and provenance gates, and then writes the controlled source and
+canonical fixture named graphs.
+
+Run the baseline without writes:
+
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon test run --args=/workspace
+```
+
+Run controlled fixture loading against a local Fuseki graph-store endpoint:
+
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  -e DCAI_FUSEKI_DATASET_URL=http://host.docker.internal:3030/infrastructure \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon run --args="--repo-root=/workspace --load-fixtures"
+```

@@ -254,3 +254,4 @@ npm run build
 - `docs/ontology-native/phase12_cutover_implementation_readiness.md`: Phase 12 cutover and implementation-readiness checkpoint for old-runtime reference use, later-removal triggers, and gates before real semantic endpoints or graph execution
 - `docs/ontology-native/phase13_semantic_service_runnable_baseline.md`: Phase 13 runnable Kotlin/JVM semantic-service baseline for contract validation before graph access
 - `docs/ontology-native/phase14_read_only_graph_access.md`: Phase 14 read-only Jena/Fuseki graph access boundary before fixture loading or query execution
+- `docs/ontology-native/phase15_controlled_fixture_loading.md`: Phase 15 controlled RDF fixture loading into Fuseki named graphs with SHACL/provenance gates before promotion

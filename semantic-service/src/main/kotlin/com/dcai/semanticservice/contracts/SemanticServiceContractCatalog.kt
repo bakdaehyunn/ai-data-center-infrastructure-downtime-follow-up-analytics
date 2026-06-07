@@ -50,11 +50,22 @@ object SemanticServiceContractCatalog {
         "@Controller",
         "@SpringBootApplication",
         "HttpClient",
+        "HttpURLConnection",
+        "openConnection(",
         "SPARQLRepository",
         "RDFConnection",
         "SPARQLUpdate",
         "UpdateFactory",
         "UpdateExecutionFactory",
         "DatasetAccessor",
+    )
+
+    val allowedForbiddenMarkerPaths: Map<String, Set<String>> = mapOf(
+        "HttpURLConnection" to setOf(
+            "semantic-service/src/main/kotlin/com/dcai/semanticservice/graph/FusekiNamedGraphWriter.kt",
+        ),
+        "openConnection(" to setOf(
+            "semantic-service/src/main/kotlin/com/dcai/semanticservice/graph/FusekiNamedGraphWriter.kt",
+        ),
     )
 }
