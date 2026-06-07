@@ -18,6 +18,13 @@ services:
       timeout: 5s
       retries: 10
 
+  fuseki:
+    image: atomgraph/fuseki:latest
+    container_name: ai-data-center-infrastructure-fuseki
+    command: ["--mem", "/infrastructure"]
+    ports:
+      - "${FUSEKI_PORT:-3030}:3030"
+
 volumes:
   postgres_data:
     name: ai-data-center-infrastructure-postgres-data

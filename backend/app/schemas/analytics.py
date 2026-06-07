@@ -191,6 +191,67 @@ class InfrastructureDependencyResponse(BaseModel):
     dependency_active_incident_count: int
 
 
+class SemanticDependencyEdgeResponse(BaseModel):
+    dependency_id: str
+    dependent_asset_id: str
+    dependency_asset_id: str
+    dependency_type: str
+    dependency_role: str
+
+
+class SemanticDependencyImpactResponse(BaseModel):
+    asset_id: str
+    direct_dependency_count: int
+    direct_dependencies: list[SemanticDependencyEdgeResponse] = Field(default_factory=list)
+    inferred_downstream_assets: list[str] = Field(default_factory=list)
+
+
+class SemanticIncidentEvidenceResponse(BaseModel):
+    incident_id: str
+    found: bool
+    request_title: Optional[str] = None
+    asset_id: Optional[str] = None
+    workflow_stage: Optional[str] = None
+    current_status: Optional[str] = None
+    priority_level: Optional[str] = None
+    trust_issue_ids: list[str] = Field(default_factory=list)
+
+
+class SemanticBlastRadiusIncidentResponse(BaseModel):
+    incident_id: str
+    asset_id: str
+    title: str
+    stage: str
+
+
+class SemanticBlastRadiusResponse(BaseModel):
+    asset_id: str
+    inferred_downstream_assets: list[str] = Field(default_factory=list)
+    affected_incident_count: int
+    affected_incidents: list[SemanticBlastRadiusIncidentResponse] = Field(default_factory=list)
+
+
+class SemanticValidationIssueResponse(BaseModel):
+    focus_node: str
+    result_path: str
+    message: str
+    severity: str
+
+
+class SemanticValidationResponse(BaseModel):
+    conforms: bool
+    issue_count: int
+    issues: list[SemanticValidationIssueResponse] = Field(default_factory=list)
+
+
+class SemanticGraphSyncResponse(BaseModel):
+    configured: bool
+    status: str
+    triple_count: int
+    target_url: Optional[str]
+    message: str
+
+
 class ConnectorContractResponse(BaseModel):
     source_name: str
     extract_file: str

@@ -808,6 +808,12 @@ select {
   box-shadow: inset 4px 0 0 #d49a2f;
 }
 
+.metric-card-grid div.ok,
+.evidence-compact-grid div.ok {
+  border-color: #b8dbc0;
+  box-shadow: inset 4px 0 0 #4f9a62;
+}
+
 .metric-card-grid div.danger,
 .evidence-compact-grid div.danger {
   border-color: #efc8c3;
@@ -889,7 +895,9 @@ select {
 }
 
 .summary-metric.ok,
-.brief-evidence-card.ok {
+.brief-evidence-card.ok,
+.metric-card-grid div.ok,
+.evidence-compact-grid div.ok {
   border-color: #b8dbc0;
   background: #ffffff;
   box-shadow: inset 4px 0 0 #4f9a62;

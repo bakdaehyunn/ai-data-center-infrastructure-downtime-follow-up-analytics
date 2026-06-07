@@ -16,6 +16,13 @@ from app.domain.infrastructure_ontology import (
     TERMINAL_STATUS,
 )
 from app.domain.semantic_export import build_infrastructure_semantic_turtle
+from app.domain.semantic_graph import (
+    semantic_blast_radius,
+    semantic_dependency_impact,
+    semantic_incident_evidence,
+    sync_graph_to_triple_store,
+    validate_semantic_graph,
+)
 from app.db import get_db
 from app.models.analytics import (
     DowntimeFollowUpQueue,
@@ -50,6 +57,12 @@ from app.schemas.analytics import (
     InfrastructureImpactSnapshotResponse,
     ImpactTelemetryReadingResponse,
     ImpactTrustFlagResponse,
+    SemanticBlastRadiusResponse,
+    SemanticDependencyImpactResponse,
+    SemanticGraphSyncResponse,
+    SemanticIncidentEvidenceResponse,
+    SemanticValidationIssueResponse,
+    SemanticValidationResponse,
     ValidationResponse,
     OverviewResponse,
     SpareWaitingResponse,
@@ -63,8 +76,10 @@ from app.schemas.analytics import (
     WorkOrderSummaryResponse,
     string_list,
 )
+from app.settings import Settings
 
 router = APIRouter(prefix="/api")
+settings = Settings()
 
 
 RECONCILIATION_FLAG_LABELS = {
@@ -493,6 +508,72 @@ def get_infrastructure_semantic_turtle(db: Session = Depends(get_db)) -> PlainTe
     return PlainTextResponse(
         build_infrastructure_semantic_turtle(db),
         media_type="text/turtle; charset=utf-8",
+    )
+
+
+@router.get("/semantic/validation", response_model=SemanticValidationResponse)
+def get_semantic_validation(db: Session = Depends(get_db)) -> SemanticValidationResponse:
+    result = validate_semantic_graph(db)
+    return SemanticValidationResponse(
+        conforms=result.conforms,
+        issue_count=result.issue_count,
+        issues=[
+            SemanticValidationIssueResponse(
+                focus_node=issue.focus_node,
+                result_path=issue.result_path,
+                message=issue.message,
+                severity=issue.severity,
+            )
+            for issue in result.issues
+        ],
+    )
+
+
+@router.get(
+    "/semantic/query/dependency-impact/{asset_id}",
+    response_model=SemanticDependencyImpactResponse,
+)
+def get_semantic_dependency_impact(
+    asset_id: str,
+    db: Session = Depends(get_db),
+) -> SemanticDependencyImpactResponse:
+    if db.get(InfrastructureAsset, asset_id) is None:
+        raise HTTPException(status_code=404, detail="Infrastructure asset not found")
+    return SemanticDependencyImpactResponse.model_validate(semantic_dependency_impact(db, asset_id))
+
+
+@router.get(
+    "/semantic/query/incident-evidence/{incident_id}",
+    response_model=SemanticIncidentEvidenceResponse,
+)
+def get_semantic_incident_evidence(
+    incident_id: str,
+    db: Session = Depends(get_db),
+) -> SemanticIncidentEvidenceResponse:
+    if db.get(InfrastructureIncident, incident_id) is None:
+        raise HTTPException(status_code=404, detail="Infrastructure incident not found")
+    return SemanticIncidentEvidenceResponse.model_validate(semantic_incident_evidence(db, incident_id))
+
+
+@router.get("/semantic/query/blast-radius/{asset_id}", response_model=SemanticBlastRadiusResponse)
+def get_semantic_blast_radius(
+    asset_id: str,
+    db: Session = Depends(get_db),
+) -> SemanticBlastRadiusResponse:
+    if db.get(InfrastructureAsset, asset_id) is None:
+        raise HTTPException(status_code=404, detail="Infrastructure asset not found")
+    return SemanticBlastRadiusResponse.model_validate(semantic_blast_radius(db, asset_id))
+
+
+@router.post("/semantic/graph/sync", response_model=SemanticGraphSyncResponse)
+def sync_semantic_graph(db: Session = Depends(get_db)) -> SemanticGraphSyncResponse:
+    result = sync_graph_to_triple_store(db, target_url=settings.semantic_triple_store_graph_url)
+    return SemanticGraphSyncResponse(
+        configured=result.configured,
+        status=result.status,
+        triple_count=result.triple_count,
+        target_url=result.target_url,
+        message=result.message,
     )
 
 

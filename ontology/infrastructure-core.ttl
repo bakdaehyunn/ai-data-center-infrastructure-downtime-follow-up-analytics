@@ -1,0 +1,45 @@
+@prefix dcai: <https://example.local/ai-data-center-infrastructure#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai:InfrastructureOntology a owl:Ontology ;
+  rdfs:label "AI data center infrastructure semantic ontology platform" ;
+  rdfs:comment "Core ontology for AI data center infrastructure assets, zones, incidents, operational evidence, and semantic follow-up decisions." .
+
+dcai:Zone a owl:Class .
+dcai:Asset a owl:Class .
+dcai:Incident a owl:Class .
+dcai:ImpactSnapshot a owl:Class .
+dcai:TrustIssue a owl:Class .
+dcai:SemanticFinding a owl:Class .
+
+dcai:locatedIn a owl:ObjectProperty ;
+  rdfs:domain dcai:Asset ;
+  rdfs:range dcai:Zone .
+
+dcai:affectsAsset a owl:ObjectProperty ;
+  rdfs:domain dcai:Incident ;
+  rdfs:range dcai:Asset .
+
+dcai:hasImpactSnapshot a owl:ObjectProperty ;
+  rdfs:domain dcai:Incident ;
+  rdfs:range dcai:ImpactSnapshot .
+
+dcai:hasTrustIssue a owl:ObjectProperty ;
+  rdfs:domain dcai:Incident ;
+  rdfs:range dcai:TrustIssue .
+
+dcai:assetType a owl:DatatypeProperty .
+dcai:criticalityLevel a owl:DatatypeProperty .
+dcai:zonePriority a owl:DatatypeProperty .
+dcai:hasCurrentStatus a owl:DatatypeProperty .
+dcai:priorityLevel a owl:DatatypeProperty .
+dcai:businessImpact a owl:DatatypeProperty .
+dcai:estimatedCapacityRiskKw a owl:DatatypeProperty .
+dcai:affectedGpuCount a owl:DatatypeProperty .
+dcai:redundancyState a owl:DatatypeProperty .
+dcai:mitigationStatus a owl:DatatypeProperty .
+dcai:vendorStatus a owl:DatatypeProperty .
+dcai:confidenceStatus a owl:DatatypeProperty .

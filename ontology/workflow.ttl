@@ -1,0 +1,25 @@
+@prefix dcai: <https://example.local/ai-data-center-infrastructure#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+dcai:WorkflowStage a owl:Class .
+dcai:WorkflowEvent a owl:Class .
+dcai:WorkflowState a owl:Class .
+
+dcai:workflowStage a owl:DatatypeProperty .
+dcai:eventType a owl:DatatypeProperty .
+dcai:eventStatus a owl:DatatypeProperty .
+dcai:enteredStage a owl:ObjectProperty .
+dcai:hasWorkflowEvent a owl:ObjectProperty .
+dcai:nextStage a owl:ObjectProperty .
+
+dcai:INCIDENT_REPORTED a dcai:WorkflowStage ; dcai:nextStage dcai:FACILITIES_TRIAGE .
+dcai:FACILITIES_TRIAGE a dcai:WorkflowStage ; dcai:nextStage dcai:ENGINEER_ASSIGNED .
+dcai:ENGINEER_ASSIGNED a dcai:WorkflowStage ; dcai:nextStage dcai:SPARE_VENDOR_WAITING, dcai:REPAIR_IN_PROGRESS .
+dcai:SPARE_VENDOR_WAITING a dcai:WorkflowStage ; dcai:nextStage dcai:REPAIR_IN_PROGRESS .
+dcai:REPAIR_IN_PROGRESS a dcai:WorkflowStage ; dcai:nextStage dcai:VALIDATION .
+dcai:VALIDATION a dcai:WorkflowStage ; dcai:nextStage dcai:RESTORED .
+dcai:RESTORED a dcai:WorkflowStage .
+
+dcai:IN_PROGRESS a dcai:WorkflowState .
+dcai:RESTORED_STATE a dcai:WorkflowState ; rdfs:label "RESTORED" .

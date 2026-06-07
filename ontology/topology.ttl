@@ -1,0 +1,26 @@
+@prefix dcai: <https://example.local/ai-data-center-infrastructure#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+dcai:Dependency a owl:Class .
+dcai:DependencyPath a owl:Class .
+
+dcai:dependentAsset a owl:ObjectProperty ;
+  rdfs:domain dcai:Dependency ;
+  rdfs:range dcai:Asset .
+
+dcai:dependsOn a owl:ObjectProperty ;
+  rdfs:domain dcai:Dependency ;
+  rdfs:range dcai:Asset .
+
+dcai:hasDependencyType a owl:DatatypeProperty .
+dcai:dependencyRole a owl:DatatypeProperty .
+dcai:impactScope a owl:DatatypeProperty .
+dcai:hasInferredImpact a owl:ObjectProperty .
+dcai:upstreamAsset a owl:ObjectProperty .
+dcai:downstreamAsset a owl:ObjectProperty .
+
+dcai:POWER_PATH a dcai:DependencyPath .
+dcai:COOLING_PATH a dcai:DependencyPath .
+dcai:CONTROL_TELEMETRY a dcai:DependencyPath .
+dcai:REDUNDANCY_SUPPORT a dcai:DependencyPath .

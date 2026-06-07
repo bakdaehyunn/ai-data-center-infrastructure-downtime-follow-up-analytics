@@ -8,6 +8,8 @@ scattered AI infrastructure source records
   -> core AI infrastructure tables
   -> analytics materialization
   -> reconciliation checks
+  -> RDF/OWL + SHACL semantic graph
+  -> SPARQL-backed semantic services
   -> read-only FastAPI API
   -> React dashboard
 ```
@@ -35,7 +37,8 @@ Each feed remains source-shaped in the raw layer, then maps into a canonical inf
 - Core layer normalizes source records into incidents, stage events, work orders, assets, zones, topology dependencies, spares, engineers, validations, telemetry alerts, and impact snapshots.
 - Analytics layer stores calculated current status, lead times, bottlenecks, follow-up scores, impact score components, and impact summaries.
 - Control layer persists reconciliation issues when core state, event history, impact snapshots, and analytics outputs do not agree.
-- API layer serves read-only analytics, topology, semantic export, connector-contract, and drilldown views.
+- Semantic layer projects canonical infrastructure records into RDF, validates them against SHACL shapes, supports SPARQL-backed evidence queries, and can sync the graph to a Fuseki-compatible graph-store endpoint.
+- API layer serves read-only analytics, topology, semantic ontology, semantic query, connector-contract, and drilldown views.
 
 ## Pipeline Order
 
@@ -54,7 +57,7 @@ Reconciliation runs after analytics materialization because some issues require 
 
 Impact snapshots are loaded into the core layer before analytics materialization. The analytics builder uses the latest snapshot per incident to add capacity risk, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit to the follow-up queue.
 
-Topology dependencies are loaded as reference data after assets are known. They are exposed through read-only API and UI surfaces and through the RDF/OWL-lite semantic export. They do not replace SQL persistence or add a graph database runtime.
+Topology dependencies are loaded as reference data after assets are known. They are exposed through read-only API and UI surfaces, projected into the RDF graph, validated through SHACL, and used by SPARQL-backed dependency-impact and blast-radius services.
 
 The control layer then validates those impact snapshots against event evidence. This is where V1.2 confidence is assigned: impact context is `TRUSTED` when the latest snapshot has no open impact reconciliation issue, `WARNING` when the snapshot exists but contradicts or lags event evidence, and `UNVERIFIED` when no usable snapshot exists for the active incident.
 
@@ -79,3 +82,9 @@ Data quality checks and reconciliation flags are scoped to the latest pipeline r
 ### Technology Boundary
 
 Docker, scheduled execution, observability, and future Kubernetes CronJobs are production support choices. They are not the system's value proposition. The value proposition is the decision model: reconstruct state, rank follow-up work, expose trust issues, and make the next operator action clear.
+
+### Semantic Runtime Boundary
+
+PostgreSQL still stores source-preserving records, normalized operational entities, and analytics materializations. It is not the only model boundary anymore. The semantic layer now has versioned ontology artifacts under `ontology/`, RDF generation through `rdflib`, SHACL validation through `pyshacl`, SPARQL-backed API services, and optional graph-store sync through Fuseki.
+
+The UI should not become an ontology diagram for its own sake. It should expose semantic evidence where it supports the field decision: whether the graph conforms, which incident evidence is linked, which dependency edges affect the selected asset, and what downstream blast radius is inferred.

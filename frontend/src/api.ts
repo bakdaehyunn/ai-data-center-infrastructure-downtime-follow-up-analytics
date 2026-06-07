@@ -145,6 +145,62 @@ export type InfrastructureDependency = {
   dependency_active_incident_count: number
 }
 
+export type SemanticDependencyEdge = {
+  dependency_id: string
+  dependent_asset_id: string
+  dependency_asset_id: string
+  dependency_type: string
+  dependency_role: string
+}
+
+export type SemanticDependencyImpact = {
+  asset_id: string
+  direct_dependency_count: number
+  direct_dependencies: SemanticDependencyEdge[]
+  inferred_downstream_assets: string[]
+}
+
+export type SemanticIncidentEvidence = {
+  incident_id: string
+  found: boolean
+  request_title: string | null
+  asset_id: string | null
+  workflow_stage: string | null
+  current_status: string | null
+  priority_level: string | null
+  trust_issue_ids: string[]
+}
+
+export type SemanticBlastRadius = {
+  asset_id: string
+  inferred_downstream_assets: string[]
+  affected_incident_count: number
+  affected_incidents: {
+    incident_id: string
+    asset_id: string
+    title: string
+    stage: string
+  }[]
+}
+
+export type SemanticValidation = {
+  conforms: boolean
+  issue_count: number
+  issues: {
+    focus_node: string
+    result_path: string
+    message: string
+    severity: string
+  }[]
+}
+
+export type RequestSemanticContext = {
+  validation: SemanticValidation
+  incidentEvidence: SemanticIncidentEvidence
+  dependencyImpact: SemanticDependencyImpact
+  blastRadius: SemanticBlastRadius
+}
+
 export type StageLeadTime = {
   stage: string
   entered_at: string
@@ -326,6 +382,24 @@ export function fetchRequestDetail(infrastructureRequestId: string): Promise<Req
 
 export function fetchTopologyDependencies(): Promise<InfrastructureDependency[]> {
   return getJson<InfrastructureDependency[]>('/api/topology/dependencies?limit=8')
+}
+
+export async function fetchRequestSemanticContext(
+  incidentId: string,
+  assetId: string,
+): Promise<RequestSemanticContext> {
+  const [validation, incidentEvidence, dependencyImpact, blastRadius] = await Promise.all([
+    getJson<SemanticValidation>('/api/semantic/validation'),
+    getJson<SemanticIncidentEvidence>(`/api/semantic/query/incident-evidence/${incidentId}`),
+    getJson<SemanticDependencyImpact>(`/api/semantic/query/dependency-impact/${assetId}`),
+    getJson<SemanticBlastRadius>(`/api/semantic/query/blast-radius/${assetId}`),
+  ])
+  return {
+    validation,
+    incidentEvidence,
+    dependencyImpact,
+    blastRadius,
+  }
 }
 
 async function getJson<T>(path: string): Promise<T> {

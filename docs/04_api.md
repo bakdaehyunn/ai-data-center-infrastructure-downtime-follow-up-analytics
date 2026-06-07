@@ -1,6 +1,6 @@
 # API
 
-The FastAPI service exposes read-only analytics endpoints.
+The FastAPI service exposes read-only operational analytics and semantic ontology endpoints.
 
 ## Overview
 
@@ -48,17 +48,32 @@ GET /api/spares/waiting
 
 These endpoints explain where delay and operational exposure are accumulating across workflow stages, infrastructure assets, data center zones, critical spares, capacity risk, redundancy state, vendor ETA, mitigation status, and impact-confidence state.
 
-## Topology, Semantic Export, and Connector Contracts
+## Topology, Semantic Ontology, and Connector Contracts
 
 ```text
 GET /api/topology/dependencies
 GET /api/semantic/infrastructure.ttl
+GET /api/semantic/validation
+GET /api/semantic/query/dependency-impact/{asset_id}
+GET /api/semantic/query/incident-evidence/{incident_id}
+GET /api/semantic/query/blast-radius/{asset_id}
+POST /api/semantic/graph/sync
 GET /api/connectors/contracts
 ```
 
 Topology dependencies expose directed asset relationships such as rack -> PDU -> UPS -> switchgear -> generator and rack -> CRAH/CDU/chiller. Each row returns the dependent asset, dependency asset, dependency type, dependency role, impact scope, current asset statuses, and active incident counts on both sides of the edge.
 
-The semantic endpoint returns RDF/OWL-lite Turtle generated from the relational model. It is an additive projection for portfolio and validation use; it is not a graph database, SPARQL service, or replacement persistence layer.
+The semantic Turtle endpoint returns RDF/OWL and SHACL vocabulary plus instance triples generated through RDF APIs from the current canonical infrastructure records.
+
+Semantic validation runs SHACL against the generated graph and returns conformance plus validation issues.
+
+Semantic query endpoints are backed by SPARQL over the generated RDF graph:
+
+- dependency impact returns direct dependency edges and inferred downstream assets for an asset.
+- incident evidence returns the RDF incident-to-asset, stage, status, priority, and trust issue links for an incident.
+- blast radius returns inferred downstream assets and affected incidents reachable from the selected asset.
+
+Graph sync builds the RDF graph and pushes Turtle to the configured graph-store URL, for example `http://localhost:3030/infrastructure/data`. If no target URL is configured, it returns `NOT_CONFIGURED` with the local triple count.
 
 Connector contracts describe expected mounted extract files, target raw/core tables, required payload fields, cadence, and notes. They do not contain credentials and do not perform live source-system access.
 

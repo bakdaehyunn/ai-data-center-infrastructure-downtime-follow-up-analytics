@@ -4,7 +4,9 @@
 
 The workflow ontology defines how an AI infrastructure incident moves from report to safe return-to-service. It exists so the analytics layer can reconstruct state from events instead of trusting a single mutable status field.
 
-This is an application workflow ontology with an additive RDF/OWL-lite semantic export. It is not a graph database or SPARQL-backed ontology platform. The enforceable contract lives in `backend/app/domain/infrastructure_ontology.py` and is used by pipeline quality checks and reconciliation. The Turtle export at `/api/semantic/infrastructure.ttl` projects the relational model for semantic review without changing the persistence layer.
+This is now both an application workflow contract and a semantic ontology runtime. The application contract in `backend/app/domain/infrastructure_ontology.py` still protects pipeline quality checks and reconciliation. Versioned RDF/OWL and SHACL artifacts under `ontology/` define the semantic graph vocabulary and validation contract. The backend generates RDF through `rdflib`, validates the graph with `pyshacl`, and exposes SPARQL-backed API endpoints for incident evidence, dependency impact, validation issues, and blast radius.
+
+PostgreSQL remains the source-preserving ingestion and analytics store. The RDF graph is the semantic model used for ontology validation and semantic query behavior.
 
 ## Lifecycle
 
@@ -100,6 +102,8 @@ Examples in the sample topology include:
 - `ASSET-RACK-01 -> ASSET-CDU-01 -> ASSET-CHILLER-01`
 
 The topology vocabulary currently supports `POWER_PATH`, `COOLING_PATH`, `CONTROL_TELEMETRY`, and `REDUNDANCY_SUPPORT` dependency types, with `PRIMARY`, `SECONDARY`, and `BACKUP` roles. These edges explain blast-radius and dependency context, but they do not rewrite workflow stage reconstruction.
+
+The semantic graph projects those edges as `dcai:Dependency` resources with `dcai:dependentAsset`, `dcai:dependsOn`, `dcai:hasDependencyType`, `dcai:dependencyRole`, and `dcai:impactScope`. SPARQL-backed services use those assertions to answer direct dependency and inferred downstream blast-radius questions.
 
 ## Priority Rules
 

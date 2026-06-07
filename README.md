@@ -1,6 +1,6 @@
 # AI Data Center Infrastructure Downtime Follow-up Analytics
 
-AI Data Center Infrastructure Downtime Follow-up Analytics is an operational analytics product for data center facilities teams.
+AI Data Center Infrastructure Downtime Follow-up Analytics is a semantic ontology platform for AI data center facilities follow-up decisions.
 
 It answers one practical question:
 
@@ -16,7 +16,7 @@ AI data center downtime evidence rarely lives in one clean system. Incident reco
 
 That creates a real follow-up problem: teams may know that work is open, but they cannot quickly tell whether GPU capacity risk is blocked by triage, engineer assignment, a spare/vendor wait, repair execution, validation, missed vendor ETA, lost redundancy, or unreliable source data.
 
-This project builds an analytics layer for that problem. It preserves raw source records, normalizes them into a data center infrastructure model, reconstructs state from event history, checks trust issues, and produces a ranked follow-up queue.
+This project builds a semantic operations layer for that problem. It preserves raw source records, normalizes them into a data center infrastructure model, reconstructs state from event history, validates the RDF graph with SHACL, exposes SPARQL-backed semantic evidence, and produces a ranked follow-up queue.
 
 ## Customer Problem
 
@@ -82,11 +82,13 @@ scattered AI infrastructure source records
   -> core AI infrastructure tables
   -> analytics tables
   -> reconciliation issues
+  -> RDF/OWL + SHACL semantic graph
+  -> SPARQL-backed semantic API
   -> read-only FastAPI endpoints
   -> React dashboard
 ```
 
-The pipeline computes analytics before API reads. The API is read-only because the product is an operational decision layer, not a replacement for the incident, work order, telemetry, or inventory systems of record.
+The relational layer remains useful for ingestion, analytics materialization, and operational records. The ontology layer is now a first-class runtime surface for validation, incident evidence, dependency impact, and blast-radius queries.
 
 ## Source Integration Model
 
@@ -109,6 +111,8 @@ See `docs/01_architecture.md` for the source-to-question mapping and trust risks
 - core tables: `infrastructure_zones`, `infrastructure_assets`, `infrastructure_incidents`, `incident_stage_events`, `facilities_engineers`, `critical_spares`, `facility_work_orders`, `validation_results`, `telemetry_alerts`, and `infrastructure_impact_snapshots`
 - analytics tables: current status, stage lead times, follow-up queue with impact score components, bottleneck summary, asset delay summary, zone delay summary, and spare waiting summary
 - ops tables: pipeline runs, data quality check results, and reconciliation issues
+- ontology artifacts: RDF/OWL vocabulary for infrastructure, workflow, and topology plus SHACL shapes under `ontology/`
+- semantic graph runtime: RDF generation through `rdflib`, SHACL validation through `pyshacl`, SPARQL-backed query functions, and optional Fuseki sync
 
 ## Backend Responsibilities
 
@@ -121,8 +125,12 @@ See `docs/01_architecture.md` for the source-to-question mapping and trust risks
 - Detect reconciliation issues between core state, event history, and analytics outputs
 - Detect impact-context trust issues such as missing snapshots, stale snapshots, vendor ETA mismatch, mitigation evidence gaps, and unexplained thermal or capacity risk
 - Model infrastructure topology dependencies across rack, power, cooling, switchgear, generator, CRAH, CDU, and chiller assets
+- Generate RDF from canonical infrastructure records using RDF APIs
+- Validate the semantic graph against SHACL shapes
+- Query dependency impact, incident evidence, validation issues, and blast radius through SPARQL-backed service functions
+- Sync the generated semantic graph to a Fuseki-compatible graph-store endpoint when configured
 - Score follow-up priority using downtime, criticality, urgency, repeat failure, spare/vendor risk, capacity risk, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit
-- Expose read-only analytics, topology, semantic export, and connector-contract endpoints
+- Expose read-only analytics, topology, semantic ontology, semantic query, graph sync, and connector-contract endpoints
 
 ## Production Story
 
@@ -131,6 +139,7 @@ The practical production path is intentionally modest:
 - Dockerized API and frontend build targets
 - scheduled pipeline execution against source extracts
 - PostgreSQL analytics database
+- Fuseki-compatible semantic graph service for RDF graph storage and SPARQL access
 - API health check
 - latest-run pipeline status
 - data quality and reconciliation report surfaces
@@ -168,6 +177,11 @@ GET /api/zones/delays
 GET /api/spares/waiting
 GET /api/topology/dependencies
 GET /api/semantic/infrastructure.ttl
+GET /api/semantic/validation
+GET /api/semantic/query/dependency-impact/{asset_id}
+GET /api/semantic/query/incident-evidence/{incident_id}
+GET /api/semantic/query/blast-radius/{asset_id}
+POST /api/semantic/graph/sync
 GET /api/connectors/contracts
 GET /api/metadata/filters
 GET /api/pipeline-runs
@@ -186,7 +200,7 @@ The React dashboard is built for follow-up decisions:
 - Queue scope controls for clear queue subsets such as vendor ETA missed, spare/vendor wait, evidence review, and N-1 exposure
 - Compact desktop follow-up table with one value per column and explicit `View details` links
 - Dedicated follow-up detail route with Summary, Impact, Trust, and Dependencies tabs
-- Detail evidence for stage history, work order context, spare context, impact snapshot context, telemetry evidence, vendor/mitigation status, impact trust flags, dependency paths, and quality flags
+- Detail evidence for stage history, work order context, spare context, impact snapshot context, telemetry evidence, vendor/mitigation status, impact trust flags, dependency paths, SHACL validation status, semantic incident evidence, and SPARQL-backed blast-radius context
 
 Run the frontend build:
 
@@ -202,6 +216,12 @@ npm run build
 - SQLAlchemy
 - Alembic
 - PostgreSQL
+- RDF/OWL
+- SHACL
+- SPARQL
+- rdflib
+- pyshacl
+- Fuseki-compatible triple store
 - React
 - TypeScript
 - Vite
@@ -211,9 +231,9 @@ npm run build
 ## Reading Path
 
 - `docs/00_project_brief.md`: customer problem, users, success questions, and scope
-- `docs/07_workflow_ontology.md`: lifecycle, allowed transitions, exceptions, dependency states, and restoration rules
+- `docs/07_workflow_ontology.md`: lifecycle, allowed transitions, semantic ontology runtime, dependency states, and restoration rules
 - `docs/01_architecture.md`: source integration model and layer responsibilities
 - `docs/08_analytics_control_layer.md`: state reconstruction, scoring, reconciliation, and trust boundary
 - `docs/09_production_rollout.md`: deployment, scheduling, health, observability, data quality reporting, and rollback
 - `docs/10_operational_case_study.md`: Problem -> Discovery -> Data sources -> Workflow model -> System design -> Tradeoffs -> Production rollout plan -> Measured impact
-- `docs/11_topology_semantic_connectors.md`: phase-two topology graph, RDF/OWL-lite export, and connector contracts
+- `docs/11_topology_semantic_connectors.md`: topology graph, semantic ontology API, Fuseki sync, and connector contracts

@@ -1,0 +1,22 @@
+@prefix dcai: <https://example.local/ai-data-center-infrastructure#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai:AssetShape a sh:NodeShape ;
+  sh:targetClass dcai:Asset ;
+  sh:property [ sh:path dcai:locatedIn ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path dcai:assetType ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path dcai:hasCurrentStatus ; sh:minCount 1 ; sh:datatype xsd:string ] .
+
+dcai:IncidentShape a sh:NodeShape ;
+  sh:targetClass dcai:Incident ;
+  sh:property [ sh:path dcai:affectsAsset ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path dcai:workflowStage ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path dcai:priorityLevel ; sh:minCount 1 ; sh:datatype xsd:string ] .
+
+dcai:DependencyShape a sh:NodeShape ;
+  sh:targetClass dcai:Dependency ;
+  sh:property [ sh:path dcai:dependentAsset ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path dcai:dependsOn ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path dcai:hasDependencyType ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path dcai:dependencyRole ; sh:minCount 1 ; sh:datatype xsd:string ] .

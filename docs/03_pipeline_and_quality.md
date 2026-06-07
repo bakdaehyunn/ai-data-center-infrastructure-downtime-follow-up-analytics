@@ -53,7 +53,7 @@ Infrastructure dependency edges are loaded as master/reference data after assets
 
 Impact snapshots are loaded after core incidents, assets, and zones are known. Invalid incident, asset, or zone references are skipped before analytics is built.
 
-The workflow ontology checks are application-level checks backed by `backend/app/domain/infrastructure_ontology.py`. They validate controlled vocabulary, event progression, and topology edge semantics without introducing graph storage or a new ontology runtime dependency. RDF/OWL-lite output is exposed separately as an additive semantic export.
+The workflow ontology checks are application-level checks backed by `backend/app/domain/infrastructure_ontology.py`. They validate controlled vocabulary, event progression, and topology edge semantics during ingestion and reconciliation. The semantic layer then projects the accepted canonical records into RDF, validates them with SHACL, and exposes SPARQL-backed evidence and dependency queries.
 
 ## Reconciliation Checks
 

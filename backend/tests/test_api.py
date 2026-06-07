@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from rdflib import Graph
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -241,6 +242,9 @@ def test_topology_semantic_and_connector_endpoints_expose_phase_two(api_client: 
     assert rack_power["dependency_active_incident_count"] == 1
 
     semantic = semantic_response.text
+    graph = Graph()
+    graph.parse(data=semantic, format="turtle")
+    assert len(graph) > 0
     assert "@prefix owl:" in semantic
     assert "@prefix sh:" in semantic
     assert "dcai:DEP-RACK-PDU a dcai:Dependency" in semantic
@@ -254,6 +258,51 @@ def test_topology_semantic_and_connector_endpoints_expose_phase_two(api_client: 
         field in {"password", "secret", "token", "credential"}
         for field in topology_contract["required_payload_fields"]
     )
+
+
+def test_semantic_platform_endpoints_return_deterministic_graph_results(api_client: TestClient) -> None:
+    validation_response = api_client.get("/api/semantic/validation")
+    dependency_response = api_client.get("/api/semantic/query/dependency-impact/ASSET-GEN-01")
+    evidence_response = api_client.get("/api/semantic/query/incident-evidence/INC-0007")
+    blast_radius_response = api_client.get("/api/semantic/query/blast-radius/ASSET-GEN-01")
+    sync_response = api_client.post("/api/semantic/graph/sync")
+
+    assert validation_response.status_code == 200
+    assert dependency_response.status_code == 200
+    assert evidence_response.status_code == 200
+    assert blast_radius_response.status_code == 200
+    assert sync_response.status_code == 200
+
+    validation = validation_response.json()
+    assert validation["conforms"] is True
+    assert validation["issue_count"] == 0
+
+    dependencies = dependency_response.json()
+    assert dependencies["asset_id"] == "ASSET-GEN-01"
+    assert "ASSET-RACK-01" in dependencies["inferred_downstream_assets"]
+    assert any(
+        row["dependency_id"] == "DEP-SWGR-GEN"
+        for row in dependencies["direct_dependencies"]
+    )
+
+    evidence = evidence_response.json()
+    assert evidence["found"] is True
+    assert evidence["asset_id"] == "ASSET-GEN-01"
+    assert evidence["workflow_stage"] == "SPARE_VENDOR_WAITING"
+    assert evidence["current_status"] == "IN_PROGRESS"
+    assert len(evidence["trust_issue_ids"]) == 1
+    assert evidence["trust_issue_ids"][0].startswith("REC-RUN-")
+
+    blast_radius = blast_radius_response.json()
+    assert blast_radius["asset_id"] == "ASSET-GEN-01"
+    assert blast_radius["affected_incident_count"] >= 1
+    assert "ASSET-RACK-01" in blast_radius["inferred_downstream_assets"]
+    assert any(row["incident_id"] == "INC-0007" for row in blast_radius["affected_incidents"])
+
+    sync = sync_response.json()
+    assert sync["configured"] is False
+    assert sync["status"] == "NOT_CONFIGURED"
+    assert sync["triple_count"] > 0
 
 
 def test_data_quality_endpoints_expose_failed_checks(api_client: TestClient) -> None:

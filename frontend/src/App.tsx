@@ -22,9 +22,11 @@ import {
   type FollowUpItem,
   type InfrastructureDependency,
   type RequestDetail,
+  type RequestSemanticContext,
   fetchDashboardData,
   fetchFilterMetadata,
   fetchRequestDetail,
+  fetchRequestSemanticContext,
   fetchTopologyDependencies,
 } from './api'
 import './App.css'
@@ -552,6 +554,7 @@ function FollowUpDetailPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<DetailTab>('summary')
   const [detail, setDetail] = useState<RequestDetail | null>(null)
+  const [semanticContext, setSemanticContext] = useState<RequestSemanticContext | null>(null)
   const [topologyDependencies, setTopologyDependencies] = useState<InfrastructureDependency[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -567,17 +570,20 @@ function FollowUpDetailPage() {
       setLoading(true)
       setError(null)
       try {
-        const [requestDetail, dependencies] = await Promise.all([
-          fetchRequestDetail(incidentId),
+        const requestDetail = await fetchRequestDetail(incidentId)
+        const [dependencies, semantic] = await Promise.all([
           fetchTopologyDependencies(),
+          fetchRequestSemanticContext(requestDetail.request.incident_id, requestDetail.request.asset_id),
         ])
         if (!cancelled) {
           setDetail(requestDetail)
+          setSemanticContext(semantic)
           setTopologyDependencies(dependencies)
         }
       } catch {
         if (!cancelled) {
           setDetail(null)
+          setSemanticContext(null)
           setTopologyDependencies([])
           setError('Follow-up not found or unavailable')
         }
@@ -630,10 +636,10 @@ function FollowUpDetailPage() {
 
         <div className="detail-page-body">
           {loading ? <div className="empty-state">Loading selected incident details</div> : null}
-          {!loading && activeTab === 'summary' ? <RequestDetailView detail={detail} /> : null}
-          {!loading && activeTab === 'impact' ? <ImpactView detail={detail} /> : null}
-          {!loading && activeTab === 'trust' ? <RequestTrustView detail={detail} /> : null}
-          {!loading && activeTab === 'dependencies' ? <DependencyDetailView detail={detail} topologyDependencies={topologyDependencies} /> : null}
+          {!loading && activeTab === 'summary' ? <RequestDetailView detail={detail} semanticContext={semanticContext} /> : null}
+          {!loading && activeTab === 'impact' ? <ImpactView detail={detail} semanticContext={semanticContext} /> : null}
+          {!loading && activeTab === 'trust' ? <RequestTrustView detail={detail} semanticContext={semanticContext} /> : null}
+          {!loading && activeTab === 'dependencies' ? <DependencyDetailView detail={detail} semanticContext={semanticContext} topologyDependencies={topologyDependencies} /> : null}
         </div>
       </section>
     </main>
@@ -657,7 +663,10 @@ function NotFoundPage() {
   )
 }
 
-function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
+function RequestDetailView({ detail, semanticContext }: {
+  detail: RequestDetail | null
+  semanticContext: RequestSemanticContext | null
+}) {
   if (!detail) {
     return <div className="empty-state">Select a queued incident to inspect the follow-up action</div>
   }
@@ -688,6 +697,16 @@ function RequestDetailView({ detail }: { detail: RequestDetail | null }) {
         <SummaryMetric label="Capacity risk" value={`${capacityRiskKw.toFixed(0)} kW`} tone={capacityRiskKw > 0 ? 'danger' : undefined} />
         <SummaryMetric label="Trust" value={trustStatusLabel(detail.impact_confidence_status)} tone={detail.impact_confidence_status === 'TRUSTED' ? 'ok' : 'warning'} />
         <SummaryMetric label="Evidence issues" value={String(evidenceIssueCount)} tone={evidenceIssueCount ? 'warning' : 'ok'} />
+        <SummaryMetric
+          label="Ontology validation"
+          value={semanticContext?.validation.conforms ? 'Conforms' : 'Review'}
+          tone={semanticContext?.validation.conforms ? 'ok' : 'warning'}
+        />
+        <SummaryMetric
+          label="Semantic evidence"
+          value={semanticContext?.incidentEvidence.found ? 'Linked' : 'Missing'}
+          tone={semanticContext?.incidentEvidence.found ? 'ok' : 'warning'}
+        />
       </div>
 
       <div className="detail-summary">
@@ -735,7 +754,10 @@ function SummaryMetric({ label, value, detail, tone }: {
   )
 }
 
-function ImpactView({ detail }: { detail: RequestDetail | null }) {
+function ImpactView({ detail, semanticContext }: {
+  detail: RequestDetail | null
+  semanticContext: RequestSemanticContext | null
+}) {
   if (!detail) {
     return <div className="empty-state">Select a queued incident to inspect impact context</div>
   }
@@ -764,6 +786,7 @@ function ImpactView({ detail }: { detail: RequestDetail | null }) {
               { label: 'Capacity risk', value: `${impact.estimated_capacity_risk_kw.toFixed(0)} kW`, detail: `${impact.estimated_gpu_capacity_risk_pct.toFixed(1)}% GPU capacity risk`, tone: capacityRiskTone(impact.estimated_capacity_risk_kw, impact.estimated_gpu_capacity_risk_pct) },
               { label: 'Affected GPUs', value: String(impact.affected_gpu_count), detail: impact.source_system },
               { label: 'Thermal breach', value: `${impact.thermal_breach_minutes}m`, detail: 'Thermal exposure window', tone: impact.thermal_breach_minutes > 0 ? 'warning' : undefined },
+              { label: 'Semantic asset link', value: semanticContext?.incidentEvidence.asset_id ?? 'Missing', detail: 'RDF incident-to-asset assertion', tone: semanticContext?.incidentEvidence.found ? undefined : 'warning' },
             ]}
           />
 
@@ -815,7 +838,10 @@ function ImpactView({ detail }: { detail: RequestDetail | null }) {
   )
 }
 
-function RequestTrustView({ detail }: { detail: RequestDetail | null }) {
+function RequestTrustView({ detail, semanticContext }: {
+  detail: RequestDetail | null
+  semanticContext: RequestSemanticContext | null
+}) {
   if (!detail) {
     return <div className="empty-state">Select a queued incident to review data trust</div>
   }
@@ -841,6 +867,35 @@ function RequestTrustView({ detail }: { detail: RequestDetail | null }) {
         <SummaryMetric label="Evidence issues" value={String(detail.impact_trust_flags.length)} detail="Impact evidence flags" tone={detail.impact_trust_flags.length ? 'warning' : 'ok'} />
         <SummaryMetric label="Source quality" value={String(detail.quality_flags.length)} detail="Incident source flags" tone={detail.quality_flags.length ? 'danger' : 'ok'} />
         <SummaryMetric label="Validation records" value={String(detail.validation_results.length)} detail={validationSummaryText} tone={validationTone(validationSummaryText)} />
+        <SummaryMetric
+          label="Ontology validation"
+          value={semanticContext?.validation.conforms ? 'Conforms' : 'Review'}
+          detail={`${semanticContext?.validation.issue_count ?? 0} SHACL issues`}
+          tone={semanticContext?.validation.conforms ? 'ok' : 'warning'}
+        />
+        <SummaryMetric
+          label="Semantic trust links"
+          value={String(semanticContext?.incidentEvidence.trust_issue_ids.length ?? 0)}
+          detail="Trust issues linked in RDF graph"
+          tone={(semanticContext?.incidentEvidence.trust_issue_ids.length ?? 0) ? 'warning' : 'ok'}
+        />
+      </div>
+
+      <div className="detail-section evidence-section">
+        <strong className="detail-section-title">Ontology validation evidence</strong>
+        {semanticContext?.validation.issues.length ? (
+          <div className="brief-card-grid">
+            {semanticContext.validation.issues.map((issue) => (
+              <div className="brief-evidence-card warning" key={`${issue.focus_node}-${issue.result_path}-${issue.message}`}>
+                <strong>{issue.focus_node}</strong>
+                <span>{issue.message}</span>
+                <small>{issue.result_path} · {issue.severity}</small>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state compact-empty">RDF graph conforms to the current SHACL ontology contract</div>
+        )}
       </div>
 
       <div className="detail-section evidence-section">
@@ -896,7 +951,11 @@ function RequestTrustView({ detail }: { detail: RequestDetail | null }) {
   )
 }
 
-function DependencyDetailView({ detail, topologyDependencies }: { detail: RequestDetail | null; topologyDependencies: InfrastructureDependency[] }) {
+function DependencyDetailView({ detail, semanticContext, topologyDependencies }: {
+  detail: RequestDetail | null
+  semanticContext: RequestSemanticContext | null
+  topologyDependencies: InfrastructureDependency[]
+}) {
   const paths = buildTopologyPaths(topologyDependencies)
   const activeIncidentCount = paths.reduce((total, path) => total + path.activeIncidentCount, 0)
   if (!detail) {
@@ -924,8 +983,29 @@ function DependencyDetailView({ detail, topologyDependencies }: { detail: Reques
           { label: 'Path incidents', value: String(activeIncidentCount), detail: 'Active incidents on paths', tone: activeIncidentCount > 0 ? 'warning' : undefined },
           { label: 'Capacity risk', value: `${detail.request.estimated_capacity_risk_kw.toFixed(0)} kW`, detail: `${detail.request.affected_gpu_count} affected GPUs`, tone: capacityRiskTone(detail.request.estimated_capacity_risk_kw) },
           { label: 'Redundancy', value: detail.request.redundancy_state ?? 'Unknown', detail: 'Selected incident redundancy state', tone: redundancyTone(detail.request.redundancy_state) },
+          { label: 'Inferred downstream', value: String(semanticContext?.blastRadius.inferred_downstream_assets.length ?? 0), detail: 'SPARQL blast-radius traversal', tone: (semanticContext?.blastRadius.inferred_downstream_assets.length ?? 0) ? 'warning' : undefined },
         ]}
       />
+
+      <div className="detail-section evidence-section">
+        <strong className="detail-section-title">Semantic dependency evidence</strong>
+        <EvidenceRows
+          items={[
+            {
+              label: 'Direct graph edges',
+              value: String(semanticContext?.dependencyImpact.direct_dependency_count ?? 0),
+              detail: 'Incident asset dependency assertions',
+              tone: (semanticContext?.dependencyImpact.direct_dependency_count ?? 0) ? 'warning' : undefined,
+            },
+            {
+              label: 'Blast-radius incidents',
+              value: String(semanticContext?.blastRadius.affected_incident_count ?? 0),
+              detail: 'Incidents on selected asset or inferred downstream assets',
+              tone: (semanticContext?.blastRadius.affected_incident_count ?? 0) ? 'warning' : undefined,
+            },
+          ]}
+        />
+      </div>
 
       <div className="detail-section evidence-section">
         <strong className="detail-section-title">Power and cooling paths</strong>
@@ -948,7 +1028,7 @@ type BriefFact = {
   label: string
   value: string
   detail?: string
-  tone?: 'warning' | 'danger'
+  tone?: 'ok' | 'warning' | 'danger'
 }
 
 function FactStrip({ ariaLabel, items }: { ariaLabel: string; items: BriefFact[] }) {
