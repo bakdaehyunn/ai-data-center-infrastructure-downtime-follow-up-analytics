@@ -141,3 +141,7 @@ Phase 18 adds a semantic response contract checkpoint. The runtime remains
 CLI-only, but `openapi.semantic-service.yaml` and `api-dtos.md` now define
 future typed query response shapes, semantic error envelopes, and versioning
 rules aligned to the Phase 17 result envelopes.
+
+Phase 19 adds internal-only response serialization. The runtime remains
+CLI-only, but query-result envelopes and semantic errors can now be converted
+into deterministic in-memory payload maps aligned to the Phase 18 contract.

@@ -4,12 +4,12 @@ plugins {
 }
 
 group = "com.dcai.semantic"
-version = "2026.06.phase18-response-contract-checkpoint"
+version = "2026.06.phase19-internal-response-serialization"
 
-description = "Semantic response contract checkpoint for the ontology-native semantic service."
+description = "Internal response serialization boundary for the ontology-native semantic service."
 
 dependencies {
-    // Jena 5.6.0 keeps this Phase 18 baseline compatible with the current JDK 17
+    // Jena 5.6.0 keeps this Phase 19 baseline compatible with the current JDK 17
     // verification image. Revisit the version when the service toolchain moves.
     implementation("org.apache.jena:jena-arq:5.6.0")
     implementation("org.apache.jena:jena-shacl:5.6.0")
@@ -28,6 +28,6 @@ application {
     mainClass.set("com.dcai.semanticservice.runtime.SemanticServiceApplication")
 }
 
-// Phase 18 intentionally does not apply a web framework plugin, define
+// Phase 19 intentionally does not apply a web framework plugin, define
 // controllers, generate runtime DTOs, run reasoning, or expose unrestricted graph
-// writes. Response contracts remain static and CLI-validated only.
+// writes. Response serialization remains internal and CLI-validated only.

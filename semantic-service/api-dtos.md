@@ -96,6 +96,15 @@ Initial semantic query error codes:
 - `contract-validation-failed`
 - `internal-semantic-service-error`
 
+Phase 19 internal serialization:
+
+- `SemanticResponseSerializer` converts Phase 17 result envelopes into
+  Phase 18-shaped in-memory response maps.
+- It also converts approved semantic error codes into the Phase 18
+  `SemanticErrorResponse` map shape.
+- This is not HTTP serialization, JSON serialization, controller behavior, or
+  public endpoint implementation.
+
 ## Reasoning Validation
 
 Endpoint shape: `POST /semantic/reasoning/validate`

@@ -1,0 +1,17 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase19-internal-response-serialization
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 19 internal response serialization release" ;
+  dcterms:description "Implementation release that adds internal-only response serialization from Phase 17 query-result envelopes and semantic errors into Phase 18-shaped in-memory payloads. This release does not implement public endpoints, graph writes, SPARQL Update execution, reasoning orchestration, UI redesign, old-runtime removal, commit, or push." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase18-semantic-response-contract-checkpoint ;
+  dcterms:hasPart
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/response/SemanticResponseSerializer.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/response/SemanticResponseSerializerTest.kt>,
+    <../../semantic-service/api-dtos.md>,
+    <../../docs/ontology-native/phase19_internal_response_serialization.md> .

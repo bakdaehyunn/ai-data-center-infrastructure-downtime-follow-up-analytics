@@ -258,3 +258,4 @@ npm run build
 - `docs/ontology-native/phase16_controlled_read_only_query_execution.md`: Phase 16 controlled read-only query execution over fixture named graphs using approved manifest query IDs
 - `docs/ontology-native/phase17_query_result_contract_shaping.md`: Phase 17 stable query-result envelopes for future incident, provenance, and named-graph inspection responses
 - `docs/ontology-native/phase18_semantic_response_contract_checkpoint.md`: Phase 18 semantic response contract checkpoint for future typed query DTOs, error envelopes, versioning rules, and OpenAPI alignment
+- `docs/ontology-native/phase19_internal_response_serialization.md`: Phase 19 internal-only response serialization from typed query envelopes and semantic errors into Phase 18-shaped payloads
