@@ -1,0 +1,18 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase18-semantic-response-contract-checkpoint
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 18 semantic response contract checkpoint release" ;
+  dcterms:description "Implementation release that adds a non-runtime semantic response contract checkpoint for future typed query DTOs, JSON response shapes, semantic error envelopes, versioning rules, OpenAPI alignment, and static contract tests. This release does not implement public endpoints, graph writes, SPARQL Update execution, reasoning orchestration, UI redesign, old-runtime removal, commit, or push." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase17-query-result-contract-shaping ;
+  dcterms:hasPart
+    <../../semantic-service/openapi.semantic-service.yaml>,
+    <../../semantic-service/api-dtos.md>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/contracts/SemanticServiceContractCatalog.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/contracts/SemanticResponseContractTest.kt>,
+    <../../docs/ontology-native/phase18_semantic_response_contract_checkpoint.md> .

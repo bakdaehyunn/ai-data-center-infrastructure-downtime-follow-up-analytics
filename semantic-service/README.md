@@ -136,3 +136,8 @@ Phase 17 adds stable result-envelope shaping for future semantic service
 responses. The runtime remains CLI-only, but approved query results now map
 into typed contracts for named graph inventory, incident summary, and
 provenance source-record inspection.
+
+Phase 18 adds a semantic response contract checkpoint. The runtime remains
+CLI-only, but `openapi.semantic-service.yaml` and `api-dtos.md` now define
+future typed query response shapes, semantic error envelopes, and versioning
+rules aligned to the Phase 17 result envelopes.

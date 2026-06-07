@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
   title: AI Data Center Semantic Service API Contract
-  version: 2026-06-phase9-scaffold
+  version: 2026-06-phase18-response-contract-checkpoint
   description: >
     Non-runtime OpenAPI-style scaffold for the future Java/Kotlin semantic
-    service. This contract documents endpoint shapes and DTOs only. It is not
-    wired to controllers, code generation, authentication, orchestration, graph
-    promotion, or production SPARQL execution.
+    service. Phase 18 aligns future response DTO shapes with the Phase 17
+    query-result envelopes. This contract documents endpoint shapes and DTOs
+    only. It is not wired to controllers, code generation, authentication,
+    orchestration, graph promotion, or production SPARQL execution.
 servers:
   - url: https://semantic-service.example.invalid
-    description: Placeholder only; no runtime service exists in Phase 9.
+    description: Placeholder only; no runtime service exists in Phase 18.
 paths:
   /semantic/query/{queryId}:
     post:
@@ -30,11 +31,17 @@ paths:
               $ref: "#/components/schemas/QueryExecutionRequest"
       responses:
         "200":
-          description: Query execution result envelope.
+          description: Typed query result envelope aligned to Phase 17 result contracts.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/QueryExecutionResponse"
+        default:
+          description: Semantic service error envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SemanticErrorResponse"
   /semantic/reasoning/validate:
     post:
       operationId: validateReasoningOutput
@@ -132,22 +139,145 @@ components:
           type: integer
           minimum: 1
     QueryExecutionResponse:
+      oneOf:
+        - $ref: "#/components/schemas/NamedGraphInventoryResponse"
+        - $ref: "#/components/schemas/IncidentSummaryResponse"
+        - $ref: "#/components/schemas/ProvenanceSourceRecordsResponse"
+      discriminator:
+        propertyName: resultType
+        mapping:
+          named-graph-inventory: "#/components/schemas/NamedGraphInventoryResponse"
+          incident-summary: "#/components/schemas/IncidentSummaryResponse"
+          provenance-source-records: "#/components/schemas/ProvenanceSourceRecordsResponse"
+    QueryResultEnvelopeBase:
       type: object
       required:
         - queryId
-        - rows
+        - resultType
+        - recordCount
+        - records
         - provenance
       properties:
         queryId:
           type: string
-        rows:
+        resultType:
+          type: string
+          enum:
+            - named-graph-inventory
+            - incident-summary
+            - provenance-source-records
+        recordCount:
+          type: integer
+          minimum: 0
+        records:
           type: array
           items:
             type: object
-            additionalProperties:
-              type: string
         provenance:
-          $ref: "#/components/schemas/ResponseProvenance"
+          $ref: "#/components/schemas/SemanticResponseProvenance"
+      additionalProperties: false
+    NamedGraphInventoryResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          required:
+            - records
+          properties:
+            resultType:
+              type: string
+              enum:
+                - named-graph-inventory
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/NamedGraphInventoryRecord"
+    NamedGraphInventoryRecord:
+      type: object
+      required:
+        - graphUri
+        - subjectCount
+      properties:
+        graphUri:
+          type: string
+        subjectCount:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    IncidentSummaryResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          required:
+            - records
+          properties:
+            resultType:
+              type: string
+              enum:
+                - incident-summary
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/IncidentSummaryRecord"
+    IncidentSummaryRecord:
+      type: object
+      required:
+        - graphUri
+        - incidentUri
+        - incidentId
+        - assetUri
+        - stageUri
+      properties:
+        graphUri:
+          type: string
+        incidentUri:
+          type: string
+        incidentId:
+          type: string
+        assetUri:
+          type: string
+        stageUri:
+          type: string
+        sourceRecordUri:
+          type: string
+      additionalProperties: false
+    ProvenanceSourceRecordsResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          required:
+            - records
+          properties:
+            resultType:
+              type: string
+              enum:
+                - provenance-source-records
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProvenanceSourceRecord"
+    ProvenanceSourceRecord:
+      type: object
+      required:
+        - graphUri
+        - sourceRecordUri
+        - sourceRecordId
+        - sourceSystemUri
+        - payloadHash
+        - activityUri
+      properties:
+        graphUri:
+          type: string
+        sourceRecordUri:
+          type: string
+        sourceRecordId:
+          type: string
+        sourceSystemUri:
+          type: string
+        payloadHash:
+          type: string
+        activityUri:
+          type: string
+      additionalProperties: false
     ReasoningValidationRequest:
       type: object
       required:
@@ -290,16 +420,52 @@ components:
           type: string
         object:
           type: string
-    ResponseProvenance:
+    SemanticResponseProvenance:
       type: object
       required:
-        - graphRelease
-        - queryVersion
+        - queryId
+        - graphScope
+        - contractVersion
       properties:
-        graphRelease:
+        queryId:
           type: string
-        queryVersion:
+        graphScope:
           type: string
-        generatedAt:
+        contractVersion:
           type: string
-          format: date-time
+          example: 2026.06.phase17-result-envelope
+      additionalProperties: false
+    SemanticErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          $ref: "#/components/schemas/SemanticError"
+      additionalProperties: false
+    SemanticError:
+      type: object
+      required:
+        - code
+        - message
+        - contractVersion
+      properties:
+        code:
+          type: string
+          enum:
+            - unapproved-query-id
+            - unsupported-result-envelope
+            - missing-required-binding
+            - graph-unavailable
+            - contract-validation-failed
+            - internal-semantic-service-error
+        message:
+          type: string
+        detail:
+          type: string
+        queryId:
+          type: string
+        contractVersion:
+          type: string
+          example: 2026.06.phase18-error-envelope
+      additionalProperties: false
