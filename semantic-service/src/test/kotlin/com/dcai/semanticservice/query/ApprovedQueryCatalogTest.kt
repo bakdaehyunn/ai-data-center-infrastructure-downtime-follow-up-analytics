@@ -19,6 +19,7 @@ class ApprovedQueryCatalogTest {
                 "fixtureNamedGraphInventory",
                 "fixtureIncidentSummary",
                 "fixtureProvenanceSourceRecords",
+                "semanticFollowUpQueueList",
             ),
             manifest.entries.keys,
         )

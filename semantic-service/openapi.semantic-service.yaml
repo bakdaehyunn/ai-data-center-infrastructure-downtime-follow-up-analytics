@@ -143,12 +143,14 @@ components:
         - $ref: "#/components/schemas/NamedGraphInventoryResponse"
         - $ref: "#/components/schemas/IncidentSummaryResponse"
         - $ref: "#/components/schemas/ProvenanceSourceRecordsResponse"
+        - $ref: "#/components/schemas/FollowUpQueueResponse"
       discriminator:
         propertyName: resultType
         mapping:
           named-graph-inventory: "#/components/schemas/NamedGraphInventoryResponse"
           incident-summary: "#/components/schemas/IncidentSummaryResponse"
           provenance-source-records: "#/components/schemas/ProvenanceSourceRecordsResponse"
+          follow-up-queue: "#/components/schemas/FollowUpQueueResponse"
     QueryResultEnvelopeBase:
       type: object
       required:
@@ -166,6 +168,7 @@ components:
             - named-graph-inventory
             - incident-summary
             - provenance-source-records
+            - follow-up-queue
         recordCount:
           type: integer
           minimum: 0
@@ -276,6 +279,55 @@ components:
         payloadHash:
           type: string
         activityUri:
+          type: string
+      additionalProperties: false
+    FollowUpQueueResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          required:
+            - records
+          properties:
+            resultType:
+              type: string
+              enum:
+                - follow-up-queue
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/FollowUpQueueRecord"
+    FollowUpQueueRecord:
+      type: object
+      required:
+        - graphUri
+        - incidentUri
+        - incidentId
+        - assetUri
+        - assetId
+        - zoneUri
+        - zoneId
+        - stageUri
+        - sourceRecordUri
+      properties:
+        graphUri:
+          type: string
+        incidentUri:
+          type: string
+        incidentId:
+          type: string
+        assetUri:
+          type: string
+        assetId:
+          type: string
+        zoneUri:
+          type: string
+        zoneId:
+          type: string
+        stageUri:
+          type: string
+        stageLabel:
+          type: string
+        sourceRecordUri:
           type: string
       additionalProperties: false
     ReasoningValidationRequest:

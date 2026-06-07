@@ -144,6 +144,7 @@ class PrivateSemanticQueryEndpoint(
             "fixtureNamedGraphInventory",
             "fixtureIncidentSummary",
             "fixtureProvenanceSourceRecords",
+            "semanticFollowUpQueueList",
         )
     }
 }

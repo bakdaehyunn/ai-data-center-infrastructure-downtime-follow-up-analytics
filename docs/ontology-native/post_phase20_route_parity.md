@@ -30,6 +30,7 @@ Current Phase 17/18/19 response result types:
 - `named-graph-inventory`
 - `incident-summary`
 - `provenance-source-records`
+- `follow-up-queue`
 
 Everything else in this parity plan requires new query IDs, new typed result
 envelopes, SHACL/provenance gates, or command-boundary design before the old
@@ -57,7 +58,7 @@ FastAPI route can be retired.
 | --- | --- | --- | --- | --- | --- | --- |
 | `GET /api/health` | Runtime/operator | `semanticServiceHealth` service operation, no SPARQL | `SemanticHealthEnvelope` | service version, graph endpoint, contract versions, readiness state | Command boundary | health succeeds without exposing graph internals; degraded graph returns typed error/status |
 | `GET /api/overview` | Dashboard | `semanticDashboardOverview` | `DashboardOverviewEnvelope` | canonical incidents/assets, latest reasoning findings, quality/provenance graph references | New read-model query | old-vs-new counts for open, delayed, critical, capacity, GPU, redundancy, vendor ETA, quality |
-| `GET /api/follow-ups` | Dashboard primary queue | `semanticFollowUpQueueList` | `FollowUpQueueEnvelope` | incident, asset, stage, impact, trust, and reasoning activity lineage per row | New read-model query | ranked order, filters, limit handling, queue scope counts, selected preview fields |
+| `GET /api/follow-ups` | Dashboard primary queue | `semanticFollowUpQueueList` | `FollowUpQueueEnvelope` | incident, asset, zone, stage, and source-record provenance per row now; impact/trust/reasoning lineage later | Partial product read model implemented | current semantic payload shape, then ranked order, filters, limit handling, queue scope counts, selected preview fields before UI cutover |
 | `GET /api/follow-ups/{incident_id}` | Detail route | `semanticFollowUpDetail` | `FollowUpDetailEnvelope` | source records for incident, asset, current state, stage evidence, work order, validation, telemetry, impact, trust | New read-model query | detail tabs render from semantic payload; 404/error envelope for unknown incident |
 | `GET /api/follow-ups/{incident_id}/timeline` | Detail/reference | `semanticIncidentTimeline` | `IncidentTimelineEnvelope` | event source record and import activity for each event | New read-model query | chronological ordering, stage/event vocabulary, missing incident error |
 | `GET /api/impact/summary` | Dashboard | `semanticImpactSummary` | `ImpactSummaryEnvelope` | impact snapshots, trust findings, reasoning activity for derived counts | Reasoning-backed read model | capacity/GPU/redundancy/vendor/trust counts match accepted fixture parity |
@@ -111,7 +112,7 @@ Add these query IDs to `queries/manifest.ttl` only when the matching SPARQL and
 typed envelope are implemented and tested:
 
 - `semanticDashboardOverview`
-- `semanticFollowUpQueueList`
+- `semanticFollowUpQueueList` - implemented first canonical read-model slice
 - `semanticFollowUpDetail`
 - `semanticIncidentTimeline`
 - `semanticImpactSummary`
@@ -167,12 +168,17 @@ Why this is first:
   the same time
 - it proves Phase 20's endpoint readiness rule that every endpoint response
   must go through `SemanticResponseSerializer`
-- it creates the contract surface needed before product routes such as
-  `semanticFollowUpQueueList` can safely replace FastAPI
+- it creates the contract surface that product read models use before they can
+  safely replace FastAPI routes
 
-The first product parity slice after that should be
-`semanticFollowUpQueueList`, because it supports the primary workflow and
-unblocks migration of the Follow-up Queue without redesigning the dashboard.
+The first product parity slice on that boundary is `semanticFollowUpQueueList`,
+because it supports the primary workflow and starts migration of the Follow-up
+Queue without redesigning the dashboard.
+
+Current limitation: `semanticFollowUpQueueList` currently returns the canonical
+graph queue fields available in fixtures: incident, asset, zone, stage, and
+source-record provenance. It does not yet include priority rank, blocker,
+impact, trust, or recommended action fields from the old FastAPI route.
 
 ## Private Endpoint Tests For The First Slice
 
@@ -209,7 +215,7 @@ Do not remove an old FastAPI route until all are true:
 
 ## Verification Commands
 
-For this docs-only parity plan:
+For route parity and read-model checks:
 
 ```bash
 rg -n "GET /api|POST /api|semanticFollowUpQueueList|fixtureIncidentSummary|First Private Semantic Endpoint Slice" \
@@ -218,7 +224,7 @@ rg -n "GET /api|POST /api|semanticFollowUpQueueList|fixtureIncidentSummary|First
 git diff --check
 ```
 
-For the future endpoint slice:
+For endpoint and read-model implementation checks:
 
 ```bash
 cd semantic-service && ./gradlew test
@@ -243,5 +249,5 @@ git diff --check
 Suggested next implementation goal:
 
 ```text
-Start the post-Phase-20 semantic queue read-model /goal: define and implement the first product read-model query for semanticFollowUpQueueList, including SPARQL, approved query manifest entry, typed result envelope, serializer support, provenance fields, and tests. Keep the private endpoint internal-only, do not redesign UI, do not remove old FastAPI/Postgres/React runtime code, do not execute reasoning or graph writes, commit, or push.
+Start the semantic follow-up queue parity expansion /goal: extend semanticFollowUpQueueList toward old FastAPI /api/follow-ups parity by adding canonical or reasoning-backed fields for priority rank, blocker, impact, trust, recommended action, filters, and tests. Keep the private endpoint internal-only, do not switch the React UI, do not remove old runtime code, do not execute graph writes, commit, or push.
 ```

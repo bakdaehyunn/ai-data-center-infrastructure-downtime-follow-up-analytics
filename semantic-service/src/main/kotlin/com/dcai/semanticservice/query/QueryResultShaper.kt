@@ -15,6 +15,7 @@ class QueryResultShaper(
             "fixtureNamedGraphInventory" -> shapeNamedGraphInventory(report, definition)
             "fixtureIncidentSummary" -> shapeIncidentSummary(report, definition)
             "fixtureProvenanceSourceRecords" -> shapeProvenanceSourceRecords(report, definition)
+            "semanticFollowUpQueueList" -> shapeFollowUpQueue(report, definition)
             else -> error("No result envelope contract for query id: ${report.queryId}")
         }
     }
@@ -69,6 +70,30 @@ class QueryResultShaper(
                     sourceSystemUri = row.required("sourceSystem"),
                     payloadHash = row.required("payloadHash"),
                     activityUri = row.required("activity"),
+                )
+            },
+            provenance = provenance(definition),
+        )
+    }
+
+    private fun shapeFollowUpQueue(
+        report: QueryExecutionReport,
+        definition: ApprovedQueryDefinition,
+    ): FollowUpQueueEnvelope {
+        return FollowUpQueueEnvelope(
+            queryId = report.queryId,
+            records = report.rows.map { row ->
+                FollowUpQueueRecord(
+                    graphUri = row.required("graph"),
+                    incidentUri = row.required("incident"),
+                    incidentId = row.required("incidentId"),
+                    assetUri = row.required("asset"),
+                    assetId = row.required("assetId"),
+                    zoneUri = row.required("zone"),
+                    zoneId = row.required("zoneId"),
+                    stageUri = row.required("stage"),
+                    stageLabel = row.optional("stageLabel"),
+                    sourceRecordUri = row.required("sourceRecord"),
                 )
             },
             provenance = provenance(definition),

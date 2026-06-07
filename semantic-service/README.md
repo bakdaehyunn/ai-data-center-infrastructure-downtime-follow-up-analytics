@@ -160,10 +160,17 @@ Post-Phase-20 adds the first private endpoint slice:
   - `fixtureNamedGraphInventory`
   - `fixtureIncidentSummary`
   - `fixtureProvenanceSourceRecords`
+  - `semanticFollowUpQueueList`
 - all success payloads go through `SemanticResponseSerializer`
 - all errors use the Phase 18 semantic error envelope
 - raw SPARQL request bodies, arbitrary query IDs, graph writes, reasoning
   execution, and public exposure remain blocked
+
+Post-Phase-20 semantic queue read-model implementation adds
+`semanticFollowUpQueueList` as the first product read model. It returns
+canonical graph incident, asset, zone, stage, and source-record provenance
+fields. It does not switch the React dashboard or remove the old FastAPI queue
+route.
 
 Run the private endpoint against a fixture-loaded Fuseki dataset:
 

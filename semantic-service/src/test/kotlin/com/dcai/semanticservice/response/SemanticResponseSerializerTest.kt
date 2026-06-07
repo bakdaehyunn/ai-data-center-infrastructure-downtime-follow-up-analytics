@@ -2,6 +2,8 @@ package com.dcai.semanticservice.response
 
 import com.dcai.semanticservice.query.IncidentSummaryEnvelope
 import com.dcai.semanticservice.query.IncidentSummaryRecord
+import com.dcai.semanticservice.query.FollowUpQueueEnvelope
+import com.dcai.semanticservice.query.FollowUpQueueRecord
 import com.dcai.semanticservice.query.NamedGraphInventoryEnvelope
 import com.dcai.semanticservice.query.NamedGraphInventoryRecord
 import com.dcai.semanticservice.query.ProvenanceSourceRecord
@@ -112,6 +114,52 @@ class SemanticResponseSerializerTest {
             ),
             payload["records"],
         )
+    }
+
+    @Test
+    fun serializesFollowUpQueueEnvelope() {
+        val payload = serializer.serialize(
+            FollowUpQueueEnvelope(
+                queryId = "semanticFollowUpQueueList",
+                records = listOf(
+                    FollowUpQueueRecord(
+                        graphUri = "urn:dcai:graph:fixture:canonical:minimal-incident",
+                        incidentUri = "urn:dcai:fixture:valid:minimal-incident:inc-0001",
+                        incidentId = "INC-0001",
+                        assetUri = "urn:dcai:fixture:valid:minimal-incident:gpu-rack-row-a",
+                        assetId = "ASSET-GPU-RACK-ROW-A",
+                        zoneUri = "urn:dcai:fixture:valid:minimal-incident:zone-a",
+                        zoneId = "ZONE-A",
+                        stageUri = "urn:dcai:fixture:valid:minimal-incident:stage-validation",
+                        stageLabel = "Validation",
+                        sourceRecordUri = "urn:dcai:fixture:valid:minimal-incident:source-record-inc-0001",
+                    ),
+                ),
+                provenance = provenance("semanticFollowUpQueueList"),
+            ),
+        )
+
+        assertEquals("semanticFollowUpQueueList", payload["queryId"])
+        assertEquals("follow-up-queue", payload["resultType"])
+        assertEquals(1, payload["recordCount"])
+        assertEquals(
+            listOf(
+                mapOf(
+                    "graphUri" to "urn:dcai:graph:fixture:canonical:minimal-incident",
+                    "incidentUri" to "urn:dcai:fixture:valid:minimal-incident:inc-0001",
+                    "incidentId" to "INC-0001",
+                    "assetUri" to "urn:dcai:fixture:valid:minimal-incident:gpu-rack-row-a",
+                    "assetId" to "ASSET-GPU-RACK-ROW-A",
+                    "zoneUri" to "urn:dcai:fixture:valid:minimal-incident:zone-a",
+                    "zoneId" to "ZONE-A",
+                    "stageUri" to "urn:dcai:fixture:valid:minimal-incident:stage-validation",
+                    "stageLabel" to "Validation",
+                    "sourceRecordUri" to "urn:dcai:fixture:valid:minimal-incident:source-record-inc-0001",
+                ),
+            ),
+            payload["records"],
+        )
+        assertEquals(provenancePayload("semanticFollowUpQueueList"), payload["provenance"])
     }
 
     @Test

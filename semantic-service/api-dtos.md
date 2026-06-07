@@ -26,6 +26,7 @@ Supported Phase 18 response result types:
 - `named-graph-inventory`
 - `incident-summary`
 - `provenance-source-records`
+- `follow-up-queue`
 
 Versioning rules:
 
@@ -45,7 +46,8 @@ Post-Phase-20 implementation status:
 
 - implemented as an internal/private loopback endpoint
 - allowed query IDs are limited to `fixtureNamedGraphInventory`,
-  `fixtureIncidentSummary`, and `fixtureProvenanceSourceRecords`
+  `fixtureIncidentSummary`, `fixtureProvenanceSourceRecords`, and
+  `semanticFollowUpQueueList`
 - success responses are produced by `SemanticResponseSerializer`
 - semantic errors use the Phase 18 error envelope
 - request bodies must not contain raw SPARQL, arbitrary query text, SPARQL
@@ -90,6 +92,19 @@ Provenance source record:
 - `sourceSystemUri`: source system resource IRI
 - `payloadHash`: source payload hash
 - `activityUri`: provenance import activity resource IRI
+
+Follow-up queue record:
+
+- `graphUri`: named graph IRI
+- `incidentUri`: incident resource IRI
+- `incidentId`: incident identifier
+- `assetUri`: affected asset resource IRI
+- `assetId`: asset identifier
+- `zoneUri`: infrastructure zone resource IRI
+- `zoneId`: zone identifier
+- `stageUri`: current workflow stage resource IRI
+- `stageLabel`: optional current stage label
+- `sourceRecordUri`: source record resource IRI for row provenance
 
 Error DTO:
 

@@ -1,0 +1,24 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?graph ?incident ?incidentId ?asset ?assetId ?zone ?zoneId ?stage ?stageLabel ?sourceRecord
+WHERE {
+  GRAPH ?graph {
+    ?incident a dcai:InfrastructureIncident ;
+      dcai:hasIdentifier ?incidentId ;
+      dcai:affectsAsset ?asset ;
+      dcai:hasCurrentStage ?stage .
+
+    ?asset dcai:hasIdentifier ?assetId ;
+      dcai:locatedIn ?zone .
+
+    ?zone dcai:hasIdentifier ?zoneId .
+
+    ?incident prov:wasDerivedFrom ?sourceRecord .
+
+    OPTIONAL { ?stage rdfs:label ?stageLabel . }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+}
+ORDER BY ?incidentId ?assetId ?zoneId

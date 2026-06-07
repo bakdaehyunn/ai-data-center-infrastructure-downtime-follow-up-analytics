@@ -21,7 +21,8 @@ dcai-query:manifest
     dcai-query:reasoningFindingLineageLookup,
     dcai-query:fixtureNamedGraphInventory,
     dcai-query:fixtureIncidentSummary,
-    dcai-query:fixtureProvenanceSourceRecords .
+    dcai-query:fixtureProvenanceSourceRecords,
+    dcai-query:semanticFollowUpQueueList .
 
 dcai-query:sourceToCanonicalPromotion
   rdf:type dcai-query:QueryEntry ;
@@ -125,4 +126,12 @@ dcai-query:fixtureProvenanceSourceRecords
   dcai-query:queryPath "queries/inspection/fixture_provenance_source_records.select.rq" ;
   dcai-query:queryMode "SELECT" ;
   dcai-query:graphScope "fixture source graph, fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticFollowUpQueueList
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic follow-up queue list read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_follow_up_queue_list.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
   dcai-query:implementationStatus "phase16-approved" .

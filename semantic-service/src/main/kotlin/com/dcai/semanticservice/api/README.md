@@ -14,11 +14,13 @@ Allowed query IDs:
 - `fixtureNamedGraphInventory`
 - `fixtureIncidentSummary`
 - `fixtureProvenanceSourceRecords`
+- `semanticFollowUpQueueList`
 
 Non-goals:
 
 - no public endpoints
-- no product dashboard view-model query IDs
+- no additional product dashboard view-model query IDs beyond `semanticFollowUpQueueList`
+- no React dashboard switch
 - no raw SPARQL request body
 - no SPARQL Update
 - no graph writes

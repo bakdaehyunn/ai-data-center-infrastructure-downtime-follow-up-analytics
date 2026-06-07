@@ -42,6 +42,38 @@ class PrivateSemanticQueryEndpointTest {
     }
 
     @Test
+    fun returnsSerializedFollowUpQueuePayloadForApprovedProductReadModel() {
+        val endpoint = endpointWith(
+            QueryExecutionReport(
+                queryId = "semanticFollowUpQueueList",
+                mode = QueryMode.SELECT,
+                rows = listOf(
+                    mapOf(
+                        "graph" to "urn:dcai:graph:fixture:canonical:minimal-incident",
+                        "incident" to "urn:dcai:fixture:valid:minimal-incident:inc-0001",
+                        "incidentId" to "INC-0001",
+                        "asset" to "urn:dcai:fixture:valid:minimal-incident:gpu-rack-row-a",
+                        "assetId" to "ASSET-GPU-RACK-ROW-A",
+                        "zone" to "urn:dcai:fixture:valid:minimal-incident:zone-a",
+                        "zoneId" to "ZONE-A",
+                        "stage" to "urn:dcai:fixture:valid:minimal-incident:stage-validation",
+                        "stageLabel" to "Validation",
+                        "sourceRecord" to "urn:dcai:fixture:valid:minimal-incident:source-record-inc-0001",
+                    ),
+                ),
+            ),
+        )
+
+        val response = endpoint.handle(post("/semantic/query/semanticFollowUpQueueList"))
+
+        assertEquals(200, response.statusCode)
+        assertEquals("semanticFollowUpQueueList", response.payload["queryId"])
+        assertEquals("follow-up-queue", response.payload["resultType"])
+        assertEquals(1, response.payload["recordCount"])
+        assertTrue(response.jsonBody().contains("\"sourceRecordUri\""))
+    }
+
+    @Test
     fun rejectsUnapprovedQueryIdWithSemanticErrorEnvelope() {
         val response = endpointWith(
             QueryExecutionReport(

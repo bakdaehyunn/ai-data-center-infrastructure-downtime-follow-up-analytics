@@ -23,6 +23,7 @@ enum class QueryResultType(
     NAMED_GRAPH_INVENTORY("named-graph-inventory"),
     INCIDENT_SUMMARY("incident-summary"),
     PROVENANCE_SOURCE_RECORDS("provenance-source-records"),
+    FOLLOW_UP_QUEUE("follow-up-queue"),
 }
 
 data class NamedGraphInventoryEnvelope(
@@ -73,4 +74,26 @@ data class ProvenanceSourceRecord(
     val sourceSystemUri: String,
     val payloadHash: String,
     val activityUri: String,
+)
+
+data class FollowUpQueueEnvelope(
+    override val queryId: String,
+    val records: List<FollowUpQueueRecord>,
+    override val provenance: QueryResultEnvelopeProvenance,
+) : QueryResultEnvelope {
+    override val resultType: QueryResultType = QueryResultType.FOLLOW_UP_QUEUE
+    override val recordCount: Int = records.size
+}
+
+data class FollowUpQueueRecord(
+    val graphUri: String,
+    val incidentUri: String,
+    val incidentId: String,
+    val assetUri: String,
+    val assetId: String,
+    val zoneUri: String,
+    val zoneId: String,
+    val stageUri: String,
+    val stageLabel: String? = null,
+    val sourceRecordUri: String,
 )

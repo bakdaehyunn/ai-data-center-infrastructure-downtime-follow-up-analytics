@@ -1,6 +1,7 @@
 package com.dcai.semanticservice.response
 
 import com.dcai.semanticservice.query.IncidentSummaryEnvelope
+import com.dcai.semanticservice.query.FollowUpQueueEnvelope
 import com.dcai.semanticservice.query.NamedGraphInventoryEnvelope
 import com.dcai.semanticservice.query.ProvenanceSourceRecordsEnvelope
 import com.dcai.semanticservice.query.QueryResultEnvelope
@@ -34,6 +35,20 @@ class SemanticResponseSerializer {
                     "payloadHash" to record.payloadHash,
                     "activityUri" to record.activityUri,
                 )
+            }
+            is FollowUpQueueEnvelope -> envelope.records.map { record ->
+                buildMap {
+                    put("graphUri", record.graphUri)
+                    put("incidentUri", record.incidentUri)
+                    put("incidentId", record.incidentId)
+                    put("assetUri", record.assetUri)
+                    put("assetId", record.assetId)
+                    put("zoneUri", record.zoneUri)
+                    put("zoneId", record.zoneId)
+                    put("stageUri", record.stageUri)
+                    record.stageLabel?.let { put("stageLabel", it) }
+                    put("sourceRecordUri", record.sourceRecordUri)
+                }
             }
         }
 

@@ -32,19 +32,24 @@ Optional runtime flags:
 
 ## Allowed Query IDs
 
-Only the existing Phase 16 approved inspection query IDs are allowed:
+Only these approved query IDs are allowed:
 
 - `fixtureNamedGraphInventory`
 - `fixtureIncidentSummary`
 - `fixtureProvenanceSourceRecords`
+- `semanticFollowUpQueueList`
 
 The endpoint rejects any other query ID with `unapproved-query-id`.
+
+`semanticFollowUpQueueList` is the first product read-model query. It returns
+canonical graph queue rows with incident, asset, zone, stage, and source-record
+provenance fields. It does not yet provide full old FastAPI queue parity.
 
 ## Explicit Non-Goals
 
 This checkpoint does not:
 
-- add product dashboard view-model queries
+- add product dashboard view-model queries beyond `semanticFollowUpQueueList`
 - expose public endpoints
 - accept raw SPARQL request bodies
 - execute SPARQL Update
@@ -91,13 +96,15 @@ docker run --rm \
 
 ## Next Implementation Slice
 
-The next implementation slice should be the first product read model:
+The next implementation slice should expand the queue read model toward old
+FastAPI parity:
 
 - query ID: `semanticFollowUpQueueList`
-- SPARQL: read-only SELECT over canonical/provenance graphs
-- envelope: `FollowUpQueueEnvelope`
-- serializer support: required
-- provenance fields: required per queue row
+- add priority/rank, blocker, impact, trust, and action fields only after those
+  facts exist in canonical or reasoning graphs
+- keep SPARQL read-only
+- preserve `FollowUpQueueEnvelope`
+- keep provenance fields required per queue row
 - endpoint: still private/internal through `POST /semantic/query/{queryId}`
 
 Do not switch the React dashboard or delete old FastAPI code until the semantic

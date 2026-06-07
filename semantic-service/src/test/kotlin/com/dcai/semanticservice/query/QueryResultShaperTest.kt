@@ -12,6 +12,7 @@ class QueryResultShaperTest {
             "fixtureNamedGraphInventory" to definition("fixtureNamedGraphInventory", "fixture source graph, fixture canonical graph"),
             "fixtureIncidentSummary" to definition("fixtureIncidentSummary", "fixture canonical graph"),
             "fixtureProvenanceSourceRecords" to definition("fixtureProvenanceSourceRecords", "fixture source graph, fixture canonical graph"),
+            "semanticFollowUpQueueList" to definition("semanticFollowUpQueueList", "fixture canonical graph"),
         ),
     )
     private val shaper = QueryResultShaper(manifest)
@@ -91,6 +92,28 @@ class QueryResultShaperTest {
     }
 
     @Test
+    fun shapesFollowUpQueueRows() {
+        val envelope = shaper.shape(
+            QueryExecutionReport(
+                queryId = "semanticFollowUpQueueList",
+                mode = QueryMode.SELECT,
+                rowCount = 1,
+                rows = listOf(followUpQueueRow()),
+            ),
+        )
+
+        val typed = assertIs<FollowUpQueueEnvelope>(envelope)
+        val record = typed.records.single()
+        assertEquals(QueryResultType.FOLLOW_UP_QUEUE, typed.resultType)
+        assertEquals("INC-0001", record.incidentId)
+        assertEquals("ASSET-GPU-RACK-ROW-A", record.assetId)
+        assertEquals("ZONE-A", record.zoneId)
+        assertEquals("Validation", record.stageLabel)
+        assertEquals("urn:dcai:fixture:valid:minimal-incident:source-record-inc-0001", record.sourceRecordUri)
+        assertEquals("fixture canonical graph", typed.provenance.graphScope)
+    }
+
+    @Test
     fun rejectsUnsupportedEnvelopeQueryId() {
         val unsupportedManifest = ApprovedQueryManifest(
             entries = mapOf(
@@ -131,6 +154,51 @@ class QueryResultShaperTest {
                 ),
             )
         }
+    }
+
+    @Test
+    fun rejectsFollowUpQueueRowsMissingProvenanceCarryingIdentifiers() {
+        assertFailsWith<IllegalArgumentException> {
+            shaper.shape(
+                QueryExecutionReport(
+                    queryId = "semanticFollowUpQueueList",
+                    mode = QueryMode.SELECT,
+                    rows = listOf(
+                        followUpQueueRow() - "incidentId",
+                    ),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun rejectsFollowUpQueueRowsMissingSourceRecordProvenance() {
+        assertFailsWith<IllegalArgumentException> {
+            shaper.shape(
+                QueryExecutionReport(
+                    queryId = "semanticFollowUpQueueList",
+                    mode = QueryMode.SELECT,
+                    rows = listOf(
+                        followUpQueueRow() - "sourceRecord",
+                    ),
+                ),
+            )
+        }
+    }
+
+    private fun followUpQueueRow(): Map<String, String> {
+        return mapOf(
+            "graph" to "urn:dcai:graph:fixture:canonical:minimal-incident",
+            "incident" to "urn:dcai:fixture:valid:minimal-incident:inc-0001",
+            "incidentId" to "INC-0001",
+            "asset" to "urn:dcai:fixture:valid:minimal-incident:gpu-rack-row-a",
+            "assetId" to "ASSET-GPU-RACK-ROW-A",
+            "zone" to "urn:dcai:fixture:valid:minimal-incident:zone-a",
+            "zoneId" to "ZONE-A",
+            "stage" to "urn:dcai:fixture:valid:minimal-incident:stage-validation",
+            "stageLabel" to "Validation",
+            "sourceRecord" to "urn:dcai:fixture:valid:minimal-incident:source-record-inc-0001",
+        )
     }
 
     private fun definition(
