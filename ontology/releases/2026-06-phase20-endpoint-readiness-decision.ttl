@@ -1,0 +1,18 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase20-endpoint-readiness-decision
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 20 endpoint readiness decision release" ;
+  dcterms:description "Checkpoint release that decides the semantic service remains internal-only for Phase 20 and may proceed later to a private semantic query endpoint scaffold only after approval. Future endpoint work must use the Phase 19 serializer and must not return raw SPARQL bindings, accept arbitrary browser-supplied SPARQL, bypass the approved query manifest, expose public endpoints, execute graph writes, run reasoning orchestration, redesign UI, remove old runtime, commit, or push." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase19-internal-response-serialization ;
+  dcterms:hasPart
+    <../../semantic-service/endpoint-readiness.ttl>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/contracts/SemanticServiceContractCatalog.kt>,
+    <../../semantic-service/src/main/resources/contracts/semantic-service-contracts.ttl>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/contracts/EndpointReadinessCheckpointTest.kt>,
+    <../../docs/ontology-native/phase20_endpoint_readiness_decision.md> .

@@ -105,6 +105,14 @@ Phase 19 internal serialization:
 - This is not HTTP serialization, JSON serialization, controller behavior, or
   public endpoint implementation.
 
+Phase 20 endpoint readiness:
+
+- `endpoint-readiness.ttl` keeps the runtime internal-only for Phase 20.
+- A later private endpoint scaffold must use `SemanticResponseSerializer`.
+- A later endpoint must not return raw SPARQL bindings, accept arbitrary
+  browser-supplied SPARQL, run SPARQL Update, or bypass the approved query
+  manifest.
+
 ## Reasoning Validation
 
 Endpoint shape: `POST /semantic/reasoning/validate`

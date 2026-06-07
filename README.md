@@ -259,3 +259,4 @@ npm run build
 - `docs/ontology-native/phase17_query_result_contract_shaping.md`: Phase 17 stable query-result envelopes for future incident, provenance, and named-graph inspection responses
 - `docs/ontology-native/phase18_semantic_response_contract_checkpoint.md`: Phase 18 semantic response contract checkpoint for future typed query DTOs, error envelopes, versioning rules, and OpenAPI alignment
 - `docs/ontology-native/phase19_internal_response_serialization.md`: Phase 19 internal-only response serialization from typed query envelopes and semantic errors into Phase 18-shaped payloads
+- `docs/ontology-native/phase20_endpoint_readiness_decision.md`: Phase 20 endpoint readiness decision checkpoint for whether to remain internal-only or later start private semantic query endpoint scaffolding

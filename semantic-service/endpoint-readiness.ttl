@@ -1,0 +1,52 @@
+@prefix dcai-service: <urn:dcai:service:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-service:phase20EndpointReadinessCheckpoint
+  rdf:type dcai-service:EndpointReadinessCheckpoint ;
+  dcterms:title "Phase 20 endpoint readiness decision checkpoint" ;
+  dcterms:description "Decision checkpoint for whether the ontology-native semantic service should remain internal-only or proceed later to a private semantic query endpoint scaffold." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcai-service:currentRuntimeMode "cli-only" ;
+  dcai-service:phase20Decision "remain-internal-only-for-this-phase" ;
+  dcai-service:nextAllowedImplementation "private-semantic-query-endpoint-scaffold-after-approval" ;
+  dcai-service:futureEndpointMustUse "semantic-service/src/main/kotlin/com/dcai/semanticservice/response/SemanticResponseSerializer.kt" ;
+  dcai-service:futureEndpointMustNotReturn "raw SPARQL bindings" ;
+  dcai-service:futureEndpointMustNotAccept "arbitrary browser-supplied SPARQL" ;
+  dcai-service:futureEndpointMustNotRun "SPARQL Update" ;
+  dcai-service:futureEndpointMustNotBypass "approved query manifest" ;
+  dcai-service:publicEndpointImplementationAllowed "false"^^xsd:boolean ;
+  dcai-service:privateEndpointImplementationAllowedInPhase20 "false"^^xsd:boolean ;
+  dcai-service:oldRuntimeRemovalAllowed "false"^^xsd:boolean ;
+  dcai-service:blocksPublicEndpointUntil
+    dcai-service:authPolicyAccepted,
+    dcai-service:graphScopePolicyAccepted,
+    dcai-service:timeoutResultLimitPolicyAccepted,
+    dcai-service:auditPolicyAccepted,
+    dcai-service:privateEndpointScaffoldReviewed .
+
+dcai-service:authPolicyAccepted
+  rdf:type dcai-service:EndpointReadinessGate ;
+  dcterms:title "Authentication policy accepted" ;
+  dcai-service:passCriteria "Private endpoint scaffold defines caller identity, local/dev access mode, and production authentication requirements before public exposure." .
+
+dcai-service:graphScopePolicyAccepted
+  rdf:type dcai-service:EndpointReadinessGate ;
+  dcterms:title "Graph scope policy accepted" ;
+  dcai-service:passCriteria "Each endpoint request is constrained to approved graph scopes from the query manifest and cannot select arbitrary named graphs." .
+
+dcai-service:timeoutResultLimitPolicyAccepted
+  rdf:type dcai-service:EndpointReadinessGate ;
+  dcterms:title "Timeout and result-limit policy accepted" ;
+  dcai-service:passCriteria "Endpoint scaffold enforces timeout and result-size boundaries before exposing query execution beyond the CLI." .
+
+dcai-service:auditPolicyAccepted
+  rdf:type dcai-service:EndpointReadinessGate ;
+  dcterms:title "Audit policy accepted" ;
+  dcai-service:passCriteria "Endpoint scaffold records query id, graph scope, serializer contract version, error code, and caller context for future audit lineage." .
+
+dcai-service:privateEndpointScaffoldReviewed
+  rdf:type dcai-service:EndpointReadinessGate ;
+  dcterms:title "Private endpoint scaffold reviewed" ;
+  dcai-service:passCriteria "A later approved phase reviews private endpoint scaffolding before any public endpoint, UI reconnection, or old-runtime removal." .

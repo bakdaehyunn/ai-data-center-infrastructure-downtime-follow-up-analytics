@@ -34,6 +34,7 @@ object SemanticServiceContractCatalog {
             path = "semantic-service/api-dtos.md",
             requiredMarkers = setOf(
                 "Phase 18 Response Contract Checkpoint",
+                "Phase 19 internal serialization",
                 "2026.06.phase17-result-envelope",
                 "2026.06.phase18-error-envelope",
                 "named-graph-inventory",
@@ -47,12 +48,29 @@ object SemanticServiceContractCatalog {
             ),
         ),
         ContractArtifact(
+            path = "semantic-service/endpoint-readiness.ttl",
+            requiredMarkers = setOf(
+                "dcai-service:phase20EndpointReadinessCheckpoint",
+                "remain-internal-only-for-this-phase",
+                "private-semantic-query-endpoint-scaffold-after-approval",
+                "SemanticResponseSerializer.kt",
+                "raw SPARQL bindings",
+                "arbitrary browser-supplied SPARQL",
+                "SPARQL Update",
+                "approved query manifest",
+                "publicEndpointImplementationAllowed \"false\"",
+                "privateEndpointImplementationAllowedInPhase20 \"false\"",
+                "oldRuntimeRemovalAllowed \"false\"",
+            ),
+        ),
+        ContractArtifact(
             path = "semantic-service/src/main/resources/contracts/semantic-service-contracts.ttl",
             requiredMarkers = setOf(
                 "dcai-service:phase10ServiceScaffold",
                 "semantic-service/boundary-contract.ttl",
                 "semantic-service/openapi.semantic-service.yaml",
                 "semantic-service/api-dtos.md",
+                "semantic-service/endpoint-readiness.ttl",
             ),
         ),
     )

@@ -145,3 +145,8 @@ rules aligned to the Phase 17 result envelopes.
 Phase 19 adds internal-only response serialization. The runtime remains
 CLI-only, but query-result envelopes and semantic errors can now be converted
 into deterministic in-memory payload maps aligned to the Phase 18 contract.
+
+Phase 20 adds the endpoint readiness decision checkpoint. The runtime remains
+CLI-only; private endpoint scaffolding is deferred to a later approved phase
+and any future endpoint must use the Phase 19 serializer instead of raw SPARQL
+bindings.

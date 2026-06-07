@@ -14,5 +14,6 @@ dcai-service:phase10ServiceScaffold
   dcai-service:contractArtifact "semantic-service/boundary-contract.ttl" ;
   dcai-service:contractArtifact "semantic-service/openapi.semantic-service.yaml" ;
   dcai-service:contractArtifact "semantic-service/api-dtos.md" ;
+  dcai-service:contractArtifact "semantic-service/endpoint-readiness.ttl" ;
   dcai-service:packageRoot "semantic-service/src/main/kotlin/com/dcai/semanticservice" ;
   dcai-service:runtimeImplemented "false"^^xsd:boolean .
