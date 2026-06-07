@@ -1,0 +1,305 @@
+openapi: 3.1.0
+info:
+  title: AI Data Center Semantic Service API Contract
+  version: 2026-06-phase9-scaffold
+  description: >
+    Non-runtime OpenAPI-style scaffold for the future Java/Kotlin semantic
+    service. This contract documents endpoint shapes and DTOs only. It is not
+    wired to controllers, code generation, authentication, orchestration, graph
+    promotion, or production SPARQL execution.
+servers:
+  - url: https://semantic-service.example.invalid
+    description: Placeholder only; no runtime service exists in Phase 9.
+paths:
+  /semantic/query/{queryId}:
+    post:
+      operationId: executeSemanticQuery
+      summary: Execute an approved semantic query by id
+      parameters:
+        - name: queryId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Approved query identifier from queries/manifest.ttl.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryExecutionRequest"
+      responses:
+        "200":
+          description: Query execution result envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryExecutionResponse"
+  /semantic/reasoning/validate:
+    post:
+      operationId: validateReasoningOutput
+      summary: Validate candidate reasoning output against SHACL shapes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReasoningValidationRequest"
+      responses:
+        "200":
+          description: Reasoning validation result envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReasoningValidationResponse"
+  /semantic/provenance/{resourceId}:
+    get:
+      operationId: lookupProvenance
+      summary: Look up provenance for a semantic resource
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Encoded resource IRI or service-level resource id.
+      responses:
+        "200":
+          description: Provenance lookup result envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProvenanceLookupResponse"
+  /semantic/promotion/review:
+    post:
+      operationId: reviewPromotionCandidate
+      summary: Review reasoning candidates before graph promotion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PromotionReviewRequest"
+      responses:
+        "200":
+          description: Promotion review result envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromotionReviewResponse"
+  /semantic/ai-governance/handoff:
+    post:
+      operationId: handoffAIGovernance
+      summary: Hand off AI-proposed graph changes or high-impact findings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIGovernanceHandoffRequest"
+      responses:
+        "200":
+          description: AI governance handoff result envelope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIGovernanceHandoffResponse"
+components:
+  schemas:
+    GraphScope:
+      type: string
+      enum:
+        - canonical
+        - provenance
+        - reasoning
+        - reasoning-audit
+        - ai-audit
+    QueryExecutionRequest:
+      type: object
+      required:
+        - parameters
+        - graphScopes
+      properties:
+        parameters:
+          type: object
+          additionalProperties:
+            type: string
+        graphScopes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphScope"
+        timeoutMs:
+          type: integer
+          minimum: 1
+    QueryExecutionResponse:
+      type: object
+      required:
+        - queryId
+        - rows
+        - provenance
+      properties:
+        queryId:
+          type: string
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties:
+              type: string
+        provenance:
+          $ref: "#/components/schemas/ResponseProvenance"
+    ReasoningValidationRequest:
+      type: object
+      required:
+        - candidateGraph
+        - shapeSet
+      properties:
+        candidateGraph:
+          type: string
+          example: urn:dcai:graph:reasoning-audit
+        shapeSet:
+          type: string
+          example: shapes/reasoning-output-validation.ttl
+        candidateIds:
+          type: array
+          items:
+            type: string
+    ReasoningValidationResponse:
+      type: object
+      required:
+        - conforms
+        - findings
+      properties:
+        conforms:
+          type: boolean
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationFinding"
+    ProvenanceLookupResponse:
+      type: object
+      required:
+        - resourceId
+        - lineage
+      properties:
+        resourceId:
+          type: string
+        lineage:
+          type: array
+          items:
+            $ref: "#/components/schemas/LineageEdge"
+    PromotionReviewRequest:
+      type: object
+      required:
+        - candidateGraph
+        - candidateIds
+      properties:
+        candidateGraph:
+          type: string
+          example: urn:dcai:graph:reasoning-audit
+        candidateIds:
+          type: array
+          items:
+            type: string
+        reviewerId:
+          type: string
+    PromotionReviewResponse:
+      type: object
+      required:
+        - reviewStatus
+        - promotionAllowed
+      properties:
+        reviewStatus:
+          type: string
+          enum:
+            - approved
+            - rejected
+            - needs-review
+        promotionAllowed:
+          type: boolean
+        reasons:
+          type: array
+          items:
+            type: string
+    AIGovernanceHandoffRequest:
+      type: object
+      required:
+        - proposalId
+        - proposedGraph
+        - riskClass
+      properties:
+        proposalId:
+          type: string
+        proposedGraph:
+          type: string
+          example: urn:dcai:graph:ai-audit
+        riskClass:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+        requestedBy:
+          type: string
+    AIGovernanceHandoffResponse:
+      type: object
+      required:
+        - handoffId
+        - governanceStatus
+      properties:
+        handoffId:
+          type: string
+        governanceStatus:
+          type: string
+          enum:
+            - queued
+            - rejected
+            - needs-human-review
+        requiredGates:
+          type: array
+          items:
+            type: string
+    ValidationFinding:
+      type: object
+      required:
+        - severity
+        - message
+      properties:
+        severity:
+          type: string
+          enum:
+            - info
+            - warning
+            - violation
+        message:
+          type: string
+        sourceShape:
+          type: string
+        focusNode:
+          type: string
+    LineageEdge:
+      type: object
+      required:
+        - subject
+        - predicate
+        - object
+      properties:
+        subject:
+          type: string
+        predicate:
+          type: string
+        object:
+          type: string
+    ResponseProvenance:
+      type: object
+      required:
+        - graphRelease
+        - queryVersion
+      properties:
+        graphRelease:
+          type: string
+        queryVersion:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time

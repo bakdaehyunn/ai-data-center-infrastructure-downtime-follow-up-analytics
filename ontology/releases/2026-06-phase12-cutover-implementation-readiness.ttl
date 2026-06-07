@@ -1,0 +1,15 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase12-cutover-implementation-readiness
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 12 cutover and implementation-readiness release" ;
+  dcterms:description "Cutover checkpoint release that records what old runtime code remains as reference, what must be removed later, and what must pass before implementing real semantic service endpoints or graph execution. This release does not remove old runtime code, implement endpoints, execute graph operations, redesign the UI, commit, or push." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase11-contract-loading-static-validation ;
+  dcterms:hasPart
+    <../../docs/ontology-native/phase12_cutover_implementation_readiness.md>,
+    <../../semantic-service/cutover-readiness.ttl> .

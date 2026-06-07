@@ -1,0 +1,19 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase4-reasoning-pipeline-scaffold
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 4 reasoning pipeline scaffold release" ;
+  dcterms:description "Scaffold-only release for reasoning pipeline documentation, placeholder rule/query structure, fixture expectations, query-manifest references, and validation commands for dependency exposure, recovery blocker, restore readiness, impact trust, and blast radius. This release does not implement executable reasoning, Java/Kotlin service code, RDF ingestion, graph promotion, UI redesign, or old-runtime removal." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase3-rdf-fixtures-mapping ;
+  dcterms:hasPart
+    <../../reasoning/README.md>,
+    <../../reasoning/manifest.ttl>,
+    <../../reasoning/rules/README.md>,
+    <../../queries/reasoning/README.md>,
+    <../../queries/manifest.ttl>,
+    <../../docs/ontology-native/phase4_reasoning_pipeline_scaffold.md> .

@@ -1,0 +1,20 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+dcai:WorkflowIncidentStageShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:InfrastructureIncident ;
+  sh:property [
+    sh:path dcai:hasCurrentStage ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:class dcai:WorkflowStage
+  ] .
+
+dcai:WorkflowEventStageShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:WorkflowEvent ;
+  sh:or (
+    [ sh:property [ sh:path dcai:enteredStage ; sh:minCount 1 ; sh:class dcai:WorkflowStage ] ]
+    [ sh:property [ sh:path dcai:exitedStage ; sh:minCount 1 ; sh:class dcai:WorkflowStage ] ]
+  ) .

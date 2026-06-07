@@ -1,0 +1,31 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai:ImpactObservationShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:ImpactObservation ;
+  sh:property [
+    sh:path dcai:impactForIncident ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:class dcai:InfrastructureIncident
+  ] ;
+  sh:property [
+    sh:path dcai:estimatedCapacityRiskKw ;
+    sh:minCount 0 ;
+    sh:datatype xsd:decimal
+  ] ;
+  sh:property [
+    sh:path dcai:affectedGpuCount ;
+    sh:minCount 0 ;
+    sh:datatype xsd:integer
+  ] .
+
+dcai:EvidenceSupportShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:EvidenceRecord ;
+  sh:or (
+    [ sh:property [ sh:path dcai:supportsFact ; sh:minCount 1 ] ]
+    [ sh:property [ sh:path dcai:contradictsFact ; sh:minCount 1 ] ]
+  ) .

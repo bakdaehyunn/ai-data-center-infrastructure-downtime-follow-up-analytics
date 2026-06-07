@@ -1,0 +1,22 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase6-reasoning-execution-contract
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 6 reasoning execution contract release" ;
+  dcterms:description "Scaffold-only release for the non-runtime reasoning execution contract. It defines graph inputs and outputs, promotion gates, provenance requirements, failure modes, and expected service boundaries for future execution of Phase 5 SPARQL queries. This release does not implement Java/Kotlin service code, executable orchestration, RDF ingestion, graph promotion, UI redesign, or old-runtime removal." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase5-sparql-query-validation-scaffold ;
+  dcterms:hasPart
+    <../../reasoning/execution-contract.ttl>,
+    <../../reasoning/README.md>,
+    <../../queries/reasoning/dependency_exposure.construct.rq>,
+    <../../queries/reasoning/recovery_blocker.construct.rq>,
+    <../../queries/reasoning/restore_readiness.construct.rq>,
+    <../../queries/reasoning/impact_trust.construct.rq>,
+    <../../queries/reasoning/blast_radius.construct.rq>,
+    <../../queries/reasoning/reasoning_finding_lineage.select.rq>,
+    <../../docs/ontology-native/phase6_reasoning_execution_contract.md> .

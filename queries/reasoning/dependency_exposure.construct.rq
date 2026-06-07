@@ -1,0 +1,22 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+
+CONSTRUCT {
+  ?finding a dcai:DependencyImpactFinding ;
+    dcai:hasFindingSummary ?summary ;
+    prov:wasDerivedFrom ?incident ;
+    prov:wasDerivedFrom ?path .
+}
+WHERE {
+  GRAPH <urn:dcai:graph:canonical> {
+    ?incident a dcai:InfrastructureIncident ;
+      dcai:affectsAsset ?asset .
+    ?path a dcai:DependencyPath ;
+      dcai:hasPathStep ?edge .
+    ?edge dcai:hasDependentAsset ?asset ;
+      dcai:hasDependencyAsset ?dependency .
+    OPTIONAL { ?edge dcai:hasDependencyRole ?role . }
+  }
+  BIND(IRI(CONCAT("urn:dcai:reasoning:dependency-exposure:", ENCODE_FOR_URI(STR(?incident)))) AS ?finding)
+  BIND(CONCAT("Dependency exposure from ", STR(?asset), " through ", STR(?dependency)) AS ?summary)
+}

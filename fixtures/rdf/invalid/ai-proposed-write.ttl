@@ -1,0 +1,7 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix fixture: <urn:dcai:fixture:invalid:ai-proposed-write:> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+fixture:ai-proposed-triples
+  rdf:type dcai:ProposedTripleSet ;
+  dcai:proposesTriple "fixture:inc-0001 dcai:hasCurrentStage fixture:stage-restored ." .

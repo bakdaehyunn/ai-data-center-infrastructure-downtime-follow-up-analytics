@@ -1,0 +1,18 @@
+@prefix dcai-service: <urn:dcai:service:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-service:phase10ServiceScaffold
+  rdf:type dcai-service:ServiceScaffold ;
+  dcterms:title "Phase 10 non-running Java/Kotlin semantic service scaffold" ;
+  dcterms:description "Build metadata, package layout placeholders, and contract wiring for a future Java/Kotlin semantic service. This manifest references Phase 8 and Phase 9 contracts and does not implement runtime service behavior." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcai-service:buildMetadata "semantic-service/settings.gradle.kts" ;
+  dcai-service:buildMetadata "semantic-service/build.gradle.kts" ;
+  dcai-service:buildMetadata "semantic-service/gradle.properties" ;
+  dcai-service:contractArtifact "semantic-service/boundary-contract.ttl" ;
+  dcai-service:contractArtifact "semantic-service/openapi.semantic-service.yaml" ;
+  dcai-service:contractArtifact "semantic-service/api-dtos.md" ;
+  dcai-service:packageRoot "semantic-service/src/main/kotlin/com/dcai/semanticservice" ;
+  dcai-service:runtimeImplemented "false"^^xsd:boolean .

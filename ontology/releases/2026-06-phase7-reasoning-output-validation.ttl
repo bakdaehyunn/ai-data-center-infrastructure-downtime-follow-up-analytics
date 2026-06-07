@@ -1,0 +1,18 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase7-reasoning-output-validation
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 7 reasoning output validation release" ;
+  dcterms:description "Scaffold-only release for SHACL shapes and fixture expectations that validate future reasoning outputs for dependency impact, recovery blocker, follow-up decision, restore readiness, trust, blast radius, and reasoning activity provenance. This release does not implement Java/Kotlin service code, executable orchestration, RDF ingestion, graph promotion, UI redesign, or old-runtime removal." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase6-reasoning-execution-contract ;
+  dcterms:hasPart
+    <../../shapes/reasoning-output-validation.ttl>,
+    <../../fixtures/rdf/valid/reasoning-output.ttl>,
+    <../../fixtures/rdf/invalid/reasoning-output-missing-provenance.ttl>,
+    <../../fixtures/rdf/valid/evidence-provenance.ttl>,
+    <../../docs/ontology-native/phase7_reasoning_output_validation.md> .

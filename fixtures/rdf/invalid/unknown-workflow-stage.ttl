@@ -1,0 +1,34 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix fixture: <urn:dcai:fixture:invalid:unknown-workflow-stage:> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+fixture:source-system
+  rdf:type dcai:SourceSystem .
+
+fixture:import-activity
+  rdf:type dcai:ImportActivity .
+
+fixture:source-record-unknown-stage
+  rdf:type dcai:SourceRecord ;
+  dcai:hasSourceRecordId "SRC-INVALID-UNKNOWN-STAGE" ;
+  dcai:hasSourceSystem fixture:source-system ;
+  prov:wasGeneratedBy fixture:import-activity .
+
+fixture:zone-a
+  rdf:type dcai:InfrastructureZone ;
+  dcai:hasIdentifier "ZONE-A" ;
+  prov:wasDerivedFrom fixture:source-record-unknown-stage .
+
+fixture:asset-a
+  rdf:type dcai:InfrastructureAsset ;
+  dcai:hasIdentifier "ASSET-A" ;
+  dcai:locatedIn fixture:zone-a ;
+  prov:wasDerivedFrom fixture:source-record-unknown-stage .
+
+fixture:inc-unknown-stage
+  rdf:type dcai:InfrastructureIncident ;
+  dcai:hasIdentifier "INC-UNKNOWN-STAGE" ;
+  dcai:affectsAsset fixture:asset-a ;
+  dcai:hasCurrentStage "UNKNOWN_STAGE" ;
+  prov:wasDerivedFrom fixture:source-record-unknown-stage .

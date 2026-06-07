@@ -1,0 +1,53 @@
+@prefix dcai-service: <urn:dcai:service:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-service:semanticServiceBoundary
+  rdf:type dcai-service:SemanticServiceBoundary ;
+  dcterms:title "Non-runtime semantic service boundary contract" ;
+  dcterms:description "Phase 8 contract for a future Java/Kotlin semantic service facade over Fuseki/TDB2. This metadata defines use cases, endpoint boundaries, graph scopes, and governance handoffs only. It does not implement service runtime, routes, orchestration, graph promotion, or UI behavior." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcai-service:targetImplementation "Java/Kotlin" ;
+  dcai-service:sourceOfTruth "Apache Jena Fuseki/TDB2 named graphs" ;
+  dcai-service:hasUseCase
+    dcai-service:queryExecution,
+    dcai-service:reasoningValidation,
+    dcai-service:provenanceLookup,
+    dcai-service:promotionReview,
+    dcai-service:aiGovernanceHandoff .
+
+dcai-service:queryExecution
+  rdf:type dcai-service:ServiceUseCase ;
+  dcterms:title "Query execution boundary" ;
+  dcai-service:endpointBoundary "POST /semantic/query/{queryId}" ;
+  dcai-service:allowedGraphScope "read-only canonical, reasoning, provenance, and ai-audit graph access by approved query id" ;
+  dcai-service:contractStatus "non-runtime-boundary" .
+
+dcai-service:reasoningValidation
+  rdf:type dcai-service:ServiceUseCase ;
+  dcterms:title "Reasoning validation boundary" ;
+  dcai-service:endpointBoundary "POST /semantic/reasoning/validate" ;
+  dcai-service:allowedGraphScope "read candidate reasoning-audit graph and SHACL shapes; write validation report only in a future implementation" ;
+  dcai-service:contractStatus "non-runtime-boundary" .
+
+dcai-service:provenanceLookup
+  rdf:type dcai-service:ServiceUseCase ;
+  dcterms:title "Provenance lookup boundary" ;
+  dcai-service:endpointBoundary "GET /semantic/provenance/{resourceId}" ;
+  dcai-service:allowedGraphScope "read-only provenance, canonical, reasoning, and reasoning-audit graph access" ;
+  dcai-service:contractStatus "non-runtime-boundary" .
+
+dcai-service:promotionReview
+  rdf:type dcai-service:ServiceUseCase ;
+  dcterms:title "Promotion review boundary" ;
+  dcai-service:endpointBoundary "POST /semantic/promotion/review" ;
+  dcai-service:allowedGraphScope "read reasoning-audit candidates and validation reports; future approved writes must pass promotion gates" ;
+  dcai-service:contractStatus "non-runtime-boundary" .
+
+dcai-service:aiGovernanceHandoff
+  rdf:type dcai-service:ServiceUseCase ;
+  dcterms:title "AI governance handoff boundary" ;
+  dcai-service:endpointBoundary "POST /semantic/ai-governance/handoff" ;
+  dcai-service:allowedGraphScope "read AI proposal, validation, provenance, and candidate graphs; future decisions remain auditable" ;
+  dcai-service:contractStatus "non-runtime-boundary" .

@@ -1,0 +1,24 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai:DependencyEdgeShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:DependencyEdge ;
+  sh:property [
+    sh:path dcai:hasDependentAsset ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:class dcai:InfrastructureAsset
+  ] ;
+  sh:property [
+    sh:path dcai:hasDependencyAsset ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:class dcai:InfrastructureAsset
+  ] ;
+  sh:property [
+    sh:path dcai:hasDependencyRole ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] .

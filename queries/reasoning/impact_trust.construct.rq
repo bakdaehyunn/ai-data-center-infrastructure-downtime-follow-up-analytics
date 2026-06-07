@@ -1,0 +1,24 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+
+CONSTRUCT {
+  ?finding a dcai:TrustFinding ;
+    dcai:hasFindingSummary ?summary ;
+    prov:wasDerivedFrom ?impact .
+}
+WHERE {
+  GRAPH <urn:dcai:graph:canonical> {
+    ?impact a dcai:ImpactObservation ;
+      dcai:impactForIncident ?incident .
+    OPTIONAL {
+      ?supportingEvidence a dcai:EvidenceRecord ;
+        dcai:supportsFact ?impact .
+    }
+    OPTIONAL {
+      ?contradictingEvidence a dcai:EvidenceRecord ;
+        dcai:contradictsFact ?impact .
+    }
+  }
+  BIND(IRI(CONCAT("urn:dcai:reasoning:impact-trust:", ENCODE_FOR_URI(STR(?impact)))) AS ?finding)
+  BIND(CONCAT("Impact trust placeholder for ", STR(?impact)) AS ?summary)
+}

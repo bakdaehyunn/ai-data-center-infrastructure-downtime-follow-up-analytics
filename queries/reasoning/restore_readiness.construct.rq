@@ -1,0 +1,20 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+
+CONSTRUCT {
+  ?finding a dcai:RestoreReadinessFinding ;
+    dcai:hasFindingSummary ?summary ;
+    prov:wasDerivedFrom ?incident .
+}
+WHERE {
+  GRAPH <urn:dcai:graph:canonical> {
+    ?incident a dcai:InfrastructureIncident ;
+      dcai:hasCurrentStage ?stage .
+    OPTIONAL {
+      ?evidence a dcai:EvidenceRecord ;
+        dcai:supportsFact ?incident .
+    }
+  }
+  BIND(IRI(CONCAT("urn:dcai:reasoning:restore-readiness:", ENCODE_FOR_URI(STR(?incident)))) AS ?finding)
+  BIND(CONCAT("Restore readiness placeholder for ", STR(?incident), " at stage ", STR(?stage)) AS ?summary)
+}

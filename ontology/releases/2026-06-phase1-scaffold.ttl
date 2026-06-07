@@ -1,0 +1,16 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase1-scaffold
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 1 ontology-native runtime scaffold release" ;
+  dcterms:description "Scaffold-only release manifest for persistent Jena/Fuseki/TDB2 runtime, ontology module boundary, SHACL boundary, query manifest boundary, and verification documentation." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:hasPart
+    <../../ontology/modules/README.md>,
+    <../../shapes/README.md>,
+    <../../queries/manifest.ttl>,
+    <../../docs/ontology-native/phase1_semantic_runtime_scaffold.md> .

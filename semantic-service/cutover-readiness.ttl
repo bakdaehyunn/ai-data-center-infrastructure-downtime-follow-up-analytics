@@ -1,0 +1,73 @@
+@prefix dcai-service: <urn:dcai:service:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-service:phase12CutoverReadinessCheckpoint
+  rdf:type dcai-service:CutoverReadinessCheckpoint ;
+  dcterms:title "Phase 12 cutover and implementation-readiness checkpoint" ;
+  dcterms:description "Decision checkpoint for what old runtime code remains as reference, what must be removed later, and what must pass before real semantic service endpoints or graph execution begin." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcai-service:oldRuntimeStatus "reference-only" ;
+  dcai-service:futureSourceOfTruth "Apache Jena Fuseki/TDB2 RDF named graphs" ;
+  dcai-service:blocksImplementationUntil
+    dcai-service:javaGradleReady,
+    dcai-service:apiContractAccepted,
+    dcai-service:graphExecutionGatesReady,
+    dcai-service:shaclFixtureValidationPassing,
+    dcai-service:sparqlQueryManifestReady,
+    dcai-service:provenanceGovernanceReady .
+
+dcai-service:oldFastApiRuntime
+  rdf:type dcai-service:OldRuntimeReference ;
+  dcterms:title "FastAPI runtime reference" ;
+  dcai-service:referenceScope "Existing REST behavior and follow-up workflow response examples" ;
+  dcai-service:removeLaterWhen "Java/Kotlin semantic service exposes approved semantic endpoints with equivalent follow-up workflow support" .
+
+dcai-service:oldRelationalRuntime
+  rdf:type dcai-service:OldRuntimeReference ;
+  dcterms:title "Postgres and SQLAlchemy runtime reference" ;
+  dcai-service:referenceScope "Relational vocabulary, analytics materialization, and historical data-quality behavior" ;
+  dcai-service:removeLaterWhen "RDF named graphs, SPARQL queries, SHACL validation, and reasoning outputs are accepted as source of truth" .
+
+dcai-service:oldReactDashboard
+  rdf:type dcai-service:OldRuntimeReference ;
+  dcterms:title "React follow-up workflow reference" ;
+  dcai-service:referenceScope "Follow-up queue and incident detail UX reference" ;
+  dcai-service:removeLaterWhen "Semantic operations UI consumes semantic-service view models and preserves the follow-up workflow" .
+
+dcai-service:javaGradleReady
+  rdf:type dcai-service:ReadinessGate ;
+  dcterms:title "Java and Gradle ready" ;
+  dcai-service:requiredBefore "semantic service endpoint implementation" ;
+  dcai-service:passCriteria "Java runtime and Gradle can execute semantic-service contract-loading/static-validation tests" .
+
+dcai-service:apiContractAccepted
+  rdf:type dcai-service:ReadinessGate ;
+  dcterms:title "Semantic API contract accepted" ;
+  dcai-service:requiredBefore "semantic service endpoint implementation" ;
+  dcai-service:passCriteria "OpenAPI-style contract and DTO documentation are reviewed and stable enough for implementation" .
+
+dcai-service:graphExecutionGatesReady
+  rdf:type dcai-service:ReadinessGate ;
+  dcterms:title "Graph execution gates ready" ;
+  dcai-service:requiredBefore "Fuseki client, SPARQL execution, graph promotion, or reasoning orchestration implementation" ;
+  dcai-service:passCriteria "Named graph inputs and outputs, update policy, promotion gates, rollback behavior, and failure modes are documented" .
+
+dcai-service:shaclFixtureValidationPassing
+  rdf:type dcai-service:ReadinessGate ;
+  dcterms:title "SHACL fixture validation passing" ;
+  dcai-service:requiredBefore "graph promotion or reasoning validation implementation" ;
+  dcai-service:passCriteria "All valid fixtures conform and all invalid fixtures fail against current SHACL shapes" .
+
+dcai-service:sparqlQueryManifestReady
+  rdf:type dcai-service:ReadinessGate ;
+  dcterms:title "SPARQL query manifest ready" ;
+  dcai-service:requiredBefore "query execution implementation" ;
+  dcai-service:passCriteria "Approved query IDs define graph scope, parameters, timeout class, result shape, and read/write class" .
+
+dcai-service:provenanceGovernanceReady
+  rdf:type dcai-service:ReadinessGate ;
+  dcterms:title "Provenance and AI governance ready" ;
+  dcai-service:requiredBefore "reasoning promotion or AI-governed graph interaction implementation" ;
+  dcai-service:passCriteria "Reasoning outputs and AI proposals require provenance, validation, approval or rejection state, and audit lineage" .

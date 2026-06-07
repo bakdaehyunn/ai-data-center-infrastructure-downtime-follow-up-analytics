@@ -1,6 +1,6 @@
 # AI Data Center Infrastructure Dashboard
 
-React/Vite dashboard for AI data center infrastructure downtime follow-up analytics.
+React/Vite dashboard for AI data center infrastructure semantic operations platform.
 
 ## Local Commands
 

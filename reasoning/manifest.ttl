@@ -1,0 +1,65 @@
+@prefix dcai-reasoning: <urn:dcai:reasoning:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-reasoning:manifest
+  rdf:type dcai-reasoning:ReasoningManifest ;
+  dcterms:title "Ontology-native reasoning pipeline scaffold" ;
+  dcterms:description "Phase 4 placeholder manifest for future dependency exposure, recovery blocker, restore readiness, impact trust, and blast-radius reasoning. This manifest is metadata only and does not implement executable reasoning." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcai-reasoning:inputGraph "urn:dcai:graph:canonical" ;
+  dcai-reasoning:provenanceGraph "urn:dcai:graph:provenance" ;
+  dcai-reasoning:outputGraph "urn:dcai:graph:reasoning" ;
+  dcai-reasoning:auditGraph "urn:dcai:graph:reasoning-audit" ;
+  dcai-reasoning:hasEntry
+    dcai-reasoning:dependencyExposure,
+    dcai-reasoning:recoveryBlocker,
+    dcai-reasoning:restoreReadiness,
+    dcai-reasoning:impactTrust,
+    dcai-reasoning:blastRadius .
+
+dcai-reasoning:dependencyExposure
+  rdf:type dcai-reasoning:ReasoningEntry ;
+  dcterms:title "Dependency exposure reasoning placeholder" ;
+  dcai-reasoning:targetClass "dcai:DependencyImpactFinding" ;
+  dcai-reasoning:rulePath "reasoning/rules/dependency-exposure.rules" ;
+  dcai-reasoning:queryPath "queries/reasoning/dependency_exposure.construct.rq" ;
+  dcai-reasoning:fixtureExpectation "fixtures/rdf/valid/dependency-path.ttl should support a future dependency exposure finding." ;
+  dcai-reasoning:implementationStatus "placeholder" .
+
+dcai-reasoning:recoveryBlocker
+  rdf:type dcai-reasoning:ReasoningEntry ;
+  dcterms:title "Recovery blocker reasoning placeholder" ;
+  dcai-reasoning:targetClass "dcai:RecoveryBlocker and dcai:FollowUpDecision" ;
+  dcai-reasoning:rulePath "reasoning/rules/recovery-blocker.rules" ;
+  dcai-reasoning:queryPath "queries/reasoning/recovery_blocker.construct.rq" ;
+  dcai-reasoning:fixtureExpectation "fixtures/rdf/valid/minimal-incident.ttl should support a future recovery blocker and follow-up decision finding." ;
+  dcai-reasoning:implementationStatus "placeholder" .
+
+dcai-reasoning:restoreReadiness
+  rdf:type dcai-reasoning:ReasoningEntry ;
+  dcterms:title "Restore readiness reasoning placeholder" ;
+  dcai-reasoning:targetClass "dcai:RestoreReadinessFinding" ;
+  dcai-reasoning:rulePath "reasoning/rules/restore-readiness.rules" ;
+  dcai-reasoning:queryPath "queries/reasoning/restore_readiness.construct.rq" ;
+  dcai-reasoning:fixtureExpectation "fixtures/rdf/valid/evidence-provenance.ttl should support future restore readiness reasoning from evidence and provenance." ;
+  dcai-reasoning:implementationStatus "placeholder" .
+
+dcai-reasoning:impactTrust
+  rdf:type dcai-reasoning:ReasoningEntry ;
+  dcterms:title "Impact trust reasoning placeholder" ;
+  dcai-reasoning:targetClass "dcai:TrustFinding" ;
+  dcai-reasoning:rulePath "reasoning/rules/impact-trust.rules" ;
+  dcai-reasoning:queryPath "queries/reasoning/impact_trust.construct.rq" ;
+  dcai-reasoning:fixtureExpectation "fixtures/rdf/invalid/ai-proposed-write.ttl and fixtures/rdf/valid/evidence-provenance.ttl should support future trust finding expectations." ;
+  dcai-reasoning:implementationStatus "placeholder" .
+
+dcai-reasoning:blastRadius
+  rdf:type dcai-reasoning:ReasoningEntry ;
+  dcterms:title "Blast radius reasoning placeholder" ;
+  dcai-reasoning:targetClass "dcai:BlastRadiusFinding" ;
+  dcai-reasoning:rulePath "reasoning/rules/blast-radius.rules" ;
+  dcai-reasoning:queryPath "queries/reasoning/blast_radius.construct.rq" ;
+  dcai-reasoning:fixtureExpectation "fixtures/rdf/valid/dependency-path.ttl should support future blast-radius reasoning across dependency paths." ;
+  dcai-reasoning:implementationStatus "placeholder" .

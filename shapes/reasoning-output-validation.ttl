@@ -1,0 +1,129 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai:ReasoningActivityShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:ReasoningActivity ;
+  sh:property [
+    sh:path prov:used ;
+    sh:minCount 1
+  ] ;
+  sh:property [
+    sh:path prov:generated ;
+    sh:minCount 1
+  ] ;
+  sh:property [
+    sh:path prov:generatedAtTime ;
+    sh:minCount 1 ;
+    sh:datatype xsd:dateTime
+  ] .
+
+dcai:DependencyImpactFindingShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:DependencyImpactFinding ;
+  sh:property [
+    sh:path dcai:hasFindingSummary ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path prov:wasDerivedFrom ;
+    sh:minCount 1
+  ] ;
+  sh:property [
+    sh:path prov:wasGeneratedBy ;
+    sh:minCount 1 ;
+    sh:class dcai:ReasoningActivity
+  ] .
+
+dcai:RecoveryBlockerShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:RecoveryBlocker ;
+  sh:property [
+    sh:path dcai:hasFindingSummary ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path prov:wasDerivedFrom ;
+    sh:minCount 1
+  ] ;
+  sh:property [
+    sh:path prov:wasGeneratedBy ;
+    sh:minCount 1 ;
+    sh:class dcai:ReasoningActivity
+  ] .
+
+dcai:FollowUpDecisionShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:FollowUpDecision ;
+  sh:property [
+    sh:path dcai:hasRecommendedAction ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path prov:wasDerivedFrom ;
+    sh:minCount 1
+  ] ;
+  sh:property [
+    sh:path prov:wasGeneratedBy ;
+    sh:minCount 1 ;
+    sh:class dcai:ReasoningActivity
+  ] .
+
+dcai:RestoreReadinessFindingShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:RestoreReadinessFinding ;
+  sh:property [
+    sh:path dcai:hasFindingSummary ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path prov:wasDerivedFrom ;
+    sh:minCount 1
+  ] ;
+  sh:property [
+    sh:path prov:wasGeneratedBy ;
+    sh:minCount 1 ;
+    sh:class dcai:ReasoningActivity
+  ] .
+
+dcai:TrustFindingShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:TrustFinding ;
+  sh:property [
+    sh:path dcai:hasFindingSummary ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path prov:wasDerivedFrom ;
+    sh:minCount 1
+  ] ;
+  sh:property [
+    sh:path prov:wasGeneratedBy ;
+    sh:minCount 1 ;
+    sh:class dcai:ReasoningActivity
+  ] .
+
+dcai:BlastRadiusFindingShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:BlastRadiusFinding ;
+  sh:property [
+    sh:path dcai:hasFindingSummary ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path prov:wasDerivedFrom ;
+    sh:minCount 1
+  ] ;
+  sh:property [
+    sh:path prov:wasGeneratedBy ;
+    sh:minCount 1 ;
+    sh:class dcai:ReasoningActivity
+  ] .

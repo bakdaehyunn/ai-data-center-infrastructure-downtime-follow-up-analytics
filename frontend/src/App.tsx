@@ -133,7 +133,7 @@ function FollowUpQueuePage() {
       <header className="topbar">
         <div>
           <p className="eyebrow">AI infrastructure operations</p>
-          <h1>AI Data Center Infrastructure Downtime Follow-up Analytics</h1>
+          <h1>AI Data Center Infrastructure Semantic Operations Platform</h1>
         </div>
         <button className="icon-button" onClick={() => applyFilters(setSearchParams, {})} title="Reset filters">
           <RefreshCcw size={18} />

@@ -1,0 +1,19 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+dcai:DerivedFactProvenanceShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:DerivedFact ;
+  sh:property [
+    sh:path prov:wasGeneratedBy ;
+    sh:minCount 1
+  ] .
+
+dcai:OperationalEntityProvenanceShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:OperationalEntity ;
+  sh:or (
+    [ sh:property [ sh:path prov:wasDerivedFrom ; sh:minCount 1 ] ]
+    [ sh:property [ sh:path prov:wasGeneratedBy ; sh:minCount 1 ] ]
+  ) .

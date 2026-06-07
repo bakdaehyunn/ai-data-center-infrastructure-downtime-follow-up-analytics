@@ -1,0 +1,22 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase3-rdf-fixtures-mapping
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 3 RDF fixtures and source-to-canonical mapping scaffold release" ;
+  dcterms:description "Scaffold-only release for valid and invalid RDF fixtures, source-to-canonical mapping documentation, graph promotion documentation, query-manifest references, and validation commands. This release does not implement executable ingestion, SPARQL promotion behavior, reasoning, Java/Kotlin service code, or UI redesign." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase2-ontology-shacl-skeleton ;
+  dcterms:hasPart
+    <../../fixtures/rdf/valid/minimal-incident.ttl>,
+    <../../fixtures/rdf/valid/dependency-path.ttl>,
+    <../../fixtures/rdf/valid/evidence-provenance.ttl>,
+    <../../fixtures/rdf/invalid/missing-asset-link.ttl>,
+    <../../fixtures/rdf/invalid/unknown-workflow-stage.ttl>,
+    <../../fixtures/rdf/invalid/ai-proposed-write.ttl>,
+    <../../rdf-mapping/README.md>,
+    <../../queries/manifest.ttl>,
+    <../../docs/ontology-native/phase3_rdf_mapping_graph_promotion.md> .

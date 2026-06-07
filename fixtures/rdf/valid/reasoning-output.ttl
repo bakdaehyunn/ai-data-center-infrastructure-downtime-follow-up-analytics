@@ -1,0 +1,104 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix fixture: <urn:dcai:fixture:valid:reasoning-output:> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+fixture:source-system
+  rdf:type dcai:SourceSystem ;
+  rdfs:label "Reasoning output fixture source" .
+
+fixture:import-activity-0001
+  rdf:type dcai:ImportActivity ;
+  prov:generatedAtTime "2026-06-07T00:00:00Z"^^xsd:dateTime .
+
+fixture:source-record-0001
+  rdf:type dcai:SourceRecord ;
+  dcai:hasSourceRecordId "SRC-REASONING-0001" ;
+  dcai:hasSourceSystem fixture:source-system ;
+  dcai:hasSourcePayloadHash "sha256:phase7-reasoning-output" ;
+  prov:wasGeneratedBy fixture:import-activity-0001 .
+
+fixture:zone-a
+  rdf:type dcai:InfrastructureZone ;
+  dcai:hasIdentifier "ZONE-A" ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:asset-a
+  rdf:type dcai:InfrastructureAsset ;
+  dcai:hasIdentifier "ASSET-A" ;
+  dcai:locatedIn fixture:zone-a ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:stage-waiting
+  rdf:type dcai:WorkflowStage ;
+  rdfs:label "Spare/vendor waiting" .
+
+fixture:incident-0001
+  rdf:type dcai:InfrastructureIncident ;
+  dcai:hasIdentifier "INC-REASONING-0001" ;
+  dcai:affectsAsset fixture:asset-a ;
+  dcai:hasCurrentStage fixture:stage-waiting ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:impact-0001
+  rdf:type dcai:ImpactObservation ;
+  dcai:impactForIncident fixture:incident-0001 ;
+  dcai:estimatedCapacityRiskKw "900.0"^^xsd:decimal ;
+  dcai:affectedGpuCount "320"^^xsd:integer ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:evidence-0001
+  rdf:type dcai:TelemetryEvidence ;
+  dcai:supportsFact fixture:impact-0001 ;
+  dcai:hasConfidenceState "TRUSTED" ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:dependency-impact-0001
+  rdf:type dcai:DependencyImpactFinding ;
+  dcai:hasFindingSummary "Power path dependency exposes the selected incident." ;
+  prov:wasDerivedFrom fixture:incident-0001 ;
+  prov:wasGeneratedBy fixture:reasoning-activity-0001 .
+
+fixture:recovery-blocker-0001
+  rdf:type dcai:RecoveryBlocker ;
+  dcai:hasFindingSummary "Current blocker is spare/vendor waiting." ;
+  prov:wasDerivedFrom fixture:incident-0001 ;
+  prov:wasGeneratedBy fixture:reasoning-activity-0001 .
+
+fixture:follow-up-decision-0001
+  rdf:type dcai:FollowUpDecision ;
+  dcai:hasRecommendedAction "Escalate vendor ETA and confirm recovery path." ;
+  prov:wasDerivedFrom fixture:incident-0001 ;
+  prov:wasGeneratedBy fixture:reasoning-activity-0001 .
+
+fixture:restore-readiness-0001
+  rdf:type dcai:RestoreReadinessFinding ;
+  dcai:hasFindingSummary "Restore is not ready until validation evidence is present." ;
+  prov:wasDerivedFrom fixture:incident-0001 ;
+  prov:wasGeneratedBy fixture:reasoning-activity-0001 .
+
+fixture:trust-finding-0001
+  rdf:type dcai:TrustFinding ;
+  dcai:hasFindingSummary "Impact evidence is supported by telemetry." ;
+  prov:wasDerivedFrom fixture:impact-0001 ;
+  prov:wasGeneratedBy fixture:reasoning-activity-0001 .
+
+fixture:blast-radius-0001
+  rdf:type dcai:BlastRadiusFinding ;
+  dcai:hasFindingSummary "Blast radius includes affected GPU capacity and dependent asset path." ;
+  prov:wasDerivedFrom fixture:incident-0001 ;
+  prov:wasGeneratedBy fixture:reasoning-activity-0001 .
+
+fixture:reasoning-activity-0001
+  rdf:type dcai:ReasoningActivity ;
+  prov:used fixture:incident-0001 ;
+  prov:used fixture:impact-0001 ;
+  prov:generated fixture:dependency-impact-0001 ;
+  prov:generated fixture:recovery-blocker-0001 ;
+  prov:generated fixture:follow-up-decision-0001 ;
+  prov:generated fixture:restore-readiness-0001 ;
+  prov:generated fixture:trust-finding-0001 ;
+  prov:generated fixture:blast-radius-0001 ;
+  prov:generatedAtTime "2026-06-07T00:00:00Z"^^xsd:dateTime .

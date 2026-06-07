@@ -49,15 +49,15 @@ Use the local dashboard to verify:
 - impact trust flags render in incident drilldown
 - stage filter excludes `Restored`
 - filtering the queue updates the incident drilldown selection
-- dashboard wording stays focused on AI data center infrastructure follow-up analytics
+- dashboard wording stays focused on AI data center infrastructure semantic operations
 
 ## Production Artifacts
 
 Build Docker images when validating deployment packaging:
 
 ```bash
-docker build -t ai-infra-followup-api ./backend
-docker build -t ai-infra-followup-frontend ./frontend
+docker build -t ai-infra-semantic-ops-api ./backend
+docker build -t ai-infra-semantic-ops-frontend ./frontend
 ```
 
 The Docker build confirms packaging, not full production readiness. Production readiness still depends on configured database connectivity, scheduled pipeline execution, health checks, and latest-run data quality review.

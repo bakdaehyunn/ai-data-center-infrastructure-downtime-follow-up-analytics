@@ -1,12 +1,12 @@
-# AI Data Center Infrastructure Downtime Follow-up Analytics
+# AI Data Center Infrastructure Semantic Operations Platform
 
-AI Data Center Infrastructure Downtime Follow-up Analytics is a semantic ontology platform for AI data center facilities follow-up decisions.
+AI Data Center Infrastructure Semantic Operations Platform is a semantic ontology platform for AI data center facilities follow-up decisions.
 
 It answers one practical question:
 
 > Which AI infrastructure incidents are delaying return-to-service, where is the blocker, and what should the team follow up next?
 
-![AI data center infrastructure downtime follow-up dashboard](docs/assets/dashboard-preview.png)
+![AI data center infrastructure semantic operations dashboard](docs/assets/dashboard-preview.png)
 
 ![Selected follow-up detail page](docs/assets/follow-up-detail-preview.png)
 
@@ -237,3 +237,18 @@ npm run build
 - `docs/09_production_rollout.md`: deployment, scheduling, health, observability, data quality reporting, and rollback
 - `docs/10_operational_case_study.md`: Problem -> Discovery -> Data sources -> Workflow model -> System design -> Tradeoffs -> Production rollout plan -> Measured impact
 - `docs/11_topology_semantic_connectors.md`: topology graph, semantic ontology API, Fuseki sync, and connector contracts
+- `docs/12_ontology_native_rewrite_execplan.md`: full rewrite ExecPlan for an ontology-native AI semantic operations platform
+- `docs/13_ontology_native_target_architecture.md`: target ontology-native architecture, graph model, modules, reasoning, AI governance, and old-runtime removal plan
+- `docs/14_ontology_native_verification_plan.md`: rewrite verification gates for ontology, SHACL, SPARQL, reasoning, AI governance, UI, and old-runtime removal
+- `docs/ontology-native/phase1_semantic_runtime_scaffold.md`: Phase 1 scaffold for persistent Jena/Fuseki/TDB2 runtime, graph release manifest, ontology module boundary, SHACL boundary, and query manifest placeholder
+- `docs/ontology-native/phase2_ontology_shacl_contract.md`: Phase 2 parseable OWL/RDFS module and SHACL shape skeletons, fixture expectations, and validation commands
+- `docs/ontology-native/phase3_rdf_mapping_graph_promotion.md`: Phase 3 RDF fixtures, source-to-canonical mapping scaffold, graph promotion documentation, and validation commands
+- `docs/ontology-native/phase4_reasoning_pipeline_scaffold.md`: Phase 4 reasoning pipeline scaffold, placeholder rule/query structure, fixture expectations, and validation commands
+- `docs/ontology-native/phase5_sparql_query_validation_scaffold.md`: Phase 5 parseable placeholder SPARQL query files and non-runtime query validation scaffold
+- `docs/ontology-native/phase6_reasoning_execution_contract.md`: Phase 6 non-runtime reasoning execution contract for graph inputs/outputs, promotion gates, provenance requirements, failure modes, and service boundaries
+- `docs/ontology-native/phase7_reasoning_output_validation.md`: Phase 7 SHACL shapes and fixture expectations for validating future reasoning outputs and reasoning activity provenance
+- `docs/ontology-native/phase8_semantic_service_boundary.md`: Phase 8 non-runtime semantic service boundary contract for future Java/Kotlin query, validation, provenance, promotion review, and AI governance use cases
+- `docs/ontology-native/phase9_api_contract_scaffold.md`: Phase 9 non-runtime OpenAPI-style endpoint shape and request/response DTO scaffold for the future semantic service
+- `docs/ontology-native/phase10_semantic_service_project_scaffold.md`: Phase 10 minimal non-running Java/Kotlin semantic service project scaffold with build metadata, package layout placeholders, and contract wiring
+- `docs/ontology-native/phase11_contract_loading_static_validation.md`: Phase 11 first Kotlin implementation slice for contract loading and static validation only
+- `docs/ontology-native/phase12_cutover_implementation_readiness.md`: Phase 12 cutover and implementation-readiness checkpoint for old-runtime reference use, later-removal triggers, and gates before real semantic endpoints or graph execution

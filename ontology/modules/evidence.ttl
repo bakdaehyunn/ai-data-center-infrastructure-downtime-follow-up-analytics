@@ -1,0 +1,39 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai:evidence
+  rdf:type owl:Ontology ;
+  dcterms:title "DCAI evidence ontology module" ;
+  dcterms:description "Phase 2 skeleton for operational evidence, source quality, and trust findings." ;
+  owl:imports dcai:core ;
+  owl:versionInfo "2026-06-phase2-skeleton" .
+
+dcai:EvidenceRecord rdf:type owl:Class ;
+  rdfs:subClassOf dcai:EvidenceArtifact .
+dcai:TelemetryEvidence rdf:type owl:Class ;
+  rdfs:subClassOf dcai:EvidenceRecord .
+dcai:ValidationEvidence rdf:type owl:Class ;
+  rdfs:subClassOf dcai:EvidenceRecord .
+dcai:WorkOrderEvidence rdf:type owl:Class ;
+  rdfs:subClassOf dcai:EvidenceRecord .
+dcai:SourceQualityIssue rdf:type owl:Class ;
+  rdfs:subClassOf dcai:EvidenceArtifact .
+dcai:TrustFinding rdf:type owl:Class ;
+  rdfs:subClassOf dcai:DerivedFact .
+
+dcai:supportsFact rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:EvidenceRecord ;
+  rdfs:range dcai:OperationalEntity .
+dcai:contradictsFact rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:EvidenceRecord ;
+  rdfs:range dcai:OperationalEntity .
+dcai:hasConfidenceState rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:EvidenceArtifact ;
+  rdfs:range xsd:string .
+dcai:hasEvidenceSeverity rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:EvidenceArtifact ;
+  rdfs:range xsd:string .

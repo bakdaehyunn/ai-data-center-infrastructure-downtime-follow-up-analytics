@@ -1,0 +1,101 @@
+@prefix dcai-query: <urn:dcai:query:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-query:manifest
+  rdf:type dcai-query:QueryManifest ;
+  dcterms:title "Ontology-native query manifest placeholder" ;
+  dcterms:description "Scaffold-only query manifest for the ontology-native rewrite. Phase 5 keeps parseable placeholder SPARQL files for future reasoning queries while preserving Phase 3 source-to-canonical graph promotion, fixture validation, and provenance lookup placeholders." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcai-query:hasEntry
+    dcai-query:sourceToCanonicalPromotion,
+    dcai-query:validFixtureConformance,
+    dcai-query:invalidFixtureExpectation,
+    dcai-query:provenanceLineageLookup,
+    dcai-query:dependencyExposureReasoning,
+    dcai-query:recoveryBlockerReasoning,
+    dcai-query:restoreReadinessReasoning,
+    dcai-query:impactTrustReasoning,
+    dcai-query:blastRadiusReasoning,
+    dcai-query:reasoningFindingLineageLookup .
+
+dcai-query:sourceToCanonicalPromotion
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Future source-to-canonical graph promotion query" ;
+  dcai-query:queryPath "queries/ingestion/promote_source_to_canonical.ru" ;
+  dcai-query:queryMode "UPDATE" ;
+  dcai-query:graphScope "source graph, canonical graph, provenance graph" ;
+  dcai-query:implementationStatus "placeholder" .
+
+dcai-query:validFixtureConformance
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Future valid fixture conformance query" ;
+  dcai-query:queryPath "queries/validation/valid_fixture_conformance.ask.rq" ;
+  dcai-query:queryMode "ASK" ;
+  dcai-query:graphScope "fixture graph, shapes graph" ;
+  dcai-query:implementationStatus "placeholder" .
+
+dcai-query:invalidFixtureExpectation
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Future invalid fixture expectation query" ;
+  dcai-query:queryPath "queries/validation/invalid_fixture_expectation.ask.rq" ;
+  dcai-query:queryMode "ASK" ;
+  dcai-query:graphScope "fixture graph, shapes graph" ;
+  dcai-query:implementationStatus "placeholder" .
+
+dcai-query:provenanceLineageLookup
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Future provenance lineage lookup query" ;
+  dcai-query:queryPath "queries/provenance/fact_lineage.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "canonical graph, provenance graph" ;
+  dcai-query:implementationStatus "placeholder" .
+
+dcai-query:dependencyExposureReasoning
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Dependency exposure reasoning placeholder query" ;
+  dcai-query:queryPath "queries/reasoning/dependency_exposure.construct.rq" ;
+  dcai-query:queryMode "CONSTRUCT" ;
+  dcai-query:graphScope "canonical graph, reasoning audit graph, reasoning graph" ;
+  dcai-query:implementationStatus "parseable-placeholder" .
+
+dcai-query:recoveryBlockerReasoning
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Recovery blocker reasoning placeholder query" ;
+  dcai-query:queryPath "queries/reasoning/recovery_blocker.construct.rq" ;
+  dcai-query:queryMode "CONSTRUCT" ;
+  dcai-query:graphScope "canonical graph, reasoning audit graph, reasoning graph" ;
+  dcai-query:implementationStatus "parseable-placeholder" .
+
+dcai-query:restoreReadinessReasoning
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Restore readiness reasoning placeholder query" ;
+  dcai-query:queryPath "queries/reasoning/restore_readiness.construct.rq" ;
+  dcai-query:queryMode "CONSTRUCT" ;
+  dcai-query:graphScope "canonical graph, reasoning audit graph, reasoning graph" ;
+  dcai-query:implementationStatus "parseable-placeholder" .
+
+dcai-query:impactTrustReasoning
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Impact trust reasoning placeholder query" ;
+  dcai-query:queryPath "queries/reasoning/impact_trust.construct.rq" ;
+  dcai-query:queryMode "CONSTRUCT" ;
+  dcai-query:graphScope "canonical graph, reasoning audit graph, reasoning graph" ;
+  dcai-query:implementationStatus "parseable-placeholder" .
+
+dcai-query:blastRadiusReasoning
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Blast-radius reasoning placeholder query" ;
+  dcai-query:queryPath "queries/reasoning/blast_radius.construct.rq" ;
+  dcai-query:queryMode "CONSTRUCT" ;
+  dcai-query:graphScope "canonical graph, reasoning audit graph, reasoning graph" ;
+  dcai-query:implementationStatus "parseable-placeholder" .
+
+dcai-query:reasoningFindingLineageLookup
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Reasoning finding lineage placeholder query" ;
+  dcai-query:queryPath "queries/reasoning/reasoning_finding_lineage.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "reasoning graph, reasoning audit graph, provenance graph" ;
+  dcai-query:implementationStatus "parseable-placeholder" .

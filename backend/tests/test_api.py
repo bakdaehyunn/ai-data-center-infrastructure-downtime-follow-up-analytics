@@ -332,7 +332,7 @@ def test_overview_and_quality_checks_use_latest_pipeline_run(api_client: TestCli
         session.add(
             PipelineRun(
                 pipeline_run_id="RUN-OLDER-FAILED",
-                pipeline_name="ai_data_center_infrastructure_followup",
+                pipeline_name="ai_data_center_infrastructure_semantic_ops",
                 started_at=latest_run.started_at.replace(year=latest_run.started_at.year - 1),
                 status="PARTIAL_SUCCESS",
                 rows_extracted=1,

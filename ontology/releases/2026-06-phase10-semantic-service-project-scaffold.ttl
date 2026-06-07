@@ -1,0 +1,20 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase10-semantic-service-project-scaffold
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 10 semantic service project scaffold release" ;
+  dcterms:description "Scaffold-only release for minimal non-running Java/Kotlin semantic service build metadata, package layout placeholders, and contract wiring to Phase 8 and Phase 9 service/API contracts. This release does not implement endpoints, controllers, DTO classes, graph execution, reasoning orchestration, UI redesign, or old-runtime removal." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase9-api-contract-scaffold ;
+  dcterms:hasPart
+    <../../semantic-service/settings.gradle.kts>,
+    <../../semantic-service/build.gradle.kts>,
+    <../../semantic-service/gradle.properties>,
+    <../../semantic-service/src/main/resources/contracts/semantic-service-contracts.ttl>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/README.md>,
+    <../../semantic-service/src/main/resources/contracts/README.md>,
+    <../../docs/ontology-native/phase10_semantic_service_project_scaffold.md> .

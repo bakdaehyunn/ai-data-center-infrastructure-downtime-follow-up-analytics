@@ -1,0 +1,37 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai:operations
+  rdf:type owl:Ontology ;
+  dcterms:title "DCAI operations ontology module" ;
+  dcterms:description "Phase 2 skeleton for graph-native follow-up queue items, priority scores, dependency impact findings, restore readiness findings, and blast radius findings." ;
+  owl:imports dcai:core, dcai:workflow, dcai:impact, dcai:evidence, dcai:topology ;
+  owl:versionInfo "2026-06-phase2-skeleton" .
+
+dcai:FollowUpQueueItem rdf:type owl:Class ;
+  rdfs:subClassOf dcai:DerivedFact .
+dcai:OperationalPriorityScore rdf:type owl:Class ;
+  rdfs:subClassOf dcai:DerivedFact .
+dcai:DependencyImpactFinding rdf:type owl:Class ;
+  rdfs:subClassOf dcai:DerivedFact .
+dcai:RestoreReadinessFinding rdf:type owl:Class ;
+  rdfs:subClassOf dcai:DerivedFact .
+dcai:BlastRadiusFinding rdf:type owl:Class ;
+  rdfs:subClassOf dcai:DerivedFact .
+
+dcai:queueItemForIncident rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:FollowUpQueueItem ;
+  rdfs:range dcai:InfrastructureIncident .
+dcai:hasPriorityScore rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:OperationalPriorityScore ;
+  rdfs:range xsd:decimal .
+dcai:hasPriorityRank rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:FollowUpQueueItem ;
+  rdfs:range xsd:integer .
+dcai:hasFindingSummary rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:DerivedFact ;
+  rdfs:range xsd:string .

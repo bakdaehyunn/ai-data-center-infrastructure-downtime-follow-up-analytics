@@ -1,0 +1,17 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase9-api-contract-scaffold
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 9 API contract scaffold release" ;
+  dcterms:description "Scaffold-only release for a non-runtime API contract for the future semantic service. It documents OpenAPI-style endpoint shape and request/response DTOs for query execution, reasoning validation, provenance lookup, promotion review, and AI governance handoff. This release does not implement service runtime, executable orchestration, RDF ingestion, graph promotion, controllers, clients, DTO classes, UI redesign, or old-runtime removal." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase8-semantic-service-boundary ;
+  dcterms:hasPart
+    <../../semantic-service/openapi.semantic-service.yaml>,
+    <../../semantic-service/api-dtos.md>,
+    <../../semantic-service/README.md>,
+    <../../docs/ontology-native/phase9_api_contract_scaffold.md> .

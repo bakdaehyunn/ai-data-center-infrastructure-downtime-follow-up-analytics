@@ -1,0 +1,16 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai:SourceRecordRequiredFieldsShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:SourceRecord ;
+  sh:property [
+    sh:path dcai:hasSourceRecordId ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasSourceSystem ;
+    sh:minCount 1
+  ] .

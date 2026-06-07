@@ -16,7 +16,7 @@ from app.pipeline.reconciler import run_reconciliation_checks
 from app.sample_data.generator import generate_sample_dataset, write_sample_dataset
 
 
-PIPELINE_NAME = "ai_data_center_infrastructure_followup"
+PIPELINE_NAME = "ai_data_center_infrastructure_semantic_ops"
 
 
 @dataclass(frozen=True)

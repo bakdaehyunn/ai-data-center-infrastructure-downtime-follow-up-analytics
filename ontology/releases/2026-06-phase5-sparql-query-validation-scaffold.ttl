@@ -1,0 +1,23 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase5-sparql-query-validation-scaffold
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 5 SPARQL query validation scaffold release" ;
+  dcterms:description "Scaffold-only release for parseable placeholder SPARQL query files and non-runtime query validation for dependency exposure, recovery blocker, restore readiness, impact trust, blast radius, and reasoning lineage. This release does not implement Java/Kotlin service code, executable reasoning orchestration, RDF ingestion, graph promotion, UI redesign, or old-runtime removal." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase4-reasoning-pipeline-scaffold ;
+  dcterms:hasPart
+    <../../queries/reasoning/dependency_exposure.construct.rq>,
+    <../../queries/reasoning/recovery_blocker.construct.rq>,
+    <../../queries/reasoning/restore_readiness.construct.rq>,
+    <../../queries/reasoning/impact_trust.construct.rq>,
+    <../../queries/reasoning/blast_radius.construct.rq>,
+    <../../queries/reasoning/reasoning_finding_lineage.select.rq>,
+    <../../queries/validate_sparql.py>,
+    <../../queries/reasoning/README.md>,
+    <../../queries/manifest.ttl>,
+    <../../docs/ontology-native/phase5_sparql_query_validation_scaffold.md> .

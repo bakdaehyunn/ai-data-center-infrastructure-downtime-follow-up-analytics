@@ -1,0 +1,16 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase8-semantic-service-boundary
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 8 semantic service boundary contract release" ;
+  dcterms:description "Scaffold-only release for a non-runtime semantic service boundary contract for future Java/Kotlin implementation. It covers query execution, reasoning validation, provenance lookup, promotion review, and AI governance handoff. This release does not implement service runtime, executable orchestration, RDF ingestion, graph promotion, API endpoints, UI redesign, or old-runtime removal." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase7-reasoning-output-validation ;
+  dcterms:hasPart
+    <../../semantic-service/README.md>,
+    <../../semantic-service/boundary-contract.ttl>,
+    <../../docs/ontology-native/phase8_semantic_service_boundary.md> .

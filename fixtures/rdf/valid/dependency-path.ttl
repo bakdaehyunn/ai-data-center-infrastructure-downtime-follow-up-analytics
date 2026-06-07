@@ -1,0 +1,56 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix fixture: <urn:dcai:fixture:valid:dependency-path:> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+fixture:topology-source
+  rdf:type dcai:SourceSystem ;
+  rdfs:label "Topology extract source" .
+
+fixture:import-activity-0001
+  rdf:type dcai:ImportActivity ;
+  prov:generatedAtTime "2026-06-07T00:00:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
+
+fixture:source-record-topology-0001
+  rdf:type dcai:SourceRecord ;
+  dcai:hasSourceRecordId "SRC-TOPO-0001" ;
+  dcai:hasSourceSystem fixture:topology-source ;
+  dcai:hasSourcePayloadHash "sha256:phase3-dependency-path" ;
+  prov:wasGeneratedBy fixture:import-activity-0001 .
+
+fixture:zone-a
+  rdf:type dcai:InfrastructureZone ;
+  dcai:hasIdentifier "ZONE-A" ;
+  prov:wasDerivedFrom fixture:source-record-topology-0001 .
+
+fixture:gpu-rack-row-a
+  rdf:type dcai:InfrastructureAsset ;
+  dcai:hasIdentifier "ASSET-GPU-RACK-ROW-A" ;
+  dcai:locatedIn fixture:zone-a ;
+  dcai:hasAssetType "GPU_RACK_ROW" ;
+  dcai:hasOperationalStatus "DEGRADED" ;
+  prov:wasDerivedFrom fixture:source-record-topology-0001 .
+
+fixture:rack-pdu-a
+  rdf:type dcai:PowerAsset ;
+  dcai:hasIdentifier "ASSET-RACK-PDU-A" ;
+  dcai:locatedIn fixture:zone-a ;
+  dcai:hasAssetType "RACK_PDU" ;
+  dcai:hasOperationalStatus "RUNNING" ;
+  prov:wasDerivedFrom fixture:source-record-topology-0001 .
+
+fixture:edge-rack-to-pdu
+  rdf:type dcai:DependencyEdge ;
+  dcai:hasIdentifier "EDGE-RACK-PDU-A" ;
+  dcai:hasDependentAsset fixture:gpu-rack-row-a ;
+  dcai:hasDependencyAsset fixture:rack-pdu-a ;
+  dcai:hasDependencyRole "POWER_SUPPLY" ;
+  dcai:hasImpactScope "RACK_ROW" ;
+  prov:wasDerivedFrom fixture:source-record-topology-0001 .
+
+fixture:power-path-a
+  rdf:type dcai:PowerPath ;
+  dcai:hasIdentifier "PATH-POWER-A" ;
+  dcai:hasPathStep fixture:edge-rack-to-pdu ;
+  prov:wasDerivedFrom fixture:source-record-topology-0001 .

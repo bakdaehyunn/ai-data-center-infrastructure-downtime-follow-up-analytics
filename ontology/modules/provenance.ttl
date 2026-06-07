@@ -1,0 +1,32 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai:provenance
+  rdf:type owl:Ontology ;
+  dcterms:title "DCAI provenance ontology module" ;
+  dcterms:description "Phase 2 skeleton for source extracts, import activities, promotion activities, and reasoning lineage." ;
+  owl:imports dcai:core ;
+  owl:versionInfo "2026-06-phase2-skeleton" .
+
+dcai:SourceExtract rdf:type owl:Class ;
+  rdfs:subClassOf prov:Entity .
+dcai:SourceRecord rdf:type owl:Class ;
+  rdfs:subClassOf prov:Entity .
+dcai:ImportActivity rdf:type owl:Class ;
+  rdfs:subClassOf prov:Activity .
+dcai:PromotionActivity rdf:type owl:Class ;
+  rdfs:subClassOf prov:Activity .
+dcai:ReasoningActivity rdf:type owl:Class ;
+  rdfs:subClassOf prov:Activity .
+
+dcai:hasSourceRecordId rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:SourceRecord ;
+  rdfs:range xsd:string .
+dcai:hasSourcePayloadHash rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:SourceRecord ;
+  rdfs:range xsd:string .

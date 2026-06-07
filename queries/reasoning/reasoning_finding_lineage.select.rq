@@ -1,0 +1,25 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+
+SELECT ?finding ?findingType ?sourceFact ?activity
+WHERE {
+  GRAPH <urn:dcai:graph:reasoning> {
+    ?finding a ?findingType .
+    OPTIONAL { ?finding prov:wasDerivedFrom ?sourceFact . }
+  }
+  OPTIONAL {
+    GRAPH <urn:dcai:graph:provenance> {
+      ?activity a dcai:ReasoningActivity ;
+        prov:generated ?finding .
+    }
+  }
+  FILTER(?findingType IN (
+    dcai:DependencyImpactFinding,
+    dcai:RecoveryBlocker,
+    dcai:FollowUpDecision,
+    dcai:RestoreReadinessFinding,
+    dcai:TrustFinding,
+    dcai:BlastRadiusFinding
+  ))
+}
+ORDER BY ?finding ?sourceFact

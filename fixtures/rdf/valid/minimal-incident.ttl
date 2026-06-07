@@ -1,0 +1,52 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix fixture: <urn:dcai:fixture:valid:minimal-incident:> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+fixture:facility-ops
+  rdf:type dcai:SourceSystem ;
+  rdfs:label "Facility operations source" .
+
+fixture:import-activity-0001
+  rdf:type dcai:ImportActivity ;
+  prov:generatedAtTime "2026-06-07T00:00:00Z"^^xsd:dateTime .
+
+fixture:source-record-inc-0001
+  rdf:type dcai:SourceRecord ;
+  dcai:hasSourceRecordId "SRC-INC-0001" ;
+  dcai:hasSourceSystem fixture:facility-ops ;
+  dcai:hasSourcePayloadHash "sha256:phase3-minimal-incident" ;
+  prov:wasGeneratedBy fixture:import-activity-0001 .
+
+fixture:gpu-hall-a
+  rdf:type dcai:Facility ;
+  dcai:hasIdentifier "FAC-GPU-A" ;
+  prov:wasDerivedFrom fixture:source-record-inc-0001 .
+
+fixture:zone-a
+  rdf:type dcai:InfrastructureZone ;
+  dcai:hasIdentifier "ZONE-A" ;
+  dcai:zoneInFacility fixture:gpu-hall-a ;
+  prov:wasDerivedFrom fixture:source-record-inc-0001 .
+
+fixture:gpu-rack-row-a
+  rdf:type dcai:InfrastructureAsset ;
+  dcai:hasIdentifier "ASSET-GPU-RACK-ROW-A" ;
+  dcai:locatedIn fixture:zone-a ;
+  dcai:hasAssetType "GPU_RACK_ROW" ;
+  dcai:hasCriticalityLevel "CRITICAL" ;
+  dcai:hasOperationalStatus "DEGRADED" ;
+  prov:wasDerivedFrom fixture:source-record-inc-0001 .
+
+fixture:stage-validation
+  rdf:type dcai:WorkflowStage ;
+  rdfs:label "Validation" .
+
+fixture:inc-0001
+  rdf:type dcai:InfrastructureIncident ;
+  dcai:hasIdentifier "INC-0001" ;
+  dcai:affectsAsset fixture:gpu-rack-row-a ;
+  dcai:hasCurrentStage fixture:stage-validation ;
+  prov:wasDerivedFrom fixture:source-record-inc-0001 .

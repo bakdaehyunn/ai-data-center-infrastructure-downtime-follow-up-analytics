@@ -1,0 +1,25 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+
+CONSTRUCT {
+  ?blocker a dcai:RecoveryBlocker ;
+    dcai:hasFindingSummary ?blockerSummary ;
+    prov:wasDerivedFrom ?incident .
+  ?decision a dcai:FollowUpDecision ;
+    dcai:hasRecommendedAction ?recommendedAction ;
+    prov:wasDerivedFrom ?incident .
+}
+WHERE {
+  GRAPH <urn:dcai:graph:canonical> {
+    ?incident a dcai:InfrastructureIncident ;
+      dcai:hasCurrentStage ?stage .
+    OPTIONAL {
+      ?impact a dcai:ImpactObservation ;
+        dcai:impactForIncident ?incident .
+    }
+  }
+  BIND(IRI(CONCAT("urn:dcai:reasoning:recovery-blocker:", ENCODE_FOR_URI(STR(?incident)))) AS ?blocker)
+  BIND(IRI(CONCAT("urn:dcai:reasoning:follow-up-decision:", ENCODE_FOR_URI(STR(?incident)))) AS ?decision)
+  BIND(CONCAT("Current recovery blocker is stage ", STR(?stage)) AS ?blockerSummary)
+  BIND(CONCAT("Follow up the active blocker for ", STR(?incident)) AS ?recommendedAction)
+}

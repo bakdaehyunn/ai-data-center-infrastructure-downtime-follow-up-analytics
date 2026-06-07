@@ -1,0 +1,68 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix fixture: <urn:dcai:fixture:valid:evidence-provenance:> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+fixture:telemetry-source
+  rdf:type dcai:SourceSystem ;
+  rdfs:label "Telemetry source" .
+
+fixture:import-activity-0001
+  rdf:type dcai:ImportActivity ;
+  prov:generatedAtTime "2026-06-07T00:00:00Z"^^xsd:dateTime .
+
+fixture:source-record-evidence-0001
+  rdf:type dcai:SourceRecord ;
+  dcai:hasSourceRecordId "SRC-EVIDENCE-0001" ;
+  dcai:hasSourceSystem fixture:telemetry-source ;
+  dcai:hasSourcePayloadHash "sha256:phase3-evidence-provenance" ;
+  prov:wasGeneratedBy fixture:import-activity-0001 .
+
+fixture:reasoning-activity-0001
+  rdf:type dcai:ReasoningActivity ;
+  prov:used fixture:source-record-evidence-0001 ;
+  prov:generated fixture:trust-finding-0002 ;
+  prov:generatedAtTime "2026-06-07T00:00:00Z"^^xsd:dateTime .
+
+fixture:zone-a
+  rdf:type dcai:InfrastructureZone ;
+  dcai:hasIdentifier "ZONE-A" ;
+  prov:wasDerivedFrom fixture:source-record-evidence-0001 .
+
+fixture:gpu-rack-row-a
+  rdf:type dcai:InfrastructureAsset ;
+  dcai:hasIdentifier "ASSET-GPU-RACK-ROW-A" ;
+  dcai:locatedIn fixture:zone-a ;
+  prov:wasDerivedFrom fixture:source-record-evidence-0001 .
+
+fixture:stage-repair
+  rdf:type dcai:WorkflowStage ;
+  rdfs:label "Repair in progress" .
+
+fixture:inc-0002
+  rdf:type dcai:InfrastructureIncident ;
+  dcai:hasIdentifier "INC-0002" ;
+  dcai:affectsAsset fixture:gpu-rack-row-a ;
+  dcai:hasCurrentStage fixture:stage-repair ;
+  prov:wasDerivedFrom fixture:source-record-evidence-0001 .
+
+fixture:impact-0002
+  rdf:type dcai:ImpactObservation ;
+  dcai:impactForIncident fixture:inc-0002 ;
+  dcai:estimatedCapacityRiskKw "480.0"^^xsd:decimal ;
+  dcai:affectedGpuCount "128"^^xsd:integer ;
+  prov:wasDerivedFrom fixture:source-record-evidence-0001 .
+
+fixture:telemetry-evidence-0002
+  rdf:type dcai:TelemetryEvidence ;
+  dcai:supportsFact fixture:impact-0002 ;
+  dcai:hasConfidenceState "TRUSTED" ;
+  prov:wasDerivedFrom fixture:source-record-evidence-0001 .
+
+fixture:trust-finding-0002
+  rdf:type dcai:TrustFinding ;
+  dcai:hasFindingSummary "Telemetry evidence supports impact observation." ;
+  prov:wasDerivedFrom fixture:impact-0002 ;
+  prov:wasGeneratedBy fixture:reasoning-activity-0001 .

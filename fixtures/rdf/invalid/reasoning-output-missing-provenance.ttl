@@ -1,0 +1,41 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix fixture: <urn:dcai:fixture:invalid:reasoning-output-missing-provenance:> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+fixture:source-system
+  rdf:type dcai:SourceSystem ;
+  rdfs:label "Invalid reasoning output source" .
+
+fixture:source-record-0001
+  rdf:type dcai:SourceRecord ;
+  dcai:hasSourceRecordId "SRC-INVALID-REASONING-0001" ;
+  dcai:hasSourceSystem fixture:source-system ;
+  dcai:hasSourcePayloadHash "sha256:phase7-invalid-reasoning-output" .
+
+fixture:zone-a
+  rdf:type dcai:InfrastructureZone ;
+  dcai:hasIdentifier "ZONE-A" ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:asset-a
+  rdf:type dcai:InfrastructureAsset ;
+  dcai:hasIdentifier "ASSET-A" ;
+  dcai:locatedIn fixture:zone-a ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:stage-waiting
+  rdf:type dcai:WorkflowStage ;
+  rdfs:label "Spare/vendor waiting" .
+
+fixture:incident-0001
+  rdf:type dcai:InfrastructureIncident ;
+  dcai:hasIdentifier "INC-INVALID-REASONING-0001" ;
+  dcai:affectsAsset fixture:asset-a ;
+  dcai:hasCurrentStage fixture:stage-waiting ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:dependency-impact-0001
+  rdf:type dcai:DependencyImpactFinding ;
+  dcai:hasFindingSummary "Invalid finding has no source fact or reasoning activity." .

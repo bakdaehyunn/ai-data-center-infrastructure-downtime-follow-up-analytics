@@ -2,7 +2,7 @@
 
 ## Product
 
-AI Data Center Infrastructure Downtime Follow-up Analytics is a read-only operational analytics layer for AI data center facilities incidents.
+AI Data Center Infrastructure Semantic Operations Platform is a read-only semantic operations layer for AI data center facilities incidents.
 
 It answers:
 

@@ -1,0 +1,27 @@
+@prefix dcai: <urn:dcai:ontology:> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai:InfrastructureAssetCanonicalShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:InfrastructureAsset ;
+  sh:property [
+    sh:path dcai:hasIdentifier ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:locatedIn ;
+    sh:minCount 1 ;
+    sh:class dcai:InfrastructureZone
+  ] .
+
+dcai:IncidentCanonicalShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:InfrastructureIncident ;
+  sh:property [
+    sh:path dcai:affectsAsset ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:class dcai:InfrastructureAsset
+  ] .

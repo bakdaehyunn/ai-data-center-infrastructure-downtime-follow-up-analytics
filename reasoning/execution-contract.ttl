@@ -1,0 +1,87 @@
+@prefix dcai-contract: <urn:dcai:contract:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-contract:reasoningExecutionContract
+  rdf:type dcai-contract:ReasoningExecutionContract ;
+  dcterms:title "Non-runtime reasoning execution contract" ;
+  dcterms:description "Phase 6 contract for future execution of Phase 5 SPARQL reasoning queries. This metadata defines graph boundaries, gates, provenance requirements, failure modes, and service boundaries only. It does not implement executable orchestration." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcai-contract:inputGraph "urn:dcai:graph:canonical" ;
+  dcai-contract:inputGraph "urn:dcai:graph:provenance" ;
+  dcai-contract:candidateOutputGraph "urn:dcai:graph:reasoning-audit" ;
+  dcai-contract:approvedOutputGraph "urn:dcai:graph:reasoning" ;
+  dcai-contract:hasPromotionGate
+    dcai-contract:canonicalConformanceGate,
+    dcai-contract:sparqlParseGate,
+    dcai-contract:reasoningOutputShapeGate,
+    dcai-contract:provenanceRequiredGate,
+    dcai-contract:humanOrPolicyApprovalGate ;
+  dcai-contract:hasFailureMode
+    dcai-contract:staleCanonicalGraph,
+    dcai-contract:invalidCanonicalGraph,
+    dcai-contract:queryParseFailure,
+    dcai-contract:emptyReasoningOutput,
+    dcai-contract:missingProvenance,
+    dcai-contract:conflictingFinding ;
+  dcai-contract:hasServiceBoundary
+    dcai-contract:reasoningRunnerBoundary,
+    dcai-contract:semanticApiBoundary,
+    dcai-contract:aiGovernanceBoundary .
+
+dcai-contract:canonicalConformanceGate
+  rdf:type dcai-contract:PromotionGate ;
+  dcterms:title "Canonical graph SHACL conformance gate" .
+
+dcai-contract:sparqlParseGate
+  rdf:type dcai-contract:PromotionGate ;
+  dcterms:title "SPARQL parse gate" .
+
+dcai-contract:reasoningOutputShapeGate
+  rdf:type dcai-contract:PromotionGate ;
+  dcterms:title "Reasoning output shape gate" .
+
+dcai-contract:provenanceRequiredGate
+  rdf:type dcai-contract:PromotionGate ;
+  dcterms:title "Reasoning provenance required gate" .
+
+dcai-contract:humanOrPolicyApprovalGate
+  rdf:type dcai-contract:PromotionGate ;
+  dcterms:title "Human or policy approval gate" .
+
+dcai-contract:staleCanonicalGraph
+  rdf:type dcai-contract:FailureMode ;
+  dcterms:title "Stale canonical graph" .
+
+dcai-contract:invalidCanonicalGraph
+  rdf:type dcai-contract:FailureMode ;
+  dcterms:title "Invalid canonical graph" .
+
+dcai-contract:queryParseFailure
+  rdf:type dcai-contract:FailureMode ;
+  dcterms:title "Query parse failure" .
+
+dcai-contract:emptyReasoningOutput
+  rdf:type dcai-contract:FailureMode ;
+  dcterms:title "Empty reasoning output" .
+
+dcai-contract:missingProvenance
+  rdf:type dcai-contract:FailureMode ;
+  dcterms:title "Missing provenance" .
+
+dcai-contract:conflictingFinding
+  rdf:type dcai-contract:FailureMode ;
+  dcterms:title "Conflicting reasoning finding" .
+
+dcai-contract:reasoningRunnerBoundary
+  rdf:type dcai-contract:ServiceBoundary ;
+  dcterms:title "Future reasoning runner boundary" .
+
+dcai-contract:semanticApiBoundary
+  rdf:type dcai-contract:ServiceBoundary ;
+  dcterms:title "Future semantic API boundary" .
+
+dcai-contract:aiGovernanceBoundary
+  rdf:type dcai-contract:ServiceBoundary ;
+  dcterms:title "Future AI governance boundary" .

@@ -1,0 +1,20 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase11-contract-loading-static-validation
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 11 contract loading and static validation release" ;
+  dcterms:description "Implementation-slice release for Kotlin contract loading and static validation of the future semantic service contracts. This release references Phase 8, Phase 9, and Phase 10 artifacts and does not implement HTTP endpoints, graph execution, reasoning orchestration, UI redesign, or old-runtime removal." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase10-semantic-service-project-scaffold ;
+  dcterms:hasPart
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/contracts/ContractArtifact.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/contracts/SemanticServiceContractCatalog.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/contracts/ContractFileLoader.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/contracts/StaticContractValidator.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/contracts/StaticContractValidatorTest.kt>,
+    <../../semantic-service/build.gradle.kts>,
+    <../../docs/ontology-native/phase11_contract_loading_static_validation.md> .

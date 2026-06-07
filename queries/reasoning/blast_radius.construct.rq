@@ -1,0 +1,25 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+
+CONSTRUCT {
+  ?finding a dcai:BlastRadiusFinding ;
+    dcai:hasFindingSummary ?summary ;
+    prov:wasDerivedFrom ?incident ;
+    prov:wasDerivedFrom ?path .
+}
+WHERE {
+  GRAPH <urn:dcai:graph:canonical> {
+    ?incident a dcai:InfrastructureIncident ;
+      dcai:affectsAsset ?asset .
+    ?path a dcai:DependencyPath ;
+      dcai:hasPathStep ?edge .
+    ?edge dcai:hasDependentAsset ?downstreamAsset ;
+      dcai:hasDependencyAsset ?asset .
+    OPTIONAL {
+      ?impact a dcai:ImpactObservation ;
+        dcai:impactForIncident ?incident .
+    }
+  }
+  BIND(IRI(CONCAT("urn:dcai:reasoning:blast-radius:", ENCODE_FOR_URI(STR(?incident)))) AS ?finding)
+  BIND(CONCAT("Blast radius placeholder from ", STR(?asset), " to ", STR(?downstreamAsset)) AS ?summary)
+}
