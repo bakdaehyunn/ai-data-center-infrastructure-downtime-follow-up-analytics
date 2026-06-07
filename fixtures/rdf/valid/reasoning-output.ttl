@@ -33,7 +33,23 @@ fixture:asset-a
 
 fixture:stage-waiting
   rdf:type dcai:WorkflowStage ;
-  rdfs:label "Spare/vendor waiting" .
+  rdfs:label "Spare/vendor waiting" ;
+  dcai:hasStageThresholdHours "18.0"^^xsd:decimal .
+
+fixture:stage-reported
+  rdf:type dcai:WorkflowStage ;
+  rdfs:label "Incident reported" ;
+  dcai:hasStageThresholdHours "2.0"^^xsd:decimal .
+
+fixture:stage-triage
+  rdf:type dcai:WorkflowStage ;
+  rdfs:label "Facilities triage" ;
+  dcai:hasStageThresholdHours "8.0"^^xsd:decimal .
+
+fixture:stage-engineer
+  rdf:type dcai:WorkflowStage ;
+  rdfs:label "Engineer assigned" ;
+  dcai:hasStageThresholdHours "6.0"^^xsd:decimal .
 
 fixture:incident-0001
   rdf:type dcai:InfrastructureIncident ;
@@ -47,12 +63,126 @@ fixture:impact-0001
   dcai:impactForIncident fixture:incident-0001 ;
   dcai:estimatedCapacityRiskKw "900.0"^^xsd:decimal ;
   dcai:affectedGpuCount "320"^^xsd:integer ;
+  dcai:affectedRackCount "40"^^xsd:integer ;
+  dcai:estimatedGpuCapacityRiskPct "40.0"^^xsd:decimal ;
+  dcai:thermalBreachMinutes "0"^^xsd:integer ;
+  dcai:powerRedundancyLost true ;
+  dcai:coolingRedundancyLost false ;
+  dcai:hasRedundancyState "N-1" ;
+  dcai:hasMitigationState "RUNNING_DEGRADED" ;
+  dcai:hasVendorState "ETA_MISSED" ;
+  dcai:vendorEtaAt "2026-01-08T01:00:00Z"^^xsd:dateTime ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:queue-item-0001
+  rdf:type dcai:FollowUpQueueItem ;
+  dcai:queueItemForIncident fixture:incident-0001 ;
+  dcai:hasPriorityRank "1"^^xsd:integer ;
+  dcai:hasRequestTitle "Backup generator fuel system vendor wait" ;
+  dcai:hasCurrentStatus "BLOCKED" ;
+  dcai:hoursInCurrentStage "63.0"^^xsd:decimal ;
+  dcai:neededByAt "2026-01-08T18:00:00Z"^^xsd:dateTime ;
+  dcai:hasPriorityLevel "CRITICAL" ;
+  dcai:hasBusinessImpact "320 GPUs and 900 kW at risk" ;
+  dcai:hasAssetCriticalityScore "20.0"^^xsd:decimal ;
+  dcai:hasDowntimeScore "30.0"^^xsd:decimal ;
+  dcai:hasStageDelayScore "15.0"^^xsd:decimal ;
+  dcai:hasInfrastructureZoneImpactScore "20.0"^^xsd:decimal ;
+  dcai:hasNeededByUrgencyScore "10.0"^^xsd:decimal ;
+  dcai:hasRepeatFailureScore "0.0"^^xsd:decimal ;
+  dcai:hasSpareRiskScore "22.0"^^xsd:decimal ;
+  dcai:hasCapacityRiskScore "30.0"^^xsd:decimal ;
+  dcai:hasRedundancyRiskScore "24.0"^^xsd:decimal ;
+  dcai:hasThermalRiskScore "0.0"^^xsd:decimal ;
+  dcai:hasVendorEtaRiskScore "22.0"^^xsd:decimal ;
+  dcai:hasMitigationCreditScore "4.0"^^xsd:decimal ;
+  dcai:hasPriorityScore "169.0"^^xsd:decimal ;
+  prov:wasDerivedFrom fixture:source-record-0001 ;
+  prov:wasGeneratedBy fixture:reasoning-activity-0001 .
+
+fixture:workflow-event-0001
+  rdf:type dcai:WorkflowEvent ;
+  dcai:hasEventId "EVT-0001" ;
+  dcai:eventForIncident fixture:incident-0001 ;
+  dcai:enteredStage fixture:stage-reported ;
+  dcai:hasEventStatus "COMPLETED" ;
+  dcai:enteredAt "2026-01-06T01:00:00Z"^^xsd:dateTime ;
+  dcai:exitedAt "2026-01-06T02:00:00Z"^^xsd:dateTime ;
+  dcai:hasDurationHours "1.0"^^xsd:decimal ;
+  dcai:hasDelayHours "0.0"^^xsd:decimal ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:workflow-event-0002
+  rdf:type dcai:WorkflowEvent ;
+  dcai:hasEventId "EVT-0002" ;
+  dcai:eventForIncident fixture:incident-0001 ;
+  dcai:enteredStage fixture:stage-triage ;
+  dcai:hasEventStatus "COMPLETED" ;
+  dcai:enteredAt "2026-01-06T02:00:00Z"^^xsd:dateTime ;
+  dcai:exitedAt "2026-01-06T04:00:00Z"^^xsd:dateTime ;
+  dcai:hasDurationHours "2.0"^^xsd:decimal ;
+  dcai:hasDelayHours "0.0"^^xsd:decimal ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:workflow-event-0003
+  rdf:type dcai:WorkflowEvent ;
+  dcai:hasEventId "EVT-0003" ;
+  dcai:eventForIncident fixture:incident-0001 ;
+  dcai:enteredStage fixture:stage-engineer ;
+  dcai:hasEventStatus "COMPLETED" ;
+  dcai:enteredAt "2026-01-06T04:00:00Z"^^xsd:dateTime ;
+  dcai:exitedAt "2026-01-06T08:00:00Z"^^xsd:dateTime ;
+  dcai:hasDurationHours "4.0"^^xsd:decimal ;
+  dcai:hasDelayHours "0.0"^^xsd:decimal ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:workflow-event-0004
+  rdf:type dcai:WorkflowEvent ;
+  dcai:hasEventId "EVT-0004" ;
+  dcai:eventForIncident fixture:incident-0001 ;
+  dcai:enteredStage fixture:stage-waiting ;
+  dcai:hasEventStatus "ACTIVE" ;
+  dcai:enteredAt "2026-01-06T08:00:00Z"^^xsd:dateTime ;
+  dcai:hasDurationHours "63.0"^^xsd:decimal ;
+  dcai:hasDelayHours "45.0"^^xsd:decimal ;
   prov:wasDerivedFrom fixture:source-record-0001 .
 
 fixture:evidence-0001
   rdf:type dcai:TelemetryEvidence ;
   dcai:supportsFact fixture:impact-0001 ;
   dcai:hasConfidenceState "TRUSTED" ;
+  dcai:hasEvidenceTimestamp "2026-01-08T02:15:00Z"^^xsd:dateTime ;
+  dcai:hasMetricName "fuel_pressure_psi" ;
+  dcai:hasMetricValue "18.0"^^xsd:decimal ;
+  dcai:hasMetricUnit "psi" ;
+  dcai:hasTelemetryStatus "CRITICAL" ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:validation-evidence-0001
+  rdf:type dcai:ValidationEvidence ;
+  dcai:supportsFact fixture:incident-0001 ;
+  dcai:hasConfidenceState "REVIEW" ;
+  dcai:hasEvidenceTimestamp "2026-01-08T03:00:00Z"^^xsd:dateTime ;
+  dcai:hasValidationId "VAL-0001" ;
+  dcai:hasValidationStatus "BLOCKED" ;
+  dcai:hasValidatorId "semantic-validator" ;
+  dcai:validationStartedAt "2026-01-08T03:00:00Z"^^xsd:dateTime ;
+  dcai:hasFailureReason "Restore validation blocked by missing spare evidence." ;
+  prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:work-order-evidence-0001
+  rdf:type dcai:WorkOrderEvidence ;
+  dcai:supportsFact fixture:incident-0001 ;
+  dcai:hasConfidenceState "REVIEW" ;
+  dcai:hasEvidenceTimestamp "2026-01-08T01:30:00Z"^^xsd:dateTime ;
+  dcai:hasWorkOrderId "WO-0001" ;
+  dcai:hasAssignedTeam "Backup Power" ;
+  dcai:hasAssignedEngineerId "ENG-POWER-01" ;
+  dcai:hasWorkOrderStatus "WAITING_SPARE_VENDOR" ;
+  dcai:plannedStartAt "2026-01-08T02:00:00Z"^^xsd:dateTime ;
+  dcai:hasRequiredSpareId "SPARE-FUEL-PUMP" ;
+  dcai:hasRequiredSpareName "Generator Fuel Pump" ;
+  dcai:hasStockStatus "OUT_OF_STOCK" ;
   prov:wasDerivedFrom fixture:source-record-0001 .
 
 fixture:dependency-impact-0001

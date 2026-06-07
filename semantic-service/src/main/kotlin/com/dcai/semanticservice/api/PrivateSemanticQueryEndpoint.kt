@@ -50,7 +50,7 @@ class PrivateSemanticQueryEndpoint(
                 statusCode = 400,
                 code = SemanticErrorCode.UNAPPROVED_QUERY_ID,
                 message = "Query id is not approved for the private semantic endpoint.",
-                detail = "Only existing Phase 16 inspection query IDs are enabled.",
+                detail = "Only approved private semantic query IDs are enabled.",
                 queryId = queryId,
             )
         }
@@ -145,6 +145,21 @@ class PrivateSemanticQueryEndpoint(
             "fixtureIncidentSummary",
             "fixtureProvenanceSourceRecords",
             "semanticFollowUpQueueList",
+            "semanticDashboardOverview",
+            "semanticFilterMetadata",
+            "semanticFollowUpDetail",
+            "semanticImpactSummary",
+            "semanticTopologyDependencies",
+            "semanticTrustFindingList",
+            "semanticStageBottlenecks",
+            "semanticAssetDelaySummary",
+            "semanticZoneDelaySummary",
+            "semanticSpareWaitSummary",
+            "semanticValidationSummary",
+            "semanticIncidentEvidence",
+            "semanticIncidentTimeline",
+            "semanticDependencyImpactByAsset",
+            "semanticBlastRadiusByAsset",
         )
     }
 }
@@ -184,6 +199,15 @@ class PrivateSemanticQueryEndpointServer(
     }
 
     private fun handle(exchange: HttpExchange) {
+        exchange.responseHeaders.set("Access-Control-Allow-Origin", config.corsAllowOrigin)
+        exchange.responseHeaders.set("Access-Control-Allow-Methods", "POST, OPTIONS")
+        exchange.responseHeaders.set("Access-Control-Allow-Headers", "Content-Type")
+        if (exchange.requestMethod == "OPTIONS") {
+            exchange.sendResponseHeaders(204, -1)
+            exchange.close()
+            return
+        }
+
         val response = endpoint.handle(
             PrivateSemanticQueryRequest(
                 method = exchange.requestMethod,
@@ -219,6 +243,7 @@ class PrivateSemanticQueryEndpointServer(
 data class PrivateSemanticQueryEndpointServerConfig(
     val host: String = "127.0.0.1",
     val port: Int = 18080,
+    val corsAllowOrigin: String = "*",
 ) {
     init {
         require(host == "127.0.0.1" || host == "localhost") {

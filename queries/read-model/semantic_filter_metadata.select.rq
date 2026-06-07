@@ -1,0 +1,40 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?graph ?filterType ?resource ?id ?label ?sourceRecord
+WHERE {
+  GRAPH ?graph {
+    {
+      ?resource a dcai:InfrastructureZone ;
+        dcai:hasIdentifier ?id .
+      OPTIONAL { ?resource rdfs:label ?label . }
+      OPTIONAL { ?resource prov:wasDerivedFrom ?sourceRecord . }
+      BIND("zone" AS ?filterType)
+    }
+    UNION
+    {
+      ?resource a dcai:InfrastructureAsset ;
+        dcai:hasIdentifier ?id .
+      OPTIONAL { ?resource rdfs:label ?label . }
+      OPTIONAL { ?resource prov:wasDerivedFrom ?sourceRecord . }
+      BIND("asset" AS ?filterType)
+    }
+    UNION
+    {
+      ?resource a dcai:InfrastructureAsset ;
+        dcai:hasAssetType ?id .
+      BIND(?id AS ?label)
+      BIND("assetType" AS ?filterType)
+    }
+    UNION
+    {
+      ?resource a dcai:WorkflowStage .
+      OPTIONAL { ?resource rdfs:label ?label . }
+      BIND(STR(?resource) AS ?id)
+      BIND("stage" AS ?filterType)
+    }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+}
+ORDER BY ?filterType ?id

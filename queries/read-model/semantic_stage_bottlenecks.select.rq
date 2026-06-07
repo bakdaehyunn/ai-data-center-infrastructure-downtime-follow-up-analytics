@@ -1,0 +1,35 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  ?graph
+  ?stage
+  ?stageLabel
+  (COUNT(DISTINCT ?incident) AS ?incidentCount)
+  (COUNT(DISTINCT ?delayedIncident) AS ?delayedCount)
+  (COALESCE(AVG(?durationHours), 0) AS ?avgDurationHours)
+  (COALESCE(MAX(?durationHours), 0) AS ?p90DurationHours)
+  (COALESCE(SUM(?delayHours), 0) AS ?totalDelayHours)
+  (SAMPLE(?rowSourceRecord) AS ?sourceRecord)
+WHERE {
+  GRAPH ?graph {
+    ?incident a dcai:InfrastructureIncident ;
+      dcai:hasCurrentStage ?stage ;
+      prov:wasDerivedFrom ?rowSourceRecord .
+    OPTIONAL { ?stage rdfs:label ?stageLabel . }
+    OPTIONAL { ?stage dcai:hasStageThresholdHours ?thresholdHours . }
+    OPTIONAL {
+      ?queueItem a dcai:FollowUpQueueItem ;
+        dcai:queueItemForIncident ?incident ;
+        dcai:hoursInCurrentStage ?queueDurationHours .
+      BIND(?queueDurationHours AS ?durationHours)
+      BIND(IF(BOUND(?thresholdHours), ?thresholdHours, 0) AS ?activeThresholdHours)
+      BIND(IF(?queueDurationHours > ?activeThresholdHours, ?incident, ?nothing) AS ?delayedIncident)
+      BIND(IF(?queueDurationHours > ?activeThresholdHours, ?queueDurationHours - ?activeThresholdHours, 0) AS ?delayHours)
+    }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+}
+GROUP BY ?graph ?stage ?stageLabel
+ORDER BY DESC(?incidentCount) ?stageLabel

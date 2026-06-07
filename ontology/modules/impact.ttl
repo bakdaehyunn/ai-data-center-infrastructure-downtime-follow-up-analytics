@@ -34,6 +34,21 @@ dcai:estimatedCapacityRiskKw rdf:type owl:DatatypeProperty ;
 dcai:affectedGpuCount rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:ImpactObservation ;
   rdfs:range xsd:integer .
+dcai:affectedRackCount rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:ImpactObservation ;
+  rdfs:range xsd:integer .
+dcai:estimatedGpuCapacityRiskPct rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:ImpactObservation ;
+  rdfs:range xsd:decimal .
+dcai:thermalBreachMinutes rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:ImpactObservation ;
+  rdfs:range xsd:integer .
+dcai:powerRedundancyLost rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:ImpactObservation ;
+  rdfs:range xsd:boolean .
+dcai:coolingRedundancyLost rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:ImpactObservation ;
+  rdfs:range xsd:boolean .
 dcai:hasRedundancyState rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:ImpactObservation ;
   rdfs:range xsd:string .
@@ -43,3 +58,6 @@ dcai:hasMitigationState rdf:type owl:DatatypeProperty ;
 dcai:hasVendorState rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:ImpactObservation ;
   rdfs:range xsd:string .
+dcai:vendorEtaAt rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:ImpactObservation ;
+  rdfs:range xsd:dateTime .

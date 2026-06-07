@@ -1,0 +1,57 @@
+PREFIX dcai: <urn:dcai:ontology:>
+
+SELECT
+  ?graph
+  (COUNT(DISTINCT ?incident) AS ?totalIncidents)
+  (COUNT(DISTINCT ?asset) AS ?assetCount)
+  (COUNT(DISTINCT ?zone) AS ?zoneCount)
+  (COUNT(DISTINCT ?impact) AS ?impactObservationCount)
+  (COALESCE(SUM(?capacityRisk), 0) AS ?capacityRiskKw)
+  (COALESCE(SUM(?gpuCount), 0) AS ?affectedGpuCount)
+  (COUNT(DISTINCT ?dependencyEdge) AS ?dependencyEdgeCount)
+  (COUNT(DISTINCT ?trustFinding) AS ?trustFindingCount)
+  (COALESCE(AVG(?durationHours), 0) AS ?avgDurationHours)
+  (COALESCE(SUM(?durationHours), 0) AS ?totalDurationHours)
+  (COALESCE(SUM(?delayHours), 0) AS ?totalDelayHours)
+  (COUNT(DISTINCT ?mitigatedImpact) AS ?mitigatedIncidentCount)
+  (COALESCE(SUM(?rackCount), 0) AS ?affectedRackCount)
+  (COALESCE(SUM(?thermalMinutes), 0) AS ?thermalBreachMinutes)
+  (COUNT(DISTINCT ?redundancyLostImpact) AS ?redundancyLostIncidentCount)
+  (COUNT(DISTINCT ?vendorEtaMissedImpact) AS ?vendorEtaMissedCount)
+WHERE {
+  GRAPH ?graph {
+    OPTIONAL { ?incident a dcai:InfrastructureIncident . }
+    OPTIONAL { ?asset a dcai:InfrastructureAsset . }
+    OPTIONAL { ?zone a dcai:InfrastructureZone . }
+    OPTIONAL {
+      ?impact a dcai:ImpactObservation .
+      OPTIONAL { ?impact dcai:estimatedCapacityRiskKw ?capacityRisk . }
+      OPTIONAL { ?impact dcai:affectedGpuCount ?gpuCount . }
+      OPTIONAL { ?impact dcai:affectedRackCount ?rackCount . }
+      OPTIONAL { ?impact dcai:thermalBreachMinutes ?thermalMinutes . }
+      OPTIONAL {
+        ?impact dcai:hasMitigationState ?mitigationState .
+        FILTER(?mitigationState = "RUNNING_DEGRADED" || ?mitigationState = "MITIGATED")
+        BIND(?impact AS ?mitigatedImpact)
+      }
+      OPTIONAL {
+        ?impact dcai:powerRedundancyLost true .
+        BIND(?impact AS ?redundancyLostImpact)
+      }
+      OPTIONAL {
+        ?impact dcai:hasVendorState "ETA_MISSED" .
+        BIND(?impact AS ?vendorEtaMissedImpact)
+      }
+    }
+    OPTIONAL {
+      ?event a dcai:WorkflowEvent .
+      OPTIONAL { ?event dcai:hasDurationHours ?durationHours . }
+      OPTIONAL { ?event dcai:hasDelayHours ?delayHours . }
+    }
+    OPTIONAL { ?dependencyEdge a dcai:DependencyEdge . }
+    OPTIONAL { ?trustFinding a dcai:TrustFinding . }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+}
+GROUP BY ?graph
+ORDER BY ?graph

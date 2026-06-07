@@ -1,0 +1,44 @@
+PREFIX dcai: <urn:dcai:ontology:>
+
+SELECT
+  ?graph
+  (COUNT(DISTINCT ?impact) AS ?impactObservationCount)
+  (COUNT(DISTINCT ?incident) AS ?incidentCount)
+  (COALESCE(SUM(?capacityRisk), 0) AS ?capacityRiskKw)
+  (COALESCE(SUM(?gpuCount), 0) AS ?affectedGpuCount)
+  (COUNT(DISTINCT ?trustFinding) AS ?trustFindingCount)
+  (COALESCE(SUM(?rackCount), 0) AS ?affectedRackCount)
+  (COALESCE(SUM(?thermalMinutes), 0) AS ?thermalBreachMinutes)
+  (COUNT(DISTINCT ?redundancyLostImpact) AS ?redundancyLostIncidentCount)
+  (COUNT(DISTINCT ?vendorEtaMissedImpact) AS ?vendorEtaMissedCount)
+  (COUNT(DISTINCT ?mitigatedImpact) AS ?mitigatedIncidentCount)
+WHERE {
+  GRAPH ?graph {
+    ?impact a dcai:ImpactObservation ;
+      dcai:impactForIncident ?incident .
+    OPTIONAL { ?impact dcai:estimatedCapacityRiskKw ?capacityRisk . }
+    OPTIONAL { ?impact dcai:affectedGpuCount ?gpuCount . }
+    OPTIONAL { ?impact dcai:affectedRackCount ?rackCount . }
+    OPTIONAL { ?impact dcai:thermalBreachMinutes ?thermalMinutes . }
+    OPTIONAL {
+      ?impact dcai:powerRedundancyLost true .
+      BIND(?impact AS ?redundancyLostImpact)
+    }
+    OPTIONAL {
+      ?impact dcai:hasVendorState "ETA_MISSED" .
+      BIND(?impact AS ?vendorEtaMissedImpact)
+    }
+    OPTIONAL {
+      ?impact dcai:hasMitigationState ?mitigationState .
+      FILTER(?mitigationState = "RUNNING_DEGRADED" || ?mitigationState = "MITIGATED")
+      BIND(?impact AS ?mitigatedImpact)
+    }
+    OPTIONAL {
+      ?trustFinding a dcai:TrustFinding ;
+        <http://www.w3.org/ns/prov#wasDerivedFrom> ?impact .
+    }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+}
+GROUP BY ?graph
+ORDER BY ?graph

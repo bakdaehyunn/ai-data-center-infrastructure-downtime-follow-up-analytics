@@ -63,7 +63,7 @@ Queue Intelligence signals:
 - Trust load: visible incidents that require evidence review.
 - Primary risk: the dominant operational risk signal, such as N-1 exposure, missed vendor ETA, or spare/vendor wait.
 
-This section must not introduce new backend analytics logic, charts, navigation, or clickable KPI behavior. It exists to make the queue-first dashboard read as an analytic workbench rather than a plain incident list.
+This section must not introduce new semantic analytics logic, charts, navigation, or clickable KPI behavior. It exists to make the queue-first dashboard read as an analytic workbench rather than a plain incident list.
 
 When an operator selects a queue row, Queue Intelligence changes into a selected follow-up preview. Row selection must not navigate. The preview should show enough context for fast triage while preserving `View details` as the explicit route to the full incident page.
 

@@ -1,0 +1,90 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  ?graph
+  ?incident
+  ?incidentId
+  ?stage
+  ?stageLabel
+  ?sourceRecord
+  ?impact
+  ?evidence
+  ?evidenceClass
+  ?evidenceTimestamp
+  ?confidenceState
+  ?metricName
+  ?metricValue
+  ?metricUnit
+  ?telemetryStatus
+  ?validationId
+  ?validationStatus
+  ?validatorId
+  ?validationStartedAt
+  ?validationCompletedAt
+  ?failureReason
+  ?workOrderId
+  ?assignedTeam
+  ?assignedEngineerId
+  ?workOrderStatus
+  ?plannedStartAt
+  ?actualStartAt
+  ?actualCompletedAt
+  ?requiredSpareId
+  ?requiredSpareName
+  ?stockStatus
+  ?trustFinding
+  ?trustSummary
+WHERE {
+  GRAPH ?graph {
+    ?incident a dcai:InfrastructureIncident ;
+      dcai:hasIdentifier ?incidentId ;
+      dcai:hasCurrentStage ?stage ;
+      prov:wasDerivedFrom ?sourceRecord .
+    OPTIONAL { ?stage rdfs:label ?stageLabel . }
+    OPTIONAL {
+      ?impact a dcai:ImpactObservation ;
+        dcai:impactForIncident ?incident .
+    }
+    OPTIONAL {
+      ?evidence rdf:type/rdfs:subClassOf* dcai:EvidenceRecord ;
+        dcai:supportsFact ?supportedFact .
+      FILTER(?supportedFact = ?incident || (BOUND(?impact) && ?supportedFact = ?impact))
+      OPTIONAL {
+        ?evidence a ?evidenceClass .
+        FILTER(?evidenceClass IN (dcai:TelemetryEvidence, dcai:ValidationEvidence, dcai:WorkOrderEvidence, dcai:EvidenceRecord))
+      }
+      OPTIONAL { ?evidence dcai:hasEvidenceTimestamp ?evidenceTimestamp . }
+      OPTIONAL { ?evidence dcai:hasConfidenceState ?confidenceState . }
+      OPTIONAL { ?evidence dcai:hasMetricName ?metricName . }
+      OPTIONAL { ?evidence dcai:hasMetricValue ?metricValue . }
+      OPTIONAL { ?evidence dcai:hasMetricUnit ?metricUnit . }
+      OPTIONAL { ?evidence dcai:hasTelemetryStatus ?telemetryStatus . }
+      OPTIONAL { ?evidence dcai:hasValidationId ?validationId . }
+      OPTIONAL { ?evidence dcai:hasValidationStatus ?validationStatus . }
+      OPTIONAL { ?evidence dcai:hasValidatorId ?validatorId . }
+      OPTIONAL { ?evidence dcai:validationStartedAt ?validationStartedAt . }
+      OPTIONAL { ?evidence dcai:validationCompletedAt ?validationCompletedAt . }
+      OPTIONAL { ?evidence dcai:hasFailureReason ?failureReason . }
+      OPTIONAL { ?evidence dcai:hasWorkOrderId ?workOrderId . }
+      OPTIONAL { ?evidence dcai:hasAssignedTeam ?assignedTeam . }
+      OPTIONAL { ?evidence dcai:hasAssignedEngineerId ?assignedEngineerId . }
+      OPTIONAL { ?evidence dcai:hasWorkOrderStatus ?workOrderStatus . }
+      OPTIONAL { ?evidence dcai:plannedStartAt ?plannedStartAt . }
+      OPTIONAL { ?evidence dcai:actualStartAt ?actualStartAt . }
+      OPTIONAL { ?evidence dcai:actualCompletedAt ?actualCompletedAt . }
+      OPTIONAL { ?evidence dcai:hasRequiredSpareId ?requiredSpareId . }
+      OPTIONAL { ?evidence dcai:hasRequiredSpareName ?requiredSpareName . }
+      OPTIONAL { ?evidence dcai:hasStockStatus ?stockStatus . }
+    }
+    OPTIONAL {
+      ?trustFinding a dcai:TrustFinding ;
+        prov:wasDerivedFrom ?impact ;
+        dcai:hasFindingSummary ?trustSummary .
+    }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+}
+ORDER BY ?incidentId ?evidence ?trustFinding

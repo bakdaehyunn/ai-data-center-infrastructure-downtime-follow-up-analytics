@@ -78,17 +78,16 @@ The workflow labels are not the main value. The value is turning every transitio
 
 ```text
 scattered AI infrastructure source records
-  -> raw source-preserving tables
-  -> core AI infrastructure tables
-  -> analytics tables
-  -> reconciliation issues
-  -> RDF/OWL + SHACL semantic graph
-  -> SPARQL-backed semantic API
-  -> read-only FastAPI endpoints
+  -> source-to-canonical RDF mappings
+  -> named RDF graphs in Fuseki/TDB2
+  -> OWL/RDFS ontology modules
+  -> SHACL validation gates
+  -> approved SPARQL read models
+  -> Kotlin/JVM semantic-service
   -> React dashboard
 ```
 
-The relational layer remains useful for ingestion, analytics materialization, and operational records. The ontology layer is now a first-class runtime surface for validation, incident evidence, dependency impact, and blast-radius queries.
+The RDF graph store is the source of truth. The Kotlin/JVM semantic-service is the controlled API facade over approved query IDs, typed result envelopes, provenance, and semantic error contracts.
 
 ## Source Integration Model
 
@@ -105,91 +104,97 @@ The simulated sources represent the systems an operator normally has to reconcil
 
 See `docs/01_architecture.md` for the source-to-question mapping and trust risks.
 
-## Data Layers
+## Ontology-Native Runtime
 
-- `raw_*`: source-shaped records with source IDs and pipeline run IDs for ingestion traceability
-- core tables: `infrastructure_zones`, `infrastructure_assets`, `infrastructure_incidents`, `incident_stage_events`, `facilities_engineers`, `critical_spares`, `facility_work_orders`, `validation_results`, `telemetry_alerts`, and `infrastructure_impact_snapshots`
-- analytics tables: current status, stage lead times, follow-up queue with impact score components, bottleneck summary, asset delay summary, zone delay summary, and spare waiting summary
-- ops tables: pipeline runs, data quality check results, and reconciliation issues
-- ontology artifacts: RDF/OWL vocabulary for infrastructure, workflow, and topology plus SHACL shapes under `ontology/`
-- semantic graph runtime: RDF generation through `rdflib`, SHACL validation through `pyshacl`, SPARQL-backed query functions, and optional Fuseki sync
+- `ontology/modules/`: OWL/RDFS modules for core, infrastructure, topology, workflow, impact, evidence, provenance, AI interaction, and operations concepts
+- `shapes/`: SHACL contracts for source, canonical, reasoning, and service-boundary graph validation
+- `fixtures/` and `rdf-mapping/`: source-to-canonical RDF fixtures and mapping contracts
+- `queries/manifest.ttl`: approved query catalog with read-only SPARQL files under `queries/`
+- `reasoning/`: reasoning pipeline contracts and placeholder reasoning query/rule structure
+- `semantic-service/`: Kotlin/JVM runtime that loads approved queries, talks to Fuseki/TDB2, shapes typed result envelopes, serializes success/error responses, and serves the private semantic query endpoint
+- `frontend/`: React/Vite dashboard that reads the semantic-service private endpoint through `VITE_SEMANTIC_API_BASE_URL`
 
-## Backend Responsibilities
+## Semantic-Service Responsibilities
 
-- Generate deterministic AI data center infrastructure sample data
-- Load source-shaped raw records with duplicate rejection
-- Run raw and core data quality checks
-- Reconstruct current incident state from workflow events
-- Calculate stage lead time and delay hours
-- Build downtime, bottleneck, asset, zone, and spare summaries
-- Detect reconciliation issues between core state, event history, and analytics outputs
-- Detect impact-context trust issues such as missing snapshots, stale snapshots, vendor ETA mismatch, mitigation evidence gaps, and unexplained thermal or capacity risk
-- Model infrastructure topology dependencies across rack, power, cooling, switchgear, generator, CRAH, CDU, and chiller assets
-- Generate RDF from canonical infrastructure records using RDF APIs
-- Validate the semantic graph against SHACL shapes
-- Query dependency impact, incident evidence, validation issues, and blast radius through SPARQL-backed service functions
-- Sync the generated semantic graph to a Fuseki-compatible graph-store endpoint when configured
-- Score follow-up priority using downtime, criticality, urgency, repeat failure, spare/vendor risk, capacity risk, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit
-- Expose read-only analytics, topology, semantic ontology, semantic query, graph sync, and connector-contract endpoints
+- Load and statically validate semantic service contracts
+- Connect to Fuseki/TDB2 through a read-only graph access boundary
+- Load controlled RDF fixtures through validation/provenance gates
+- Execute only approved read-only SPARQL query IDs from the manifest
+- Shape graph bindings into typed Kotlin result envelopes
+- Serialize all endpoint responses through the semantic response serializer
+- Reject raw SPARQL, unapproved query IDs, graph writes, public exposure, and non-loopback endpoint binding
+- Provide graph-backed read models for dashboard overview, follow-up queue, filters, selected detail, impact, topology, trust findings, validation summary, incident evidence, dependency impact, and blast radius
 
 ## Production Story
 
 The practical production path is intentionally modest:
 
-- Dockerized API and frontend build targets
-- scheduled pipeline execution against source extracts
-- PostgreSQL analytics database
-- Fuseki-compatible semantic graph service for RDF graph storage and SPARQL access
-- API health check
-- latest-run pipeline status
-- data quality and reconciliation report surfaces
+- Dockerized Fuseki/TDB2 graph store
+- Kotlin/JVM semantic-service runtime
+- React frontend build target
+- controlled RDF fixture/source loading through validation gates
+- approved SPARQL read-model execution
+- provenance-aware semantic response envelopes
+- SHACL and query contract checks
 - deployment and rollback notes
 
 Kubernetes, Airflow, Kafka, and OpenTelemetry can be added later if they solve a specific operational need. They are deployment and integration choices, not the story. The story is faster, more trusted return-to-service follow-up.
 
-Run backend checks:
+Run semantic-service checks:
 
 ```bash
-cd backend
-.venv/bin/python -m pytest
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon test
 ```
 
-Run the pipeline locally after PostgreSQL is available:
+Run Fuseki locally:
 
 ```bash
-cd backend
-.venv/bin/python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
+docker compose up fuseki
 ```
 
-## API Surface
+Run the private semantic endpoint after Fuseki has fixture graphs loaded:
 
-Primary read-only endpoints:
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  -e DCAI_FUSEKI_DATASET_URL=http://host.docker.internal:3030/infrastructure \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon run --args="--repo-root=/workspace --serve-private-query-endpoint"
+```
+
+## Semantic API Surface
+
+Current private endpoint:
 
 ```text
-GET /api/overview
-GET /api/follow-ups
-GET /api/follow-ups/{incident_id}
-GET /api/follow-ups/{incident_id}/timeline
-GET /api/impact/summary
-GET /api/downtime/stages
-GET /api/assets/delays
-GET /api/zones/delays
-GET /api/spares/waiting
-GET /api/topology/dependencies
-GET /api/semantic/infrastructure.ttl
-GET /api/semantic/validation
-GET /api/semantic/query/dependency-impact/{asset_id}
-GET /api/semantic/query/incident-evidence/{incident_id}
-GET /api/semantic/query/blast-radius/{asset_id}
-POST /api/semantic/graph/sync
-GET /api/connectors/contracts
-GET /api/metadata/filters
-GET /api/pipeline-runs
-GET /api/data-quality/checks
-GET /api/data-quality/checks/{check_result_id}
+POST /semantic/query/{queryId}
 ```
 
-Compatibility routes for the earlier naming are still available for asset, zone, and spare summaries.
+Approved product read-model query IDs include:
+
+- `semanticFollowUpQueueList`
+- `semanticDashboardOverview`
+- `semanticFilterMetadata`
+- `semanticFollowUpDetail`
+- `semanticImpactSummary`
+- `semanticTopologyDependencies`
+- `semanticTrustFindingList`
+- `semanticStageBottlenecks`
+- `semanticAssetDelaySummary`
+- `semanticZoneDelaySummary`
+- `semanticSpareWaitSummary`
+- `semanticValidationSummary`
+- `semanticIncidentEvidence`
+- `semanticIncidentTimeline`
+- `semanticDependencyImpactByAsset`
+- `semanticBlastRadiusByAsset`
+
+The endpoint is internal/loopback only. It accepts approved query IDs, not raw SPARQL text.
 
 ## Dashboard
 
@@ -211,22 +216,16 @@ npm run build
 
 ## Tech Stack
 
-- Python
-- FastAPI
-- SQLAlchemy
-- Alembic
-- PostgreSQL
 - RDF/OWL
 - SHACL
 - SPARQL
-- rdflib
-- pyshacl
-- Fuseki-compatible triple store
+- Apache Jena/Fuseki/TDB2
+- Kotlin/JVM
+- Gradle
 - React
 - TypeScript
 - Vite
 - Docker Compose
-- pytest
 
 ## Reading Path
 

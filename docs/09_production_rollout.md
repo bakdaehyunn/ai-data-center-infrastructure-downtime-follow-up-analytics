@@ -1,111 +1,66 @@
-# Production Rollout Plan
+# Production Rollout
 
-## Production Intent
-
-This system is a read-only operational intelligence layer. In production it should sit beside the incident, work order, inventory, vendor, telemetry, and validation systems. It should not mutate those systems until operators trust the reconstructed state and follow-up recommendations.
-
-## Deployment Shape
-
-Minimum practical deployment:
+## Runtime Components
 
 ```text
-source extracts
-  -> scheduled pipeline container
-  -> PostgreSQL analytics database
-  -> FastAPI read-only API
-  -> React static frontend
-  -> operator follow-up workflow
+source extracts or controlled fixtures
+  -> RDF mapping and graph promotion gates
+  -> Fuseki/TDB2 dataset
+  -> Kotlin/JVM semantic-service
+  -> React/Vite dashboard
 ```
 
-The current repository supports the database with Docker Compose and exposes a health endpoint at `/api/health`. Backend and frontend Dockerfiles provide a portable build target for local or platform deployment.
+## Local Runtime
 
-## Scheduled Pipeline
-
-Run the pipeline on a schedule that matches operator handoff needs. A practical first cadence is every 15 minutes during active operations and hourly during low-risk periods.
-
-Example command:
+Run Fuseki:
 
 ```bash
-cd backend
-python -m app.pipeline run --generate-sample --sample-dir generated/sample_data
+docker compose up fuseki
 ```
 
-Production would replace `--generate-sample` with mounted extracts or connector output from the real source systems. The pipeline is idempotent at the raw layer through source-system and source-record IDs.
+Run the private semantic endpoint:
 
-## Connector Contracts
-
-The repository now exposes connector contracts at:
-
-```text
-GET /api/connectors/contracts
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  -e DCAI_FUSEKI_DATASET_URL=http://host.docker.internal:3030/infrastructure \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon run --args="--repo-root=/workspace --serve-private-query-endpoint"
 ```
 
-The contracts define expected extract file names, target raw/core tables, required payload fields, optional payload fields, and practical cadence. They are contracts for mounted extracts or future connector output; they are not live integrations.
+Run the frontend:
 
-Current contract surfaces:
+```bash
+cd frontend
+npm run dev
+```
 
-- `infrastructure_incidents.json`
-- `incident_stage_events.json`
-- `facility_work_orders.json`
-- `validation_results.json`
-- `telemetry_alerts.json`
-- `infrastructure_dependencies.json`
+Set `VITE_SEMANTIC_API_BASE_URL` when the semantic-service endpoint is not
+available at `http://127.0.0.1:18080`.
 
-Real production connectors still require source schemas, authentication design, secret management, scheduling ownership, network access, data retention rules, and privacy review. No credential field or live external system access is part of the current implementation.
+## Deployment Gates
 
-## Health and Readiness
+- Fuseki dataset URL is configured.
+- RDF fixtures/source extracts parse.
+- SHACL validation gates pass.
+- Approved SPARQL query files parse and remain read-only.
+- semantic-service tests pass.
+- frontend build passes.
+- `docker compose config` shows Fuseki as the only Compose-managed data
+  runtime.
+- scans show no active FastAPI/Postgres runtime references.
 
-Required checks:
+## Observability Direction
 
-- API liveness: `GET /api/health` returns `status=ok`.
-- Latest pipeline status: `GET /api/pipeline-runs` shows the newest run and whether it is `SUCCESS`, `PARTIAL_SUCCESS`, or `FAILED`.
-- Data quality status: `GET /api/data-quality/checks?status=FAILED` shows current source and reconciliation trust issues.
-- Queue freshness: newest pipeline run finished within the expected schedule interval.
-- Follow-up availability: `GET /api/follow-ups` returns ranked active incidents or an empty list without API errors.
+The first production signal should be semantic runtime health:
 
-## Basic Observability
+- graph store reachable
+- approved query catalog loaded
+- response serializer contract version
+- SHACL conformance state
+- latest graph promotion activity
+- query execution failure counts
 
-The first production signals should be simple and tied to operator trust:
-
-- Pipeline duration, status, rows extracted, rows loaded, and rows rejected.
-- Failed data quality check count by target table and check name.
-- Open reconciliation issue count by issue type and severity.
-- Follow-up queue size and count of high-priority active incidents.
-- Count of `WARNING` and `UNVERIFIED` impact-confidence rows.
-- API request errors and latency for read-only endpoints.
-
-Tracing or a metrics backend can be added later, but the first release should prove that operators can see whether the latest decision output is fresh and trustworthy.
-
-## Data Quality Report
-
-The data quality report should answer:
-
-- Did the latest pipeline run finish?
-- Which source feeds failed quality checks?
-- Which incidents have state reconstruction or impact trust issues?
-- Which issues block use of a recommendation versus merely requiring source review?
-
-The API already exposes the report inputs through `/api/pipeline-runs` and `/api/data-quality/checks`. A production job can export those responses to a shift-handoff note or incident-review packet.
-
-## Rollout Phases
-
-1. Shadow mode: run the pipeline from source extracts and compare the queue with manual shift-handoff decisions.
-2. Operator review: let supervisors use the queue while keeping existing source systems as the authority.
-3. Trust calibration: tune thresholds, priority weights, and reconciliation labels based on false positives and missed blockers.
-4. Operational adoption: make the queue the default shift-handoff view for infrastructure downtime.
-5. Automation candidates: only after trust is proven, consider notifications, ticket comments, or workflow nudges.
-
-## Rollback
-
-Rollback is operationally simple because the API is read-only:
-
-- Stop the scheduled pipeline.
-- Serve the previous frontend build.
-- Point operators back to existing systems of record.
-- Keep the analytics database for post-incident review unless data retention rules require deletion.
-
-No rollback should mutate incident, work order, inventory, vendor, telemetry, or validation systems.
-
-## Later Kubernetes Option
-
-A Kubernetes `CronJob` can run the scheduled pipeline after the Dockerized job is stable. Kubernetes should remain a deployment mechanism, not the main project story. Add it when operations need cluster-native scheduling, secrets management, resource limits, and restart policy.
+Tracing, scheduled orchestration, Kubernetes, Airflow, Kafka, and OpenTelemetry
+can be added later if they solve a concrete deployment or integration problem.

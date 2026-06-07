@@ -1,0 +1,47 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  ?graph
+  ?stage
+  ?stageLabel
+  (COUNT(DISTINCT ?incident) AS ?incidentCount)
+  (COUNT(DISTINCT ?recoveryBlocker) AS ?recoveryBlockerCount)
+  (COALESCE(SUM(?durationHours), 0) AS ?totalWaitHours)
+  (COALESCE(AVG(?durationHours), 0) AS ?avgWaitHours)
+  (SAMPLE(?observedStockStatus) AS ?stockStatus)
+  (SAMPLE(?rowSourceRecord) AS ?sourceRecord)
+WHERE {
+  GRAPH ?graph {
+    ?incident a dcai:InfrastructureIncident ;
+      dcai:hasCurrentStage ?stage ;
+      prov:wasDerivedFrom ?rowSourceRecord .
+    OPTIONAL { ?stage rdfs:label ?stageLabel . }
+    OPTIONAL {
+      ?recoveryBlocker a dcai:RecoveryBlocker ;
+        prov:wasDerivedFrom ?incident .
+    }
+    OPTIONAL {
+      ?queueItem a dcai:FollowUpQueueItem ;
+        dcai:queueItemForIncident ?incident ;
+        dcai:hoursInCurrentStage ?durationHours .
+    }
+    OPTIONAL {
+      ?workOrder a dcai:WorkOrderEvidence ;
+        dcai:supportsFact ?incident .
+      OPTIONAL { ?workOrder dcai:hasStockStatus ?observedStockStatus . }
+    }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(
+    BOUND(?stageLabel) &&
+    (
+      CONTAINS(LCASE(STR(?stageLabel)), "spare") ||
+      CONTAINS(LCASE(STR(?stageLabel)), "vendor") ||
+      CONTAINS(LCASE(STR(?stageLabel)), "waiting")
+    )
+  )
+}
+GROUP BY ?graph ?stage ?stageLabel
+ORDER BY DESC(?incidentCount) ?stageLabel

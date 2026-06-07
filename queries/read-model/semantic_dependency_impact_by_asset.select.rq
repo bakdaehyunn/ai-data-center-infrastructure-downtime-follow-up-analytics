@@ -1,0 +1,41 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+
+SELECT
+  ?graph
+  ?asset
+  ?assetId
+  ?dependencyEdge
+  ?dependencyId
+  ?dependencyAsset
+  ?dependencyAssetId
+  ?dependencyRole
+  ?impactScope
+  ?finding
+  ?findingSummary
+  ?sourceRecord
+WHERE {
+  GRAPH ?graph {
+    ?asset dcai:hasIdentifier ?assetId .
+    OPTIONAL {
+      ?dependencyEdge a dcai:DependencyEdge ;
+        dcai:hasDependentAsset ?asset ;
+        dcai:hasDependencyAsset ?dependencyAsset ;
+        dcai:hasIdentifier ?dependencyId ;
+        dcai:hasDependencyRole ?dependencyRole ;
+        prov:wasDerivedFrom ?sourceRecord .
+      ?dependencyAsset dcai:hasIdentifier ?dependencyAssetId .
+      OPTIONAL { ?dependencyEdge dcai:hasImpactScope ?impactScope . }
+    }
+    OPTIONAL {
+      ?incident a dcai:InfrastructureIncident ;
+        dcai:affectsAsset ?asset .
+      ?finding a dcai:DependencyImpactFinding ;
+        prov:wasDerivedFrom ?incident ;
+        dcai:hasFindingSummary ?findingSummary .
+    }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(BOUND(?dependencyEdge) || BOUND(?finding))
+}
+ORDER BY ?assetId ?dependencyId ?finding

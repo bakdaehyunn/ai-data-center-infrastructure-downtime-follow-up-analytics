@@ -78,9 +78,9 @@ This slice does not:
 Required checks:
 
 ```bash
-backend/.venv/bin/python queries/validate_sparql.py
+PYTHONPATH=/tmp/dcai-rdf-tools python3 queries/validate_sparql.py
 
-backend/.venv/bin/python - <<'PY'
+PYTHONPATH=/tmp/dcai-rdf-tools python3 - <<'PY'
 from pathlib import Path
 from rdflib import Graph
 

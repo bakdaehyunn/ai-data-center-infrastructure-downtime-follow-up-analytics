@@ -1,0 +1,35 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+
+SELECT
+  ?graph
+  ?asset
+  ?assetId
+  ?downstreamAsset
+  ?downstreamAssetId
+  ?incident
+  ?incidentId
+  ?finding
+  ?findingSummary
+WHERE {
+  GRAPH ?graph {
+    ?asset dcai:hasIdentifier ?assetId .
+    OPTIONAL {
+      ?dependencyEdge a dcai:DependencyEdge ;
+        dcai:hasDependencyAsset ?asset ;
+        dcai:hasDependentAsset ?downstreamAsset .
+      ?downstreamAsset dcai:hasIdentifier ?downstreamAssetId .
+    }
+    OPTIONAL {
+      ?incident a dcai:InfrastructureIncident ;
+        dcai:affectsAsset ?asset ;
+        dcai:hasIdentifier ?incidentId .
+      ?finding a dcai:BlastRadiusFinding ;
+        prov:wasDerivedFrom ?incident ;
+        dcai:hasFindingSummary ?findingSummary .
+    }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(BOUND(?downstreamAsset) || BOUND(?finding))
+}
+ORDER BY ?assetId ?downstreamAssetId ?incidentId

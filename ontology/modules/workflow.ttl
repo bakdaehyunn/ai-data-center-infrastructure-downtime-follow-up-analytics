@@ -37,6 +37,30 @@ dcai:exitedStage rdf:type owl:ObjectProperty ;
 dcai:hasAllowedNextStage rdf:type owl:ObjectProperty ;
   rdfs:domain dcai:WorkflowStage ;
   rdfs:range dcai:WorkflowStage .
+dcai:eventForIncident rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:WorkflowEvent ;
+  rdfs:range dcai:InfrastructureIncident .
+dcai:hasEventId rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:WorkflowEvent ;
+  rdfs:range xsd:string .
+dcai:hasEventStatus rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:WorkflowEvent ;
+  rdfs:range xsd:string .
+dcai:enteredAt rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:WorkflowEvent ;
+  rdfs:range xsd:dateTime .
+dcai:exitedAt rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:WorkflowEvent ;
+  rdfs:range xsd:dateTime .
+dcai:hasDurationHours rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:WorkflowEvent ;
+  rdfs:range xsd:decimal .
+dcai:hasDelayHours rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:WorkflowEvent ;
+  rdfs:range xsd:decimal .
+dcai:hasStageThresholdHours rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:WorkflowStage ;
+  rdfs:range xsd:decimal .
 dcai:hasRecommendedAction rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:FollowUpDecision ;
   rdfs:range xsd:string .

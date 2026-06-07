@@ -144,6 +144,21 @@ components:
         - $ref: "#/components/schemas/IncidentSummaryResponse"
         - $ref: "#/components/schemas/ProvenanceSourceRecordsResponse"
         - $ref: "#/components/schemas/FollowUpQueueResponse"
+        - $ref: "#/components/schemas/DashboardOverviewResponse"
+        - $ref: "#/components/schemas/FilterMetadataResponse"
+        - $ref: "#/components/schemas/FollowUpDetailResponse"
+        - $ref: "#/components/schemas/ImpactSummaryResponse"
+        - $ref: "#/components/schemas/TopologyDependenciesResponse"
+        - $ref: "#/components/schemas/TrustFindingsResponse"
+        - $ref: "#/components/schemas/StageBottlenecksResponse"
+        - $ref: "#/components/schemas/AssetDelaySummaryResponse"
+        - $ref: "#/components/schemas/ZoneDelaySummaryResponse"
+        - $ref: "#/components/schemas/SpareWaitSummaryResponse"
+        - $ref: "#/components/schemas/ValidationSummaryResponse"
+        - $ref: "#/components/schemas/IncidentEvidenceResponse"
+        - $ref: "#/components/schemas/IncidentTimelineResponse"
+        - $ref: "#/components/schemas/DependencyImpactResponse"
+        - $ref: "#/components/schemas/BlastRadiusResponse"
       discriminator:
         propertyName: resultType
         mapping:
@@ -151,6 +166,21 @@ components:
           incident-summary: "#/components/schemas/IncidentSummaryResponse"
           provenance-source-records: "#/components/schemas/ProvenanceSourceRecordsResponse"
           follow-up-queue: "#/components/schemas/FollowUpQueueResponse"
+          dashboard-overview: "#/components/schemas/DashboardOverviewResponse"
+          filter-metadata: "#/components/schemas/FilterMetadataResponse"
+          follow-up-detail: "#/components/schemas/FollowUpDetailResponse"
+          impact-summary: "#/components/schemas/ImpactSummaryResponse"
+          topology-dependencies: "#/components/schemas/TopologyDependenciesResponse"
+          trust-findings: "#/components/schemas/TrustFindingsResponse"
+          stage-bottlenecks: "#/components/schemas/StageBottlenecksResponse"
+          asset-delay-summary: "#/components/schemas/AssetDelaySummaryResponse"
+          zone-delay-summary: "#/components/schemas/ZoneDelaySummaryResponse"
+          spare-wait-summary: "#/components/schemas/SpareWaitSummaryResponse"
+          validation-summary: "#/components/schemas/ValidationSummaryResponse"
+          incident-evidence: "#/components/schemas/IncidentEvidenceResponse"
+          incident-timeline: "#/components/schemas/IncidentTimelineResponse"
+          dependency-impact: "#/components/schemas/DependencyImpactResponse"
+          blast-radius: "#/components/schemas/BlastRadiusResponse"
     QueryResultEnvelopeBase:
       type: object
       required:
@@ -169,6 +199,21 @@ components:
             - incident-summary
             - provenance-source-records
             - follow-up-queue
+            - dashboard-overview
+            - filter-metadata
+            - follow-up-detail
+            - impact-summary
+            - topology-dependencies
+            - trust-findings
+            - stage-bottlenecks
+            - asset-delay-summary
+            - zone-delay-summary
+            - spare-wait-summary
+            - validation-summary
+            - incident-evidence
+            - incident-timeline
+            - dependency-impact
+            - blast-radius
         recordCount:
           type: integer
           minimum: 0
@@ -328,6 +373,710 @@ components:
         stageLabel:
           type: string
         sourceRecordUri:
+          type: string
+        priorityRank:
+          type: integer
+        requestTitle:
+          type: string
+        currentStatus:
+          type: string
+        hoursInCurrentStage:
+          type: number
+        neededByAt:
+          type: string
+          format: date-time
+        priorityLevel:
+          type: string
+        businessImpact:
+          type: string
+        assetCriticalityScore:
+          type: number
+        downtimeScore:
+          type: number
+        stageDelayScore:
+          type: number
+        infrastructureZoneImpactScore:
+          type: number
+        neededByUrgencyScore:
+          type: number
+        repeatFailureScore:
+          type: number
+        spareRiskScore:
+          type: number
+        capacityRiskScore:
+          type: number
+        redundancyRiskScore:
+          type: number
+        thermalRiskScore:
+          type: number
+        vendorEtaRiskScore:
+          type: number
+        mitigationCreditScore:
+          type: number
+        totalPriorityScore:
+          type: number
+      additionalProperties: false
+    DashboardOverviewResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - dashboard-overview
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/DashboardOverviewRecord"
+    DashboardOverviewRecord:
+      type: object
+      required:
+        - graphUri
+        - totalIncidents
+        - assetCount
+        - zoneCount
+        - impactObservationCount
+        - capacityRiskKw
+        - affectedGpuCount
+        - dependencyEdgeCount
+        - trustFindingCount
+      properties:
+        graphUri:
+          type: string
+        totalIncidents:
+          type: integer
+        assetCount:
+          type: integer
+        zoneCount:
+          type: integer
+        impactObservationCount:
+          type: integer
+        capacityRiskKw:
+          type: number
+        affectedGpuCount:
+          type: integer
+        dependencyEdgeCount:
+          type: integer
+        trustFindingCount:
+          type: integer
+      additionalProperties: false
+    FilterMetadataResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - filter-metadata
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/FilterMetadataRecord"
+    FilterMetadataRecord:
+      type: object
+      required:
+        - graphUri
+        - filterType
+        - resourceUri
+        - id
+      properties:
+        graphUri:
+          type: string
+        filterType:
+          type: string
+        resourceUri:
+          type: string
+        id:
+          type: string
+        label:
+          type: string
+        sourceRecordUri:
+          type: string
+      additionalProperties: false
+    FollowUpDetailResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - follow-up-detail
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/FollowUpDetailRecord"
+    FollowUpDetailRecord:
+      allOf:
+        - $ref: "#/components/schemas/FollowUpQueueRecord"
+        - type: object
+          properties:
+            impactUri:
+              type: string
+            capacityRiskKw:
+              type: number
+            affectedGpuCount:
+              type: integer
+            followUpDecisionUri:
+              type: string
+            recommendedAction:
+              type: string
+            recoveryBlockerUri:
+              type: string
+            blockerSummary:
+              type: string
+            trustFindingUri:
+              type: string
+            trustSummary:
+              type: string
+            redundancyState:
+              type: string
+            affectedRackCount:
+              type: integer
+            estimatedGpuCapacityRiskPct:
+              type: number
+            thermalBreachMinutes:
+              type: integer
+            powerRedundancyLost:
+              type: boolean
+            coolingRedundancyLost:
+              type: boolean
+            mitigationStatus:
+              type: string
+            vendorEtaAt:
+              type: string
+              format: date-time
+            vendorStatus:
+              type: string
+    ImpactSummaryResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - impact-summary
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/ImpactSummaryRecord"
+    ImpactSummaryRecord:
+      type: object
+      required:
+        - graphUri
+        - impactObservationCount
+        - incidentCount
+        - capacityRiskKw
+        - affectedGpuCount
+        - trustFindingCount
+      properties:
+        graphUri:
+          type: string
+        impactObservationCount:
+          type: integer
+        incidentCount:
+          type: integer
+        capacityRiskKw:
+          type: number
+        affectedGpuCount:
+          type: integer
+        trustFindingCount:
+          type: integer
+      additionalProperties: false
+    TopologyDependenciesResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - topology-dependencies
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/TopologyDependencyRecord"
+    TopologyDependencyRecord:
+      type: object
+      required:
+        - graphUri
+        - dependencyEdgeUri
+        - dependencyId
+        - dependentAssetUri
+        - dependentAssetId
+        - dependencyAssetUri
+        - dependencyAssetId
+        - dependencyRole
+        - sourceRecordUri
+      properties:
+        graphUri:
+          type: string
+        dependencyEdgeUri:
+          type: string
+        dependencyId:
+          type: string
+        dependentAssetUri:
+          type: string
+        dependentAssetId:
+          type: string
+        dependencyAssetUri:
+          type: string
+        dependencyAssetId:
+          type: string
+        dependencyRole:
+          type: string
+        impactScope:
+          type: string
+        dependencyPathUri:
+          type: string
+        pathId:
+          type: string
+        sourceRecordUri:
+          type: string
+      additionalProperties: false
+    TrustFindingsResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - trust-findings
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/TrustFindingRecord"
+    TrustFindingRecord:
+      type: object
+      required:
+        - graphUri
+        - trustFindingUri
+        - summary
+        - sourceFactUri
+      properties:
+        graphUri:
+          type: string
+        trustFindingUri:
+          type: string
+        summary:
+          type: string
+        sourceFactUri:
+          type: string
+        activityUri:
+          type: string
+      additionalProperties: false
+    StageBottlenecksResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - stage-bottlenecks
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/StageBottleneckRecord"
+    StageBottleneckRecord:
+      type: object
+      required:
+        - graphUri
+        - stageUri
+        - incidentCount
+        - sourceRecordUri
+      properties:
+        graphUri:
+          type: string
+        stageUri:
+          type: string
+        stageLabel:
+          type: string
+        incidentCount:
+          type: integer
+        sourceRecordUri:
+          type: string
+      additionalProperties: false
+    AssetDelaySummaryResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - asset-delay-summary
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/AssetDelaySummaryRecord"
+    AssetDelaySummaryRecord:
+      allOf:
+        - $ref: "#/components/schemas/ImpactSummaryByAssetOrZoneRecord"
+        - type: object
+          required:
+            - assetUri
+            - assetId
+            - zoneUri
+            - zoneId
+          properties:
+            assetUri:
+              type: string
+            assetId:
+              type: string
+            zoneUri:
+              type: string
+            zoneId:
+              type: string
+    ZoneDelaySummaryResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - zone-delay-summary
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/ZoneDelaySummaryRecord"
+    ZoneDelaySummaryRecord:
+      allOf:
+        - $ref: "#/components/schemas/ImpactSummaryByAssetOrZoneRecord"
+        - type: object
+          required:
+            - zoneUri
+            - zoneId
+            - assetCount
+          properties:
+            zoneUri:
+              type: string
+            zoneId:
+              type: string
+            assetCount:
+              type: integer
+    ImpactSummaryByAssetOrZoneRecord:
+      type: object
+      required:
+        - graphUri
+        - incidentCount
+        - impactObservationCount
+        - capacityRiskKw
+        - affectedGpuCount
+        - sourceRecordUri
+      properties:
+        graphUri:
+          type: string
+        incidentCount:
+          type: integer
+        impactObservationCount:
+          type: integer
+        capacityRiskKw:
+          type: number
+        affectedGpuCount:
+          type: integer
+        sourceRecordUri:
+          type: string
+      additionalProperties: false
+    SpareWaitSummaryResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - spare-wait-summary
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/SpareWaitSummaryRecord"
+    SpareWaitSummaryRecord:
+      type: object
+      required:
+        - graphUri
+        - stageUri
+        - incidentCount
+        - recoveryBlockerCount
+        - sourceRecordUri
+      properties:
+        graphUri:
+          type: string
+        stageUri:
+          type: string
+        stageLabel:
+          type: string
+        incidentCount:
+          type: integer
+        recoveryBlockerCount:
+          type: integer
+        sourceRecordUri:
+          type: string
+      additionalProperties: false
+    ValidationSummaryResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - validation-summary
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/ValidationSummaryRecord"
+    ValidationSummaryRecord:
+      type: object
+      required:
+        - graphUri
+        - sourceRecordCount
+        - incidentCount
+        - incidentWithProvenanceCount
+        - assetCount
+        - assetWithProvenanceCount
+      properties:
+        graphUri:
+          type: string
+        sourceRecordCount:
+          type: integer
+        incidentCount:
+          type: integer
+        incidentWithProvenanceCount:
+          type: integer
+        assetCount:
+          type: integer
+        assetWithProvenanceCount:
+          type: integer
+      additionalProperties: false
+    IncidentEvidenceResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - incident-evidence
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/IncidentEvidenceRecord"
+    IncidentEvidenceRecord:
+      type: object
+      required:
+        - graphUri
+        - incidentUri
+        - incidentId
+        - stageUri
+        - sourceRecordUri
+      properties:
+        graphUri:
+          type: string
+        incidentUri:
+          type: string
+        incidentId:
+          type: string
+        stageUri:
+          type: string
+        stageLabel:
+          type: string
+        sourceRecordUri:
+          type: string
+        impactUri:
+          type: string
+        evidenceUri:
+          type: string
+        evidenceClassUri:
+          type: string
+        evidenceTimestamp:
+          type: string
+        confidenceState:
+          type: string
+        metricName:
+          type: string
+        metricValue:
+          type: number
+        metricUnit:
+          type: string
+        telemetryStatus:
+          type: string
+        validationId:
+          type: string
+        validationStatus:
+          type: string
+        validatorId:
+          type: string
+        validationStartedAt:
+          type: string
+        validationCompletedAt:
+          type: string
+        failureReason:
+          type: string
+        workOrderId:
+          type: string
+        assignedTeam:
+          type: string
+        assignedEngineerId:
+          type: string
+        workOrderStatus:
+          type: string
+        plannedStartAt:
+          type: string
+        actualStartAt:
+          type: string
+        actualCompletedAt:
+          type: string
+        requiredSpareId:
+          type: string
+        requiredSpareName:
+          type: string
+        stockStatus:
+          type: string
+        trustFindingUri:
+          type: string
+        trustSummary:
+          type: string
+      additionalProperties: false
+    IncidentTimelineResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - incident-timeline
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/IncidentTimelineRecord"
+    IncidentTimelineRecord:
+      type: object
+      required:
+        - graphUri
+        - incidentUri
+        - incidentId
+        - eventUri
+        - stageUri
+        - sourceRecordUri
+      properties:
+        graphUri:
+          type: string
+        incidentUri:
+          type: string
+        incidentId:
+          type: string
+        eventUri:
+          type: string
+        eventId:
+          type: string
+        stageUri:
+          type: string
+        stageLabel:
+          type: string
+        eventStatus:
+          type: string
+        enteredAt:
+          type: string
+        exitedAt:
+          type: string
+        durationHours:
+          type: number
+        thresholdHours:
+          type: number
+        delayHours:
+          type: number
+        sourceRecordUri:
+          type: string
+      additionalProperties: false
+    DependencyImpactResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - dependency-impact
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/DependencyImpactRecord"
+    DependencyImpactRecord:
+      type: object
+      required:
+        - graphUri
+        - assetUri
+        - assetId
+      properties:
+        graphUri:
+          type: string
+        assetUri:
+          type: string
+        assetId:
+          type: string
+        dependencyEdgeUri:
+          type: string
+        dependencyId:
+          type: string
+        dependencyAssetUri:
+          type: string
+        dependencyAssetId:
+          type: string
+        dependencyRole:
+          type: string
+        impactScope:
+          type: string
+        findingUri:
+          type: string
+        findingSummary:
+          type: string
+        sourceRecordUri:
+          type: string
+      additionalProperties: false
+    BlastRadiusResponse:
+      allOf:
+        - $ref: "#/components/schemas/QueryResultEnvelopeBase"
+        - type: object
+          properties:
+            resultType:
+              type: string
+              enum:
+                - blast-radius
+            records:
+              type: array
+              items:
+                $ref: "#/components/schemas/BlastRadiusRecord"
+    BlastRadiusRecord:
+      type: object
+      required:
+        - graphUri
+        - assetUri
+        - assetId
+      properties:
+        graphUri:
+          type: string
+        assetUri:
+          type: string
+        assetId:
+          type: string
+        downstreamAssetUri:
+          type: string
+        downstreamAssetId:
+          type: string
+        incidentUri:
+          type: string
+        incidentId:
+          type: string
+        findingUri:
+          type: string
+        findingSummary:
           type: string
       additionalProperties: false
     ReasoningValidationRequest:

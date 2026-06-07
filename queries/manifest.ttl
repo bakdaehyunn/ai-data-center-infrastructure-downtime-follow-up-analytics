@@ -22,7 +22,22 @@ dcai-query:manifest
     dcai-query:fixtureNamedGraphInventory,
     dcai-query:fixtureIncidentSummary,
     dcai-query:fixtureProvenanceSourceRecords,
-    dcai-query:semanticFollowUpQueueList .
+    dcai-query:semanticFollowUpQueueList,
+    dcai-query:semanticDashboardOverview,
+    dcai-query:semanticFilterMetadata,
+    dcai-query:semanticFollowUpDetail,
+    dcai-query:semanticImpactSummary,
+    dcai-query:semanticTopologyDependencies,
+    dcai-query:semanticTrustFindingList,
+    dcai-query:semanticStageBottlenecks,
+    dcai-query:semanticAssetDelaySummary,
+    dcai-query:semanticZoneDelaySummary,
+    dcai-query:semanticSpareWaitSummary,
+    dcai-query:semanticValidationSummary,
+    dcai-query:semanticIncidentEvidence,
+    dcai-query:semanticIncidentTimeline,
+    dcai-query:semanticDependencyImpactByAsset,
+    dcai-query:semanticBlastRadiusByAsset .
 
 dcai-query:sourceToCanonicalPromotion
   rdf:type dcai-query:QueryEntry ;
@@ -132,6 +147,126 @@ dcai-query:semanticFollowUpQueueList
   rdf:type dcai-query:QueryEntry ;
   dcterms:title "Semantic follow-up queue list read model" ;
   dcai-query:queryPath "queries/read-model/semantic_follow_up_queue_list.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticDashboardOverview
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic dashboard overview read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_dashboard_overview.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticFilterMetadata
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic filter metadata read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_filter_metadata.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticFollowUpDetail
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic follow-up detail read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_follow_up_detail.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticImpactSummary
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic impact summary read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_impact_summary.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticTopologyDependencies
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic topology dependencies read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_topology_dependencies.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticTrustFindingList
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic trust finding list read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_trust_finding_list.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticStageBottlenecks
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic stage bottlenecks read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_stage_bottlenecks.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticAssetDelaySummary
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic asset delay summary read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_asset_delay_summary.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticZoneDelaySummary
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic zone delay summary read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_zone_delay_summary.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticSpareWaitSummary
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic spare/vendor wait summary read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_spare_wait_summary.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticValidationSummary
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic validation summary read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_validation_summary.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticIncidentEvidence
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic incident evidence read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_incident_evidence.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticIncidentTimeline
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic incident workflow timeline read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_incident_timeline.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticDependencyImpactByAsset
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic dependency impact by asset read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_dependency_impact_by_asset.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:semanticBlastRadiusByAsset
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Semantic blast radius by asset read model" ;
+  dcai-query:queryPath "queries/read-model/semantic_blast_radius_by_asset.select.rq" ;
   dcai-query:queryMode "SELECT" ;
   dcai-query:graphScope "fixture canonical graph" ;
   dcai-query:implementationStatus "phase16-approved" .

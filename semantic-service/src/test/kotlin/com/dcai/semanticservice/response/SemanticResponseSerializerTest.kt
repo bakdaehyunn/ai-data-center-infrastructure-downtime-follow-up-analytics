@@ -1,14 +1,30 @@
 package com.dcai.semanticservice.response
 
+import com.dcai.semanticservice.query.DashboardOverviewEnvelope
+import com.dcai.semanticservice.query.DashboardOverviewRecord
+import com.dcai.semanticservice.query.FilterMetadataEnvelope
+import com.dcai.semanticservice.query.FilterMetadataRecord
+import com.dcai.semanticservice.query.FollowUpDetailEnvelope
+import com.dcai.semanticservice.query.FollowUpDetailRecord
 import com.dcai.semanticservice.query.IncidentSummaryEnvelope
 import com.dcai.semanticservice.query.IncidentSummaryRecord
 import com.dcai.semanticservice.query.FollowUpQueueEnvelope
 import com.dcai.semanticservice.query.FollowUpQueueRecord
+import com.dcai.semanticservice.query.ImpactSummaryEnvelope
+import com.dcai.semanticservice.query.ImpactSummaryRecord
+import com.dcai.semanticservice.query.IncidentEvidenceEnvelope
+import com.dcai.semanticservice.query.IncidentEvidenceRecord
+import com.dcai.semanticservice.query.IncidentTimelineEnvelope
+import com.dcai.semanticservice.query.IncidentTimelineRecord
 import com.dcai.semanticservice.query.NamedGraphInventoryEnvelope
 import com.dcai.semanticservice.query.NamedGraphInventoryRecord
 import com.dcai.semanticservice.query.ProvenanceSourceRecord
 import com.dcai.semanticservice.query.ProvenanceSourceRecordsEnvelope
 import com.dcai.semanticservice.query.QueryResultEnvelopeProvenance
+import com.dcai.semanticservice.query.TopologyDependenciesEnvelope
+import com.dcai.semanticservice.query.TopologyDependencyRecord
+import com.dcai.semanticservice.query.TrustFindingRecord
+import com.dcai.semanticservice.query.TrustFindingsEnvelope
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -163,6 +179,190 @@ class SemanticResponseSerializerTest {
     }
 
     @Test
+    fun serializesAdditionalProductReadModelEnvelopes() {
+        val payloads = listOf(
+            serializer.serialize(
+                DashboardOverviewEnvelope(
+                    queryId = "semanticDashboardOverview",
+                    records = listOf(
+                        DashboardOverviewRecord(
+                            graphUri = "urn:dcai:graph:fixture:canonical:reasoning-output",
+                            totalIncidents = 2,
+                            assetCount = 3,
+                            zoneCount = 1,
+                            impactObservationCount = 1,
+                            capacityRiskKw = 900.0,
+                            affectedGpuCount = 320,
+                            dependencyEdgeCount = 1,
+                            trustFindingCount = 1,
+                            avgDurationHours = 17.5,
+                            totalDelayHours = 45.0,
+                        ),
+                    ),
+                    provenance = provenance("semanticDashboardOverview"),
+                ),
+            ),
+            serializer.serialize(
+                FilterMetadataEnvelope(
+                    queryId = "semanticFilterMetadata",
+                    records = listOf(
+                        FilterMetadataRecord(
+                            graphUri = "urn:dcai:graph:fixture:canonical:minimal-incident",
+                            filterType = "asset",
+                            resourceUri = "urn:dcai:fixture:valid:minimal-incident:gpu-rack-row-a",
+                            id = "ASSET-GPU-RACK-ROW-A",
+                            label = "GPU Rack Sensor Row A",
+                        ),
+                    ),
+                    provenance = provenance("semanticFilterMetadata"),
+                ),
+            ),
+            serializer.serialize(
+                FollowUpDetailEnvelope(
+                    queryId = "semanticFollowUpDetail",
+                    records = listOf(
+                        FollowUpDetailRecord(
+                            graphUri = "urn:dcai:graph:fixture:canonical:reasoning-output",
+                            incidentUri = "urn:dcai:fixture:valid:reasoning-output:incident-0001",
+                            incidentId = "INC-0001",
+                            assetUri = "urn:dcai:fixture:valid:reasoning-output:asset-a",
+                            assetId = "ASSET-A",
+                            zoneUri = "urn:dcai:fixture:valid:reasoning-output:zone-a",
+                            zoneId = "ZONE-A",
+                            stageUri = "urn:dcai:fixture:valid:reasoning-output:stage-waiting",
+                            sourceRecordUri = "urn:dcai:fixture:valid:reasoning-output:source-record-0001",
+                            capacityRiskKw = 900.0,
+                            recommendedAction = "Escalate vendor ETA.",
+                        ),
+                    ),
+                    provenance = provenance("semanticFollowUpDetail"),
+                ),
+            ),
+            serializer.serialize(
+                ImpactSummaryEnvelope(
+                    queryId = "semanticImpactSummary",
+                    records = listOf(
+                        ImpactSummaryRecord(
+                            graphUri = "urn:dcai:graph:fixture:canonical:reasoning-output",
+                            impactObservationCount = 1,
+                            incidentCount = 1,
+                            capacityRiskKw = 900.0,
+                            affectedGpuCount = 320,
+                            trustFindingCount = 1,
+                            affectedRackCount = 40,
+                            thermalBreachMinutes = 0,
+                            redundancyLostIncidentCount = 1,
+                            vendorEtaMissedCount = 1,
+                            mitigatedIncidentCount = 1,
+                        ),
+                    ),
+                    provenance = provenance("semanticImpactSummary"),
+                ),
+            ),
+            serializer.serialize(
+                TopologyDependenciesEnvelope(
+                    queryId = "semanticTopologyDependencies",
+                    records = listOf(
+                        TopologyDependencyRecord(
+                            graphUri = "urn:dcai:graph:fixture:canonical:dependency-path",
+                            dependencyEdgeUri = "urn:dcai:fixture:valid:dependency-path:edge-rack-to-pdu",
+                            dependencyId = "EDGE-RACK-PDU-A",
+                            dependentAssetUri = "urn:dcai:fixture:valid:dependency-path:gpu-rack-row-a",
+                            dependentAssetId = "ASSET-GPU-RACK-ROW-A",
+                            dependencyAssetUri = "urn:dcai:fixture:valid:dependency-path:rack-pdu-a",
+                            dependencyAssetId = "ASSET-RACK-PDU-A",
+                            dependencyRole = "POWER_SUPPLY",
+                            sourceRecordUri = "urn:dcai:fixture:valid:dependency-path:source-record-topology-0001",
+                        ),
+                    ),
+                    provenance = provenance("semanticTopologyDependencies"),
+                ),
+            ),
+            serializer.serialize(
+                IncidentEvidenceEnvelope(
+                    queryId = "semanticIncidentEvidence",
+                    records = listOf(
+                        IncidentEvidenceRecord(
+                            graphUri = "urn:dcai:graph:fixture:canonical:reasoning-output",
+                            incidentUri = "urn:dcai:fixture:valid:reasoning-output:incident-0001",
+                            incidentId = "INC-0001",
+                            stageUri = "urn:dcai:fixture:valid:reasoning-output:stage-waiting",
+                            sourceRecordUri = "urn:dcai:fixture:valid:reasoning-output:source-record-0001",
+                            evidenceUri = "urn:dcai:fixture:valid:reasoning-output:evidence-0001",
+                            evidenceClassUri = "urn:dcai:ontology:TelemetryEvidence",
+                            evidenceTimestamp = "2026-01-08T02:15:00Z",
+                            metricName = "fuel_pressure_psi",
+                            metricValue = 18.0,
+                            metricUnit = "psi",
+                            telemetryStatus = "CRITICAL",
+                        ),
+                    ),
+                    provenance = provenance("semanticIncidentEvidence"),
+                ),
+            ),
+            serializer.serialize(
+                IncidentTimelineEnvelope(
+                    queryId = "semanticIncidentTimeline",
+                    records = listOf(
+                        IncidentTimelineRecord(
+                            graphUri = "urn:dcai:graph:fixture:canonical:reasoning-output",
+                            incidentUri = "urn:dcai:fixture:valid:reasoning-output:incident-0001",
+                            incidentId = "INC-0001",
+                            eventUri = "urn:dcai:fixture:valid:reasoning-output:workflow-event-0004",
+                            eventId = "EVT-0004",
+                            stageUri = "urn:dcai:fixture:valid:reasoning-output:stage-waiting",
+                            stageLabel = "Spare/vendor waiting",
+                            eventStatus = "ACTIVE",
+                            enteredAt = "2026-01-06T08:00:00Z",
+                            durationHours = 63.0,
+                            thresholdHours = 18.0,
+                            delayHours = 45.0,
+                            sourceRecordUri = "urn:dcai:fixture:valid:reasoning-output:source-record-0001",
+                        ),
+                    ),
+                    provenance = provenance("semanticIncidentTimeline"),
+                ),
+            ),
+            serializer.serialize(
+                TrustFindingsEnvelope(
+                    queryId = "semanticTrustFindingList",
+                    records = listOf(
+                        TrustFindingRecord(
+                            graphUri = "urn:dcai:graph:fixture:canonical:reasoning-output",
+                            trustFindingUri = "urn:dcai:fixture:valid:reasoning-output:trust-finding-0001",
+                            summary = "Impact evidence is supported by telemetry.",
+                            sourceFactUri = "urn:dcai:fixture:valid:reasoning-output:impact-0001",
+                        ),
+                    ),
+                    provenance = provenance("semanticTrustFindingList"),
+                ),
+            ),
+        )
+
+        assertEquals(
+            setOf(
+                "dashboard-overview",
+                "filter-metadata",
+                "follow-up-detail",
+                "impact-summary",
+                "incident-evidence",
+                "incident-timeline",
+                "topology-dependencies",
+                "trust-findings",
+            ),
+            payloads.map { it["resultType"] }.toSet(),
+        )
+        assertEquals(900.0, firstRecord(payloads[0])["capacityRiskKw"])
+        assertEquals("ASSET-GPU-RACK-ROW-A", firstRecord(payloads[1])["id"])
+        assertEquals("Escalate vendor ETA.", firstRecord(payloads[2])["recommendedAction"])
+        assertEquals(45.0, firstRecord(payloads[0])["totalDelayHours"])
+        assertEquals("POWER_SUPPLY", firstRecord(payloads[4])["dependencyRole"])
+        assertEquals("fuel_pressure_psi", firstRecord(payloads[5])["metricName"])
+        assertEquals("EVT-0004", firstRecord(payloads[6])["eventId"])
+        assertEquals("Impact evidence is supported by telemetry.", firstRecord(payloads[7])["summary"])
+    }
+
+    @Test
     fun serializesSemanticErrorEnvelope() {
         val payload = serializer.error(
             code = SemanticErrorCode.UNAPPROVED_QUERY_ID,
@@ -212,5 +412,10 @@ class SemanticResponseSerializerTest {
             "graphScope" to "fixture canonical graph",
             "contractVersion" to QueryResultEnvelopeProvenance.CONTRACT_VERSION,
         )
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun firstRecord(payload: Map<String, Any>): Map<String, Any> {
+        return (payload["records"] as List<Map<String, Any>>).single()
     }
 }

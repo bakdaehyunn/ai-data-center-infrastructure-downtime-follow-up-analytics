@@ -27,6 +27,21 @@ Supported Phase 18 response result types:
 - `incident-summary`
 - `provenance-source-records`
 - `follow-up-queue`
+- `dashboard-overview`
+- `filter-metadata`
+- `follow-up-detail`
+- `impact-summary`
+- `topology-dependencies`
+- `trust-findings`
+- `stage-bottlenecks`
+- `asset-delay-summary`
+- `zone-delay-summary`
+- `spare-wait-summary`
+- `validation-summary`
+- `incident-evidence`
+- `incident-timeline`
+- `dependency-impact`
+- `blast-radius`
 
 Versioning rules:
 
@@ -47,12 +62,14 @@ Post-Phase-20 implementation status:
 - implemented as an internal/private loopback endpoint
 - allowed query IDs are limited to `fixtureNamedGraphInventory`,
   `fixtureIncidentSummary`, `fixtureProvenanceSourceRecords`, and
-  `semanticFollowUpQueueList`
+  product read-model query IDs currently approved in `queries/manifest.ttl`
 - success responses are produced by `SemanticResponseSerializer`
 - semantic errors use the Phase 18 error envelope
 - request bodies must not contain raw SPARQL, arbitrary query text, SPARQL
   Update, or replacement query definitions
-- product dashboard view-model query IDs are not implemented yet
+- product dashboard view-model query IDs are implemented only when backed by
+  approved SPARQL, typed envelopes, shaper support, serializer support, and
+  private endpoint tests
 
 Request DTO:
 
@@ -105,6 +122,222 @@ Follow-up queue record:
 - `stageUri`: current workflow stage resource IRI
 - `stageLabel`: optional current stage label
 - `sourceRecordUri`: source record resource IRI for row provenance
+- `priorityRank`: optional graph-backed follow-up queue rank
+- `requestTitle`: optional graph-backed follow-up title
+- `currentStatus`: optional graph-backed operational status
+- `hoursInCurrentStage`: optional current-stage duration in hours
+- `neededByAt`: optional needed-by timestamp
+- `priorityLevel`: optional priority level
+- `businessImpact`: optional business impact summary
+- priority score inputs: optional `assetCriticalityScore`, `downtimeScore`,
+  `stageDelayScore`, `infrastructureZoneImpactScore`,
+  `neededByUrgencyScore`, `repeatFailureScore`, `spareRiskScore`,
+  `capacityRiskScore`, `redundancyRiskScore`, `thermalRiskScore`,
+  `vendorEtaRiskScore`, `mitigationCreditScore`, and `totalPriorityScore`
+
+Dashboard overview record:
+
+- `graphUri`: named graph IRI
+- `totalIncidents`: count of canonical infrastructure incidents
+- `assetCount`: count of canonical infrastructure assets
+- `zoneCount`: count of canonical infrastructure zones
+- `impactObservationCount`: count of impact observations
+- `capacityRiskKw`: summed capacity risk in kW
+- `affectedGpuCount`: summed affected GPU count
+- `dependencyEdgeCount`: count of dependency edges
+- `trustFindingCount`: count of trust findings
+- optional runtime totals: `avgDurationHours`, `totalDurationHours`,
+  `totalDelayHours`, `mitigatedIncidentCount`, `affectedRackCount`,
+  `thermalBreachMinutes`, `redundancyLostIncidentCount`, and
+  `vendorEtaMissedCount`
+
+Filter metadata record:
+
+- `graphUri`: named graph IRI
+- `filterType`: filter group such as `zone`, `asset`, `assetType`, or `stage`
+- `resourceUri`: resource IRI backing the option
+- `id`: stable filter identifier
+- `label`: optional display label
+- `sourceRecordUri`: optional source record resource IRI
+
+Follow-up detail record:
+
+- includes the follow-up queue row fields
+- `impactUri`: optional impact observation IRI
+- `capacityRiskKw`: optional selected incident capacity risk
+- `affectedGpuCount`: optional affected GPU count
+- `followUpDecisionUri`: optional derived follow-up decision IRI
+- `recommendedAction`: optional graph-backed recommended action
+- `recoveryBlockerUri`: optional recovery blocker IRI
+- `blockerSummary`: optional recovery blocker summary
+- `trustFindingUri`: optional trust finding IRI
+- `trustSummary`: optional trust finding summary
+- impact state fields: optional `redundancyState`, `affectedRackCount`,
+  `estimatedGpuCapacityRiskPct`, `thermalBreachMinutes`,
+  `powerRedundancyLost`, `coolingRedundancyLost`, `mitigationStatus`,
+  `vendorEtaAt`, and `vendorStatus`
+
+Impact summary record:
+
+- `graphUri`: named graph IRI
+- `impactObservationCount`: count of impact observations
+- `incidentCount`: count of incidents with impact observations
+- `capacityRiskKw`: summed capacity risk in kW
+- `affectedGpuCount`: summed affected GPU count
+- `trustFindingCount`: count of trust findings tied to impacts
+- optional impact totals: `affectedRackCount`, `thermalBreachMinutes`,
+  `redundancyLostIncidentCount`, `vendorEtaMissedCount`, and
+  `mitigatedIncidentCount`
+
+Topology dependency record:
+
+- `graphUri`: named graph IRI
+- `dependencyEdgeUri`: dependency edge IRI
+- `dependencyId`: dependency edge identifier
+- `dependentAssetUri`: dependent/downstream asset IRI
+- `dependentAssetId`: dependent/downstream asset identifier
+- `dependencyAssetUri`: dependency/upstream asset IRI
+- `dependencyAssetId`: dependency/upstream asset identifier
+- `dependencyRole`: role of the dependency
+- `impactScope`: optional impact scope
+- `dependencyPathUri`: optional dependency path IRI
+- `pathId`: optional dependency path identifier
+- `sourceRecordUri`: source record resource IRI for row provenance
+
+Trust finding record:
+
+- `graphUri`: named graph IRI
+- `trustFindingUri`: trust finding IRI
+- `summary`: finding summary
+- `sourceFactUri`: source fact IRI used by the finding
+- `activityUri`: optional reasoning activity IRI
+
+Stage bottleneck record:
+
+- `graphUri`: named graph IRI
+- `stageUri`: workflow stage IRI
+- `stageLabel`: optional stage label
+- `incidentCount`: incident count currently at the stage
+- optional duration fields: `delayedCount`, `avgDurationHours`,
+  `p90DurationHours`, and `totalDelayHours`
+- `sourceRecordUri`: sampled source record IRI for provenance
+
+Asset delay summary record:
+
+- `graphUri`: named graph IRI
+- `assetUri`: asset IRI
+- `assetId`: asset identifier
+- `zoneUri`: zone IRI
+- `zoneId`: zone identifier
+- `incidentCount`: incident count linked to the asset
+- `impactObservationCount`: impact observation count linked to the asset
+- `capacityRiskKw`: summed capacity risk in kW
+- `affectedGpuCount`: summed affected GPU count
+- optional delay fields: `delayedIncidentCount`, `totalDurationHours`,
+  `avgDurationHours`, and `topFailureMode`
+- `sourceRecordUri`: source record IRI for asset provenance
+
+Zone delay summary record:
+
+- `graphUri`: named graph IRI
+- `zoneUri`: zone IRI
+- `zoneId`: zone identifier
+- `assetCount`: asset count in the zone
+- `incidentCount`: incident count linked to zone assets
+- `impactObservationCount`: impact observation count linked to zone assets
+- `capacityRiskKw`: summed capacity risk in kW
+- `affectedGpuCount`: summed affected GPU count
+- optional delay fields: `delayedIncidentCount`, `criticalIncidentCount`,
+  `totalDurationHours`, and `topBottleneckStage`
+- `sourceRecordUri`: source record IRI for zone provenance
+
+Spare wait summary record:
+
+- `graphUri`: named graph IRI
+- `stageUri`: workflow stage IRI
+- `stageLabel`: optional stage label
+- `incidentCount`: incidents in spare/vendor/waiting stages
+- `recoveryBlockerCount`: recovery blocker count linked to those incidents
+- optional wait fields: `totalWaitHours`, `avgWaitHours`, and `stockStatus`
+- `sourceRecordUri`: sampled source record IRI for provenance
+
+Validation summary record:
+
+- `graphUri`: named graph IRI
+- `sourceRecordCount`: source record count
+- `incidentCount`: incident count
+- `incidentWithProvenanceCount`: incidents carrying source provenance
+- `assetCount`: asset count
+- `assetWithProvenanceCount`: assets carrying source provenance
+
+Incident evidence record:
+
+- `graphUri`: named graph IRI
+- `incidentUri`: incident IRI
+- `incidentId`: incident identifier
+- `stageUri`: current workflow stage IRI
+- `stageLabel`: optional current workflow stage label
+- `sourceRecordUri`: incident source record IRI
+- `impactUri`: optional impact observation IRI
+- `evidenceUri`: optional supporting evidence IRI
+- `evidenceClassUri`: optional evidence class IRI
+- `evidenceTimestamp`: optional evidence timestamp
+- `confidenceState`: optional evidence confidence state
+- telemetry fields: optional `metricName`, `metricValue`, `metricUnit`, and
+  `telemetryStatus`
+- validation fields: optional `validationId`, `validationStatus`,
+  `validatorId`, `validationStartedAt`, `validationCompletedAt`, and
+  `failureReason`
+- work-order fields: optional `workOrderId`, `assignedTeam`,
+  `assignedEngineerId`, `workOrderStatus`, `plannedStartAt`, `actualStartAt`,
+  `actualCompletedAt`, `requiredSpareId`, `requiredSpareName`, and
+  `stockStatus`
+- `trustFindingUri`: optional trust finding IRI
+- `trustSummary`: optional trust finding summary
+
+Incident timeline record:
+
+- `graphUri`: named graph IRI
+- `incidentUri`: incident IRI
+- `incidentId`: incident identifier
+- `eventUri`: workflow event IRI
+- `eventId`: optional source/system event identifier
+- `stageUri`: workflow stage IRI
+- `stageLabel`: optional workflow stage label
+- `eventStatus`: optional event status
+- `enteredAt`: optional stage entry timestamp
+- `exitedAt`: optional stage exit timestamp
+- `durationHours`: optional stage duration in hours
+- `thresholdHours`: optional stage threshold in hours
+- `delayHours`: optional duration above threshold
+- `sourceRecordUri`: source record IRI for event provenance
+
+Dependency impact record:
+
+- `graphUri`: named graph IRI
+- `assetUri`: asset IRI
+- `assetId`: asset identifier
+- `dependencyEdgeUri`: optional dependency edge IRI
+- `dependencyId`: optional dependency edge identifier
+- `dependencyAssetUri`: optional upstream dependency asset IRI
+- `dependencyAssetId`: optional upstream dependency asset identifier
+- `dependencyRole`: optional dependency role
+- `impactScope`: optional dependency impact scope
+- `findingUri`: optional dependency impact finding IRI
+- `findingSummary`: optional dependency impact finding summary
+- `sourceRecordUri`: optional dependency source record IRI
+
+Blast radius record:
+
+- `graphUri`: named graph IRI
+- `assetUri`: asset IRI
+- `assetId`: asset identifier
+- `downstreamAssetUri`: optional downstream asset IRI
+- `downstreamAssetId`: optional downstream asset identifier
+- `incidentUri`: optional incident IRI
+- `incidentId`: optional incident identifier
+- `findingUri`: optional blast-radius finding IRI
+- `findingSummary`: optional blast-radius finding summary
 
 Error DTO:
 

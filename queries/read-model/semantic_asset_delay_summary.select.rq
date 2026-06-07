@@ -1,0 +1,53 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  ?graph
+  ?asset
+  ?assetId
+  ?zone
+  ?zoneId
+  (COUNT(DISTINCT ?incident) AS ?incidentCount)
+  (COUNT(DISTINCT ?impact) AS ?impactObservationCount)
+  (COALESCE(SUM(?capacityRisk), 0) AS ?capacityRiskKw)
+  (COALESCE(SUM(?gpuCount), 0) AS ?affectedGpuCount)
+  (COUNT(DISTINCT ?delayedIncident) AS ?delayedIncidentCount)
+  (COALESCE(SUM(?durationHours), 0) AS ?totalDurationHours)
+  (COALESCE(AVG(?durationHours), 0) AS ?avgDurationHours)
+  (SAMPLE(?stageLabel) AS ?topFailureMode)
+  (SAMPLE(?rowSourceRecord) AS ?sourceRecord)
+WHERE {
+  GRAPH ?graph {
+    ?asset a dcai:InfrastructureAsset ;
+      dcai:hasIdentifier ?assetId ;
+      dcai:locatedIn ?zone ;
+      prov:wasDerivedFrom ?rowSourceRecord .
+    ?zone dcai:hasIdentifier ?zoneId .
+    OPTIONAL {
+      ?incident a dcai:InfrastructureIncident ;
+        dcai:affectsAsset ?asset .
+      OPTIONAL {
+        ?impact a dcai:ImpactObservation ;
+          dcai:impactForIncident ?incident .
+        OPTIONAL { ?impact dcai:estimatedCapacityRiskKw ?capacityRisk . }
+        OPTIONAL { ?impact dcai:affectedGpuCount ?gpuCount . }
+      }
+      OPTIONAL {
+        ?incident dcai:hasCurrentStage ?stage .
+        OPTIONAL { ?stage rdfs:label ?stageLabel . }
+        OPTIONAL { ?stage dcai:hasStageThresholdHours ?thresholdHours . }
+        OPTIONAL {
+          ?queueItem a dcai:FollowUpQueueItem ;
+            dcai:queueItemForIncident ?incident ;
+            dcai:hoursInCurrentStage ?durationHours .
+          BIND(IF(BOUND(?thresholdHours), ?thresholdHours, 0) AS ?activeThresholdHours)
+          BIND(IF(?durationHours > ?activeThresholdHours, ?incident, ?nothing) AS ?delayedIncident)
+        }
+      }
+    }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+}
+GROUP BY ?graph ?asset ?assetId ?zone ?zoneId
+ORDER BY DESC(?incidentCount) ?assetId

@@ -13,6 +13,15 @@ SELECT
   ?stage
   ?stageLabel
   ?sourceRecord
+  ?impact
+  ?capacityRiskKw
+  ?affectedGpuCount
+  ?followUpDecision
+  ?recommendedAction
+  ?recoveryBlocker
+  ?blockerSummary
+  ?trustFinding
+  ?trustSummary
   ?priorityRank
   ?requestTitle
   ?currentStatus
@@ -33,19 +42,27 @@ SELECT
   ?vendorEtaRiskScore
   ?mitigationCreditScore
   ?totalPriorityScore
+  ?redundancyState
+  ?affectedRackCount
+  ?estimatedGpuCapacityRiskPct
+  ?thermalBreachMinutes
+  ?powerRedundancyLost
+  ?coolingRedundancyLost
+  ?mitigationStatus
+  ?vendorEtaAt
+  ?vendorStatus
 WHERE {
   GRAPH ?graph {
     ?incident a dcai:InfrastructureIncident ;
       dcai:hasIdentifier ?incidentId ;
       dcai:affectsAsset ?asset ;
-      dcai:hasCurrentStage ?stage .
+      dcai:hasCurrentStage ?stage ;
+      prov:wasDerivedFrom ?sourceRecord .
 
     ?asset dcai:hasIdentifier ?assetId ;
       dcai:locatedIn ?zone .
 
     ?zone dcai:hasIdentifier ?zoneId .
-
-    ?incident prov:wasDerivedFrom ?sourceRecord .
 
     OPTIONAL { ?stage rdfs:label ?stageLabel . }
     OPTIONAL {
@@ -72,7 +89,37 @@ WHERE {
       OPTIONAL { ?queueItem dcai:hasMitigationCreditScore ?mitigationCreditScore . }
       OPTIONAL { ?queueItem dcai:hasPriorityScore ?totalPriorityScore . }
     }
+    OPTIONAL {
+      ?impact a dcai:ImpactObservation ;
+        dcai:impactForIncident ?incident .
+      OPTIONAL { ?impact dcai:estimatedCapacityRiskKw ?capacityRiskKw . }
+      OPTIONAL { ?impact dcai:affectedGpuCount ?affectedGpuCount . }
+      OPTIONAL { ?impact dcai:hasRedundancyState ?redundancyState . }
+      OPTIONAL { ?impact dcai:affectedRackCount ?affectedRackCount . }
+      OPTIONAL { ?impact dcai:estimatedGpuCapacityRiskPct ?estimatedGpuCapacityRiskPct . }
+      OPTIONAL { ?impact dcai:thermalBreachMinutes ?thermalBreachMinutes . }
+      OPTIONAL { ?impact dcai:powerRedundancyLost ?powerRedundancyLost . }
+      OPTIONAL { ?impact dcai:coolingRedundancyLost ?coolingRedundancyLost . }
+      OPTIONAL { ?impact dcai:hasMitigationState ?mitigationStatus . }
+      OPTIONAL { ?impact dcai:vendorEtaAt ?vendorEtaAt . }
+      OPTIONAL { ?impact dcai:hasVendorState ?vendorStatus . }
+    }
+    OPTIONAL {
+      ?followUpDecision a dcai:FollowUpDecision ;
+        prov:wasDerivedFrom ?incident ;
+        dcai:hasRecommendedAction ?recommendedAction .
+    }
+    OPTIONAL {
+      ?recoveryBlocker a dcai:RecoveryBlocker ;
+        prov:wasDerivedFrom ?incident ;
+        dcai:hasFindingSummary ?blockerSummary .
+    }
+    OPTIONAL {
+      ?trustFinding a dcai:TrustFinding ;
+        prov:wasDerivedFrom ?impact ;
+        dcai:hasFindingSummary ?trustSummary .
+    }
   }
   FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
 }
-ORDER BY ?priorityRank ?incidentId ?assetId ?zoneId
+ORDER BY ?incidentId

@@ -1,0 +1,39 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT
+  ?graph
+  ?incident
+  ?incidentId
+  ?event
+  ?eventId
+  ?stage
+  ?stageLabel
+  ?eventStatus
+  ?enteredAt
+  ?exitedAt
+  ?durationHours
+  ?thresholdHours
+  ?delayHours
+  ?sourceRecord
+WHERE {
+  GRAPH ?graph {
+    ?incident a dcai:InfrastructureIncident ;
+      dcai:hasIdentifier ?incidentId .
+    ?event a dcai:WorkflowEvent ;
+      dcai:eventForIncident ?incident ;
+      dcai:enteredStage ?stage ;
+      prov:wasDerivedFrom ?sourceRecord .
+    OPTIONAL { ?event dcai:hasEventId ?eventId . }
+    OPTIONAL { ?stage rdfs:label ?stageLabel . }
+    OPTIONAL { ?stage dcai:hasStageThresholdHours ?thresholdHours . }
+    OPTIONAL { ?event dcai:hasEventStatus ?eventStatus . }
+    OPTIONAL { ?event dcai:enteredAt ?enteredAt . }
+    OPTIONAL { ?event dcai:exitedAt ?exitedAt . }
+    OPTIONAL { ?event dcai:hasDurationHours ?durationHours . }
+    OPTIONAL { ?event dcai:hasDelayHours ?delayHours . }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+}
+ORDER BY ?incidentId ?enteredAt ?event

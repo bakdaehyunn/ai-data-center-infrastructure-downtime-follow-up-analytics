@@ -1,0 +1,28 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+
+SELECT
+  ?graph
+  (COUNT(DISTINCT ?sourceRecord) AS ?sourceRecordCount)
+  (COUNT(DISTINCT ?incident) AS ?incidentCount)
+  (COUNT(DISTINCT ?incidentWithProvenance) AS ?incidentWithProvenanceCount)
+  (COUNT(DISTINCT ?asset) AS ?assetCount)
+  (COUNT(DISTINCT ?assetWithProvenance) AS ?assetWithProvenanceCount)
+WHERE {
+  GRAPH ?graph {
+    OPTIONAL { ?sourceRecord a dcai:SourceRecord . }
+    OPTIONAL { ?incident a dcai:InfrastructureIncident . }
+    OPTIONAL {
+      ?incidentWithProvenance a dcai:InfrastructureIncident ;
+        prov:wasDerivedFrom ?incidentSourceRecord .
+    }
+    OPTIONAL { ?asset a dcai:InfrastructureAsset . }
+    OPTIONAL {
+      ?assetWithProvenance a dcai:InfrastructureAsset ;
+        prov:wasDerivedFrom ?assetSourceRecord .
+    }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+}
+GROUP BY ?graph
+ORDER BY ?graph

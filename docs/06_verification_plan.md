@@ -1,73 +1,60 @@
 # Verification Plan
 
-## Backend
+## Semantic-Service Tests
 
 ```bash
-cd backend
-.venv/bin/python -m pytest
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon test
 ```
 
-Expected coverage:
-
-- schema registration
-- deterministic sample data
-- raw quality checks
-- pipeline load counts
-- analytics table counts
-- follow-up ranking
-- workflow-blocker recommended actions
-- impact rationale in follow-up summaries
-- latest-run data quality scoping
-- latest-run impact confidence scoping
-- structured impact trust flags
-- terminal-stage analytics behavior
-- API endpoints
-- health endpoint
-
-## Frontend
+## Frontend Build
 
 ```bash
 cd frontend
 npm run build
 ```
 
-Expected coverage:
-
-- TypeScript compile
-- Vite production build
-- API type usage
-- dashboard component build
-
-## Browser Check
-
-Use the local dashboard to verify:
-
-- dashboard loads without failed API fetches
-- follow-up queue renders
-- recommended action reads as the next operational follow-up
-- impact confidence badges render in queue rows
-- impact trust flags render in incident drilldown
-- stage filter excludes `Restored`
-- filtering the queue updates the incident drilldown selection
-- dashboard wording stays focused on AI data center infrastructure semantic operations
-
-## Production Artifacts
-
-Build Docker images when validating deployment packaging:
+## SPARQL Parse Validation
 
 ```bash
-docker build -t ai-infra-semantic-ops-api ./backend
-docker build -t ai-infra-semantic-ops-frontend ./frontend
+PYTHONPATH=/tmp/dcai-rdf-tools python3 queries/validate_sparql.py
 ```
 
-The Docker build confirms packaging, not full production readiness. Production readiness still depends on configured database connectivity, scheduled pipeline execution, health checks, and latest-run data quality review.
+## RDF And SHACL Checks
 
-## Source Scan
-
-Search active source and docs for removed domain framing:
+Parse all Turtle artifacts and run representative SHACL checks for valid and
+invalid fixtures:
 
 ```bash
-rg -n -i "procurement|manufacturing|ev battery|production line|parts waiting|portfolio|interview" backend/app backend/tests frontend/src README.md docs --glob '!docs/06_verification_plan.md'
+PYTHONPATH=/tmp/dcai-rdf-tools python3 - <<'PY'
+from pathlib import Path
+from rdflib import Graph
+
+for path in sorted(Path(".").glob("**/*.ttl")):
+    if ".git" in path.parts:
+        continue
+    Graph().parse(path, format="turtle")
+    print(f"parsed: {path}")
+PY
 ```
 
-Expected result: no active source or documentation references to removed domain framing. Backward-compatible endpoint aliases may remain in API code, but the primary product surface should use infrastructure assets, zones, and critical spares.
+## Runtime Config Checks
+
+```bash
+docker compose config
+rg -n "VITE_API_BASE_URL|localhost:8000|from fastapi|sqlalchemy|create_engine|psycopg|uvicorn" \
+  README.md .env.example docker-compose.yml frontend semantic-service
+git diff --check
+```
+
+## Acceptance Criteria
+
+- Fuseki is the only Compose-managed data runtime.
+- The frontend points at `VITE_SEMANTIC_API_BASE_URL`, not an old `/api`
+  proxy.
+- Approved query IDs parse and are covered by semantic-service tests.
+- Result envelopes and error envelopes remain stable.
+- No old FastAPI/Postgres/SQLAlchemy runtime code remains active.

@@ -1,99 +1,63 @@
-# API
+# Semantic API
 
-The FastAPI service exposes read-only operational analytics and semantic ontology endpoints.
-
-## Overview
+The active runtime API is the Kotlin/JVM semantic-service private endpoint:
 
 ```text
-GET /api/overview
+POST /semantic/query/{queryId}
 ```
 
-Returns open incident count, delayed incident count, critical delayed assets, average downtime, top bottleneck stage, spare/vendor wait hours, capacity at risk, affected GPUs, redundancy-loss count, missed vendor ETA count, latest pipeline status, and latest-run data quality status.
+The endpoint accepts approved query IDs from `queries/manifest.ttl`. It does
+not accept raw SPARQL, graph writes, SPARQL Update, or public endpoint binding.
+All success and error payloads go through `SemanticResponseSerializer`.
 
-## Follow-up Queue
+## Product Read Models
 
-```text
-GET /api/follow-ups
-GET /api/follow-ups/{incident_id}
-GET /api/follow-ups/{incident_id}/timeline
-```
+Approved product read-model query IDs include:
 
-The queue supports filters by `zone_id`, `asset_id`, `priority_level`, active `stage`, and row-level queue predicates:
+- `semanticDashboardOverview`
+- `semanticFollowUpQueueList`
+- `semanticFilterMetadata`
+- `semanticFollowUpDetail`
+- `semanticImpactSummary`
+- `semanticTopologyDependencies`
+- `semanticTrustFindingList`
+- `semanticStageBottlenecks`
+- `semanticAssetDelaySummary`
+- `semanticZoneDelaySummary`
+- `semanticSpareWaitSummary`
+- `semanticValidationSummary`
+- `semanticIncidentEvidence`
+- `semanticIncidentTimeline`
+- `semanticDependencyImpactByAsset`
+- `semanticBlastRadiusByAsset`
 
-- `delayed_only=true`
-- `critical_asset_delayed=true`
-- `capacity_risk=true`
-- `affected_gpu=true`
-- `evidence_review=true`
-- `redundancy_lost=true`
-- `vendor_eta_missed=true`
+## Follow-Up Workflow Support
 
-Queue rows include impact context fields such as redundancy state, affected GPUs, estimated kW at risk, mitigation status, vendor status, `impact_confidence_status`, and `impact_trust_issue_count`.
+The dashboard adapter uses these semantic read models to replace the old
+analytics route surface:
 
-The UI exposes only the predicates that clearly narrow or reset the visible queue as queue scope controls. KPI cards remain read-only visible-queue summaries.
+- overview KPI and exposure summaries from graph-backed aggregate queries
+- ranked follow-up queue rows from `semanticFollowUpQueueList`
+- selected follow-up detail from `semanticFollowUpDetail`
+- chronological stage history from `semanticIncidentTimeline`
+- evidence, trust, validation, work-order, and telemetry context from
+  `semanticIncidentEvidence`
+- dependency and blast-radius context from topology and reasoning read models
 
-`recommended_action` is the next workflow follow-up. `reason_summary` explains why the row matters, including delay and impact context. This keeps operational action separate from impact rationale.
+## Response Contract
 
-The dedicated follow-up detail endpoint powers `/follow-ups/{incident_id}` in the UI. Drilldown returns the selected incident, stage lead times, timeline events, work orders, validation results, telemetry alerts, the latest impact snapshot, impact telemetry readings, general quality flags, `impact_confidence_status`, and structured `impact_trust_flags`.
+Every response envelope includes:
 
-## Downtime and Impact
+- `queryId`
+- `resultType`
+- `recordCount`
+- `records`
+- `provenance.contractVersion`
+- `provenance.graphScope`
 
-```text
-GET /api/downtime/stages
-GET /api/impact/summary
-GET /api/assets/delays
-GET /api/zones/delays
-GET /api/spares/waiting
-```
+Semantic errors use stable machine-readable codes such as
+`unapproved-query-id`, `missing-required-binding`, `graph-unavailable`, and
+`internal-semantic-service-error`.
 
-These endpoints explain where delay and operational exposure are accumulating across workflow stages, infrastructure assets, data center zones, critical spares, capacity risk, redundancy state, vendor ETA, mitigation status, and impact-confidence state.
-
-## Topology, Semantic Ontology, and Connector Contracts
-
-```text
-GET /api/topology/dependencies
-GET /api/semantic/infrastructure.ttl
-GET /api/semantic/validation
-GET /api/semantic/query/dependency-impact/{asset_id}
-GET /api/semantic/query/incident-evidence/{incident_id}
-GET /api/semantic/query/blast-radius/{asset_id}
-POST /api/semantic/graph/sync
-GET /api/connectors/contracts
-```
-
-Topology dependencies expose directed asset relationships such as rack -> PDU -> UPS -> switchgear -> generator and rack -> CRAH/CDU/chiller. Each row returns the dependent asset, dependency asset, dependency type, dependency role, impact scope, current asset statuses, and active incident counts on both sides of the edge.
-
-The semantic Turtle endpoint returns RDF/OWL and SHACL vocabulary plus instance triples generated through RDF APIs from the current canonical infrastructure records.
-
-Semantic validation runs SHACL against the generated graph and returns conformance plus validation issues.
-
-Semantic query endpoints are backed by SPARQL over the generated RDF graph:
-
-- dependency impact returns direct dependency edges and inferred downstream assets for an asset.
-- incident evidence returns the RDF incident-to-asset, stage, status, priority, and trust issue links for an incident.
-- blast radius returns inferred downstream assets and affected incidents reachable from the selected asset.
-
-Graph sync builds the RDF graph and pushes Turtle to the configured graph-store URL, for example `http://localhost:3030/infrastructure/data`. If no target URL is configured, it returns `NOT_CONFIGURED` with the local triple count.
-
-Connector contracts describe expected mounted extract files, target raw/core tables, required payload fields, cadence, and notes. They do not contain credentials and do not perform live source-system access.
-
-Compatibility aliases remain available for older local clients, but they are not the primary AI infrastructure product surface:
-
-```text
-GET /api/equipment/delays
-GET /api/lines/delays
-GET /api/parts/waiting
-```
-
-## Metadata and Trust
-
-```text
-GET /api/metadata/filters
-GET /api/pipeline-runs
-GET /api/data-quality/checks
-GET /api/data-quality/checks/{check_result_id}
-```
-
-Metadata powers dashboard filters. Data quality responses default to the latest pipeline run unless `all_runs=true` is supplied.
-
-Impact trust flags are also latest-run scoped. General `quality_flags` remain text labels for raw/core/workflow trust issues, while `impact_trust_flags` expose structured impact-context evidence such as stale snapshot IDs, vendor ETA status, missing mitigation evidence, or thermal context gaps.
+See `semantic-service/api-dtos.md` and
+`semantic-service/openapi.semantic-service.yaml` for the current DTO scaffold.

@@ -4,87 +4,74 @@
 
 ```text
 scattered AI infrastructure source records
-  -> raw source-preserving tables
-  -> core AI infrastructure tables
-  -> analytics materialization
-  -> reconciliation checks
-  -> RDF/OWL + SHACL semantic graph
-  -> SPARQL-backed semantic services
-  -> read-only FastAPI API
-  -> React dashboard
+  -> source-to-canonical RDF mappings
+  -> named RDF graphs in Fuseki/TDB2
+  -> OWL/RDFS ontology modules
+  -> SHACL validation gates
+  -> approved read-only SPARQL queries
+  -> Kotlin/JVM semantic-service
+  -> React follow-up dashboard
 ```
+
+The RDF graph store is the source of truth. The semantic-service is the
+controlled application boundary over approved query IDs, typed result
+envelopes, provenance, and semantic error contracts.
 
 ## Source System Integration Model
 
-The project simulates seven source families that are commonly fragmented in AI data center operations:
+The project models source families that are commonly fragmented in AI data
+center operations:
 
-| Source family | Simulated records | Operational question answered | Trust risk |
+| Source family | Canonical semantic target | Operational question answered | Trust risk |
 | --- | --- | --- | --- |
-| Incident system | `raw_infrastructure_incidents` | What is open, priority, asset, zone, needed-by time, and current system-of-record status? | Missing required fields, stale current stage, duplicate source incident |
-| Workflow event history | `raw_incident_stage_events` | Which state transitions actually happened and when? | Missing stage event, event before incident report, state mismatch |
-| Facility work orders | `raw_facility_work_orders` | Who owns repair work and whether work is waiting, started, or complete? | Work order without incident, waiting state without spare evidence |
-| Spare and inventory context | `critical_spares` plus work-order spare links | Is the blocker stock, critical spare availability, or vendor dispatch? | Out-of-stock spare, missing required spare link |
-| Vendor ETA context | stage-event metadata and `infrastructure_impact_snapshots` | Is external recovery late, confirmed, or not required? | ETA in the past without missed status, event/snapshot mismatch |
-| Telemetry | `raw_telemetry_alerts` and impact telemetry readings | Is thermal, power, or redundancy exposure supported by monitoring evidence? | Alert without known asset, thermal breach without abnormal reading |
-| Validation and impact | `raw_validation_results` and `infrastructure_impact_snapshots` | Is return-to-service safe, and how much rack/GPU/capacity exposure remains? | Validation before completed work, stale or missing impact snapshot |
-| Infrastructure topology | `infrastructure_dependencies` | Which upstream power, cooling, telemetry, or redundancy assets does an affected asset depend on? | Missing asset reference, invalid dependency type, stale topology extract |
+| Incident system | `dcai:InfrastructureIncident` | What is open, which asset and zone are affected, and what state is current? | Missing required fields, stale current stage, duplicate source incident |
+| Workflow event history | workflow stages and evidence records | Which state transitions actually happened and when? | Missing stage evidence, event before incident report, state mismatch |
+| Facility work orders | `dcai:WorkOrderEvidence` | Who owns repair work and whether work is waiting, started, or complete? | Work order without incident, waiting state without spare evidence |
+| Spare and inventory context | work-order spare fields and blocker findings | Is the blocker stock, critical spare availability, or vendor dispatch? | Out-of-stock spare, missing required spare link |
+| Vendor ETA context | impact/vendor state fields | Is external recovery late, confirmed, or not required? | ETA in the past without missed status, event/snapshot mismatch |
+| Telemetry | `dcai:TelemetryEvidence` | Is thermal, power, or redundancy exposure supported by monitoring evidence? | Alert without known asset, thermal breach without abnormal reading |
+| Validation and impact | `dcai:ValidationEvidence` and `dcai:ImpactObservation` | Is return-to-service safe, and how much rack/GPU/capacity exposure remains? | Validation before completed work, stale or missing impact snapshot |
+| Infrastructure topology | dependency paths and dependency impact findings | Which upstream power, cooling, telemetry, or redundancy assets does an affected asset depend on? | Missing asset reference, invalid dependency type, stale topology extract |
 
-Each feed remains source-shaped in the raw layer, then maps into a canonical infrastructure model. The pipeline is intentionally batch-oriented for the case study: it proves the reconciliation and follow-up decision logic before introducing streaming or orchestration technology.
+Each source is mapped into canonical RDF with source-record provenance. Graph
+promotion requires parseable RDF, SHACL conformance, and provenance links.
 
-## Layer Responsibilities
+## Runtime Responsibilities
 
-- Raw layer preserves source payloads, source record IDs, pipeline run IDs, and ingestion timestamps.
-- Core layer normalizes source records into incidents, stage events, work orders, assets, zones, topology dependencies, spares, engineers, validations, telemetry alerts, and impact snapshots.
-- Analytics layer stores calculated current status, lead times, bottlenecks, follow-up scores, impact score components, and impact summaries.
-- Control layer persists reconciliation issues when core state, event history, impact snapshots, and analytics outputs do not agree.
-- Semantic layer projects canonical infrastructure records into RDF, validates them against SHACL shapes, supports SPARQL-backed evidence queries, and can sync the graph to a Fuseki-compatible graph-store endpoint.
-- API layer serves read-only analytics, topology, semantic ontology, semantic query, connector-contract, and drilldown views.
-
-## Pipeline Order
-
-```text
-generate/read sample source files
-  -> raw quality checks
-  -> raw load
-  -> core transform and impact snapshot load
-  -> core quality checks
-  -> analytics build
-  -> reconciliation issue detection
-  -> pipeline run commit
-```
-
-Reconciliation runs after analytics materialization because some issues require comparing core incidents with generated analytics rows, for example a core incident missing `incident_current_status`.
-
-Impact snapshots are loaded into the core layer before analytics materialization. The analytics builder uses the latest snapshot per incident to add capacity risk, redundancy risk, thermal risk, vendor ETA risk, and mitigation credit to the follow-up queue.
-
-Topology dependencies are loaded as reference data after assets are known. They are exposed through read-only API and UI surfaces, projected into the RDF graph, validated through SHACL, and used by SPARQL-backed dependency-impact and blast-radius services.
-
-The control layer then validates those impact snapshots against event evidence. This is where V1.2 confidence is assigned: impact context is `TRUSTED` when the latest snapshot has no open impact reconciliation issue, `WARNING` when the snapshot exists but contradicts or lags event evidence, and `UNVERIFIED` when no usable snapshot exists for the active incident.
+- Fuseki/TDB2 stores persistent named RDF graphs.
+- OWL/RDFS modules define the domain vocabulary.
+- SHACL shapes validate canonical, evidence, topology, provenance, reasoning,
+  and AI interaction contracts.
+- Approved SPARQL files under `queries/` define read models.
+- `queries/manifest.ttl` is the allowlist for executable query IDs.
+- The Kotlin/JVM semantic-service loads contracts, reads Fuseki graphs,
+  executes approved read-only SPARQL, shapes typed envelopes, serializes
+  semantic responses, and rejects unapproved query IDs.
+- The React dashboard preserves the follow-up workflow UX while reading from
+  the semantic-service private endpoint.
 
 ## Design Choices
 
-### Event History as Analytical Evidence
+### RDF as Runtime Authority
 
-The current state can be stored on an incident, but stage events explain how the incident reached that state. The analytics builder uses stage entry and exit events to calculate lead time, delay, bottlenecks, and timelines.
+The old relational backend has been removed from the active source tree.
+Current product reads must come from named graphs and approved semantic-service
+queries.
 
-### Pipeline-Computed Analytics
+### Approved Query Boundary
 
-The pipeline computes analytics before API reads. This makes API responses stable, fast, and auditable by pipeline run.
+The service executes query IDs, not arbitrary browser-supplied SPARQL. This
+keeps graph access inspectable, testable, and safe for a future private API.
 
-### Read-Only API
+### Provenance as Product Data
 
-The API does not mutate incidents, work orders, inventory, or telemetry. The product is an analytics control and follow-up layer above operational systems of record.
+Follow-up rows, evidence details, trust findings, topology dependencies, and
+reasoning outputs carry graph/source provenance so operators can see why a
+decision is trusted or needs review.
 
-### Latest-Run Trust Scope
+### Follow-Up Workflow First
 
-Data quality checks and reconciliation flags are scoped to the latest pipeline run by default. This prevents stale failures from polluting current dashboard trust signals.
-
-### Technology Boundary
-
-Docker, scheduled execution, observability, and future Kubernetes CronJobs are production support choices. They are not the system's value proposition. The value proposition is the decision model: reconstruct state, rank follow-up work, expose trust issues, and make the next operator action clear.
-
-### Semantic Runtime Boundary
-
-PostgreSQL still stores source-preserving records, normalized operational entities, and analytics materializations. It is not the only model boundary anymore. The semantic layer now has versioned ontology artifacts under `ontology/`, RDF generation through `rdflib`, SHACL validation through `pyshacl`, SPARQL-backed API services, and optional graph-store sync through Fuseki.
-
-The UI should not become an ontology diagram for its own sake. It should expose semantic evidence where it supports the field decision: whether the graph conforms, which incident evidence is linked, which dependency edges affect the selected asset, and what downstream blast radius is inferred.
+The UI should not become an ontology diagram for its own sake. It exposes
+semantic evidence where it supports the field decision: which incident to chase
+next, what is blocking recovery, whether impact evidence is trustworthy, and
+which dependencies increase operational exposure.

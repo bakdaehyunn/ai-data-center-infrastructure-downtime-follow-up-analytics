@@ -2,39 +2,55 @@
 
 ## Purpose
 
-This document maps the old FastAPI `/api` surface to the ontology-native
-semantic service transition path. It started as a planning artifact. The first
-post-Phase-20 private query endpoint slice now exists, but this document still
-does not authorize old runtime deletion, UI redesign, reasoning execution,
-graph writes, commit, or push.
+This document maps the removed FastAPI `/api` surface to the ontology-native
+semantic-service replacement path. It started as a planning artifact; after the
+runtime cutover, it is retained as a parity checklist for fields and behaviors
+that still need richer semantic modeling.
 
 ## Current Boundary
 
-The old FastAPI backend still owns the dashboard runtime. The React frontend
-currently calls `http://localhost:8000/api/*` through `frontend/src/api.ts`.
+The old FastAPI backend no longer owns the dashboard runtime and the tracked
+`backend/` package has been removed. The React frontend now calls the
+loopback-only Kotlin/JVM semantic-service endpoint through
+`VITE_SEMANTIC_API_BASE_URL`.
 
 The Kotlin/JVM semantic service can load approved query definitions, execute
-controlled read-only queries against fixture-loaded Fuseki graphs, shape three
-query-result envelope types, serialize those envelopes into Phase 18 response
-maps, and serve those same responses through an internal loopback
+controlled read-only queries against fixture-loaded Fuseki graphs, shape typed
+query-result envelopes, serialize those envelopes into Phase 18 response maps,
+and serve those same responses through an internal loopback
 `POST /semantic/query/{queryId}` endpoint when explicitly started.
 
-Current Phase 16 approved runtime query IDs:
+Current fixture inspection query IDs:
 
 - `fixtureNamedGraphInventory`
 - `fixtureIncidentSummary`
 - `fixtureProvenanceSourceRecords`
 
-Current Phase 17/18/19 response result types:
+Current response result types include:
 
 - `named-graph-inventory`
 - `incident-summary`
 - `provenance-source-records`
 - `follow-up-queue`
+- `dashboard-overview`
+- `filter-metadata`
+- `follow-up-detail`
+- `impact-summary`
+- `topology-dependencies`
+- `trust-findings`
+- `stage-bottlenecks`
+- `asset-delay-summary`
+- `zone-delay-summary`
+- `spare-wait-summary`
+- `validation-summary`
+- `incident-evidence`
+- `dependency-impact`
+- `blast-radius`
 
-Everything else in this parity plan requires new query IDs, new typed result
-envelopes, SHACL/provenance gates, or command-boundary design before the old
-FastAPI route can be retired.
+Remaining parity work is field-level and behavior-level, not old-runtime
+ownership. The current frontend adapter fills some missing old fields with
+compatibility defaults until RDF fixtures and SPARQL read models expose those
+facts natively.
 
 ## Migration Status Legend
 
@@ -169,16 +185,18 @@ Why this is first:
 - it proves Phase 20's endpoint readiness rule that every endpoint response
   must go through `SemanticResponseSerializer`
 - it creates the contract surface that product read models use before they can
-  safely replace FastAPI routes
+  replace the removed FastAPI routes
 
 The first product parity slice on that boundary is `semanticFollowUpQueueList`,
 because it supports the primary workflow and starts migration of the Follow-up
 Queue without redesigning the dashboard.
 
-Current limitation: `semanticFollowUpQueueList` currently returns the canonical
-graph queue fields available in fixtures: incident, asset, zone, stage, and
-source-record provenance. It does not yet include priority rank, blocker,
-impact, trust, or recommended action fields from the old FastAPI route.
+Current limitation: the semantic-service now has first product read-model
+contracts for queue, overview, filters, detail, impact, topology, and trust,
+but they are still fixture/canonical graph-backed slices. They do not yet
+provide full semantic parity for ranking, queue filtering, stage delay
+analytics, spare wait analytics, detailed timeline/work-order/validation
+records, or all dashboard fields without compatibility defaults.
 
 ## Private Endpoint Tests For The First Slice
 
@@ -197,21 +215,22 @@ The first endpoint slice should keep tests for:
 - no endpoint executes SPARQL Update or writes a named graph
 - endpoint remains private/internal in docs and tests
 
-## Retirement Gates For Old FastAPI Routes
+## Semantic Parity Gates
 
-Do not remove an old FastAPI route until all are true:
+Do not treat the cutover as semantically complete until all are true:
 
-1. The route has a mapped semantic query or explicit retire/reference decision.
-2. The query is approved in `queries/manifest.ttl` or the command boundary has
+1. Every former route has a mapped semantic query or explicit retire/reference decision.
+2. Each query is approved in `queries/manifest.ttl` or the command boundary has
    a service contract.
 3. The response envelope has a Kotlin type and serializer support.
 4. Provenance requirements are tested or intentionally waived.
-5. Fixture parity tests compare old FastAPI output with semantic-service
-   output for accepted demo scenarios.
-6. The frontend no longer calls the old route.
+5. Fixture parity tests compare accepted demo scenarios against semantic-service
+   output.
+6. The frontend contains no compatibility defaults for required operational
+   fields.
 7. Any legacy alias has either a compatibility adapter or an accepted deletion
    decision.
-8. A separate deletion goal approves exact files/routes to remove.
+8. `rg` checks show no active Python/Postgres runtime references.
 
 ## Verification Commands
 
@@ -227,11 +246,15 @@ git diff --check
 For endpoint and read-model implementation checks:
 
 ```bash
-cd semantic-service && ./gradlew test
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon test
 
-backend/.venv/bin/python queries/validate_sparql.py
+python3 queries/validate_sparql.py
 
-backend/.venv/bin/python - <<'PY'
+python3 - <<'PY'
 from pathlib import Path
 from rdflib import Graph
 
@@ -249,5 +272,5 @@ git diff --check
 Suggested next implementation goal:
 
 ```text
-Start the semantic follow-up queue parity expansion /goal: extend semanticFollowUpQueueList toward old FastAPI /api/follow-ups parity by adding canonical or reasoning-backed fields for priority rank, blocker, impact, trust, recommended action, filters, and tests. Keep the private endpoint internal-only, do not switch the React UI, do not remove old runtime code, do not execute graph writes, commit, or push.
+Start the semantic follow-up queue parity expansion /goal: extend semanticFollowUpQueueList and semanticFollowUpDetail so priority rank, blocker, impact, trust, recommended action, filters, durations, and selected-detail fields come directly from RDF graph facts instead of frontend compatibility defaults. Keep the private endpoint internal-only, do not redesign the UI, do not execute graph writes, commit, or push.
 ```

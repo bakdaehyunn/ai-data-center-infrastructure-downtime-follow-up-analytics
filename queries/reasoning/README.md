@@ -17,7 +17,7 @@ Query files:
 Run the non-runtime syntax check from the repository root:
 
 ```bash
-backend/.venv/bin/python queries/validate_sparql.py
+PYTHONPATH=/tmp/dcai-rdf-tools python3 queries/validate_sparql.py
 ```
 
 The files must remain aligned with `reasoning/manifest.ttl` and

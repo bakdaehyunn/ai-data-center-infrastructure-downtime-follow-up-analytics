@@ -31,10 +31,10 @@ static validation for the Phase 8-10 contract artifacts. It still does not add
 HTTP endpoints, controllers, runtime DTO classes, graph execution, Fuseki/TDB2
 clients, reasoning orchestration, or service runtime.
 
-Phase 12 adds the cutover and implementation-readiness checkpoint. It records
-that the old FastAPI/Postgres/SQLAlchemy/React runtime remains reference-only
-for now, lists later-removal triggers, and defines the gates that must pass
-before real semantic service endpoints or graph execution can begin.
+Phase 12 adds the cutover and implementation-readiness checkpoint. It recorded
+the old FastAPI/Postgres/SQLAlchemy runtime as reference-only at that point and
+defined the gates that had to pass before real semantic service endpoints or
+graph execution could begin.
 
 Tracked readiness checkpoint:
 
@@ -161,6 +161,20 @@ Post-Phase-20 adds the first private endpoint slice:
   - `fixtureIncidentSummary`
   - `fixtureProvenanceSourceRecords`
   - `semanticFollowUpQueueList`
+  - `semanticDashboardOverview`
+  - `semanticFilterMetadata`
+  - `semanticFollowUpDetail`
+  - `semanticImpactSummary`
+  - `semanticTopologyDependencies`
+  - `semanticTrustFindingList`
+  - `semanticStageBottlenecks`
+  - `semanticAssetDelaySummary`
+  - `semanticZoneDelaySummary`
+  - `semanticSpareWaitSummary`
+  - `semanticValidationSummary`
+  - `semanticIncidentEvidence`
+  - `semanticDependencyImpactByAsset`
+  - `semanticBlastRadiusByAsset`
 - all success payloads go through `SemanticResponseSerializer`
 - all errors use the Phase 18 semantic error envelope
 - raw SPARQL request bodies, arbitrary query IDs, graph writes, reasoning
@@ -169,8 +183,16 @@ Post-Phase-20 adds the first private endpoint slice:
 Post-Phase-20 semantic queue read-model implementation adds
 `semanticFollowUpQueueList` as the first product read model. It returns
 canonical graph incident, asset, zone, stage, and source-record provenance
-fields. It does not switch the React dashboard or remove the old FastAPI queue
-route.
+fields.
+
+The runtime cutover batches add additional private product read-model queries
+for dashboard overview, filter metadata, follow-up detail, impact summary,
+topology dependencies, trust findings, stage bottlenecks, asset/zone delay
+summaries, spare/vendor wait summaries, validation summaries, incident
+evidence, dependency impact, and blast radius. The React dashboard now reads
+these graph-backed semantic-service contracts through its API adapter. Some UI
+fields still use compatibility defaults until the RDF fixtures and SPARQL read
+models expose full operational parity.
 
 Run the private endpoint against a fixture-loaded Fuseki dataset:
 

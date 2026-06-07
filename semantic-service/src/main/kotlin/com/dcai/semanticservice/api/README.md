@@ -15,14 +15,26 @@ Allowed query IDs:
 - `fixtureIncidentSummary`
 - `fixtureProvenanceSourceRecords`
 - `semanticFollowUpQueueList`
+- `semanticDashboardOverview`
+- `semanticFilterMetadata`
+- `semanticFollowUpDetail`
+- `semanticImpactSummary`
+- `semanticTopologyDependencies`
+- `semanticTrustFindingList`
+- `semanticStageBottlenecks`
+- `semanticAssetDelaySummary`
+- `semanticZoneDelaySummary`
+- `semanticSpareWaitSummary`
+- `semanticValidationSummary`
+- `semanticIncidentEvidence`
+- `semanticIncidentTimeline`
+- `semanticDependencyImpactByAsset`
+- `semanticBlastRadiusByAsset`
 
 Non-goals:
 
 - no public endpoints
-- no additional product dashboard view-model query IDs beyond `semanticFollowUpQueueList`
-- no React dashboard switch
 - no raw SPARQL request body
 - no SPARQL Update
 - no graph writes
 - no reasoning execution
-- no old FastAPI/Postgres/React removal

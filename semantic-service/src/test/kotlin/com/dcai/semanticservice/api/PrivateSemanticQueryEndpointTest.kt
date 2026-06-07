@@ -74,6 +74,36 @@ class PrivateSemanticQueryEndpointTest {
     }
 
     @Test
+    fun returnsSerializedDashboardOverviewPayloadForApprovedProductReadModel() {
+        val endpoint = endpointWith(
+            QueryExecutionReport(
+                queryId = "semanticDashboardOverview",
+                mode = QueryMode.SELECT,
+                rows = listOf(
+                    mapOf(
+                        "graph" to "urn:dcai:graph:fixture:canonical:reasoning-output",
+                        "totalIncidents" to "2",
+                        "assetCount" to "3",
+                        "zoneCount" to "1",
+                        "impactObservationCount" to "1",
+                        "capacityRiskKw" to "900.0",
+                        "affectedGpuCount" to "320",
+                        "dependencyEdgeCount" to "1",
+                        "trustFindingCount" to "1",
+                    ),
+                ),
+            ),
+        )
+
+        val response = endpoint.handle(post("/semantic/query/semanticDashboardOverview"))
+
+        assertEquals(200, response.statusCode)
+        assertEquals("semanticDashboardOverview", response.payload["queryId"])
+        assertEquals("dashboard-overview", response.payload["resultType"])
+        assertTrue(response.jsonBody().contains("\"capacityRiskKw\":900.0"))
+    }
+
+    @Test
     fun rejectsUnapprovedQueryIdWithSemanticErrorEnvelope() {
         val response = endpointWith(
             QueryExecutionReport(
@@ -219,6 +249,35 @@ class PrivateSemanticQueryEndpointTest {
             assertEquals(200, response.statusCode())
             assertTrue(response.body().contains("\"queryId\":\"fixtureNamedGraphInventory\""))
             assertTrue(response.body().contains("\"resultType\":\"named-graph-inventory\""))
+        }
+    }
+
+    @Test
+    fun servesCorsPreflightOnLoopbackHttpBoundary() {
+        val endpoint = endpointWith(
+            QueryExecutionReport(
+                queryId = "fixtureNamedGraphInventory",
+                mode = QueryMode.SELECT,
+            ),
+        )
+
+        PrivateSemanticQueryEndpointServer(
+            endpoint = endpoint,
+            config = PrivateSemanticQueryEndpointServerConfig(port = 0),
+        ).use { server ->
+            server.start()
+            val response = HttpClient.newHttpClient().send(
+                HttpRequest
+                    .newBuilder(URI.create("http://127.0.0.1:${server.address.port}/semantic/query/fixtureNamedGraphInventory"))
+                    .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+                    .build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+
+            assertEquals(204, response.statusCode())
+            assertEquals("*", response.headers().firstValue("Access-Control-Allow-Origin").orElse(""))
+            assertTrue(response.headers().firstValue("Access-Control-Allow-Methods").orElse("").contains("POST"))
+            assertTrue(response.body().isBlank())
         }
     }
 

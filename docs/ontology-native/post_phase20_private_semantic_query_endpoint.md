@@ -38,25 +38,40 @@ Only these approved query IDs are allowed:
 - `fixtureIncidentSummary`
 - `fixtureProvenanceSourceRecords`
 - `semanticFollowUpQueueList`
+- `semanticDashboardOverview`
+- `semanticFilterMetadata`
+- `semanticFollowUpDetail`
+- `semanticImpactSummary`
+- `semanticTopologyDependencies`
+- `semanticTrustFindingList`
+- `semanticStageBottlenecks`
+- `semanticAssetDelaySummary`
+- `semanticZoneDelaySummary`
+- `semanticSpareWaitSummary`
+- `semanticValidationSummary`
+- `semanticIncidentEvidence`
+- `semanticDependencyImpactByAsset`
+- `semanticBlastRadiusByAsset`
 
 The endpoint rejects any other query ID with `unapproved-query-id`.
 
-`semanticFollowUpQueueList` is the first product read-model query. It returns
-canonical graph queue rows with incident, asset, zone, stage, and source-record
-provenance fields. It does not yet provide full old FastAPI queue parity.
+The product read-model queries return canonical graph-backed dashboard and
+detail fields through typed envelopes. `semanticFollowUpQueueList` and
+`semanticFollowUpDetail` now include graph-backed rank, title, status, current
+stage hours, priority level, business impact, priority score inputs, impact,
+trust, blocker, recommendation, redundancy, mitigation, vendor, and thermal
+fields when those facts exist in the graph.
 
 ## Explicit Non-Goals
 
 This checkpoint does not:
 
-- add product dashboard view-model queries beyond `semanticFollowUpQueueList`
 - expose public endpoints
 - accept raw SPARQL request bodies
 - execute SPARQL Update
 - execute reasoning
 - write RDF graphs
 - redesign the UI
-- remove old FastAPI/Postgres/SQLAlchemy/React runtime code
 - commit or push
 
 ## Error Handling
@@ -96,16 +111,8 @@ docker run --rm \
 
 ## Next Implementation Slice
 
-The next implementation slice should expand the queue read model toward old
-FastAPI parity:
-
-- query ID: `semanticFollowUpQueueList`
-- add priority/rank, blocker, impact, trust, and action fields only after those
-  facts exist in canonical or reasoning graphs
-- keep SPARQL read-only
-- preserve `FollowUpQueueEnvelope`
-- keep provenance fields required per queue row
-- endpoint: still private/internal through `POST /semantic/query/{queryId}`
-
-Do not switch the React dashboard or delete old FastAPI code until the semantic
-queue read model has parity tests against the current fixture-backed behavior.
+The next implementation slice should replace remaining frontend defensive
+defaults with graph facts for telemetry alert records, repeat-failure and
+engineer-assignment specialty counters, data-quality finding details, and
+parameterized incident/asset lookup. Keep SPARQL read-only and keep the
+endpoint private/internal through `POST /semantic/query/{queryId}`.

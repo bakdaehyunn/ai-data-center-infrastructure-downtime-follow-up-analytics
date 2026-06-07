@@ -10,4 +10,5 @@ npm run dev
 npm run build
 ```
 
-The dashboard reads the FastAPI backend through `VITE_API_BASE_URL`, defaulting to `http://localhost:8000`.
+The dashboard reads the ontology-native semantic-service private endpoint through
+`VITE_SEMANTIC_API_BASE_URL`, defaulting to `http://127.0.0.1:18080`.
