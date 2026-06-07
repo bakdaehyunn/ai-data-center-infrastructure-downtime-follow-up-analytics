@@ -1,0 +1,263 @@
+package com.dcai.semanticservice.api
+
+import com.dcai.semanticservice.query.ApprovedQueryDefinition
+import com.dcai.semanticservice.query.ApprovedQueryManifest
+import com.dcai.semanticservice.query.QueryExecutionReport
+import com.dcai.semanticservice.query.QueryMode
+import com.dcai.semanticservice.query.QueryResultShaper
+import com.dcai.semanticservice.query.ReadOnlyQueryExecutor
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.nio.file.Path
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
+
+class PrivateSemanticQueryEndpointTest {
+    @Test
+    fun returnsSerializedPayloadForApprovedQueryId() {
+        val endpoint = endpointWith(
+            QueryExecutionReport(
+                queryId = "fixtureNamedGraphInventory",
+                mode = QueryMode.SELECT,
+                rows = listOf(
+                    mapOf(
+                        "graph" to "urn:dcai:graph:fixture:canonical:minimal-incident",
+                        "subjectCount" to "8",
+                    ),
+                ),
+            ),
+        )
+
+        val response = endpoint.handle(post("/semantic/query/fixtureNamedGraphInventory"))
+
+        assertEquals(200, response.statusCode)
+        assertEquals("fixtureNamedGraphInventory", response.payload["queryId"])
+        assertEquals("named-graph-inventory", response.payload["resultType"])
+        assertEquals(1, response.payload["recordCount"])
+        assertTrue(response.jsonBody().contains("\"provenance\""))
+    }
+
+    @Test
+    fun rejectsUnapprovedQueryIdWithSemanticErrorEnvelope() {
+        val response = endpointWith(
+            QueryExecutionReport(
+                queryId = "fixtureNamedGraphInventory",
+                mode = QueryMode.SELECT,
+            ),
+        ).handle(post("/semantic/query/dependencyExposureReasoning"))
+
+        assertEquals(400, response.statusCode)
+        assertErrorCode("unapproved-query-id", response)
+    }
+
+    @Test
+    fun rejectsRawSparqlRequestBody() {
+        val response = endpointWith(
+            QueryExecutionReport(
+                queryId = "fixtureNamedGraphInventory",
+                mode = QueryMode.SELECT,
+            ),
+        ).handle(
+            post(
+                path = "/semantic/query/fixtureNamedGraphInventory",
+                body = """{"sparql":"SELECT * WHERE { ?s ?p ?o }"}""",
+            ),
+        )
+
+        assertEquals(400, response.statusCode)
+        assertErrorCode("contract-validation-failed", response)
+        assertTrue(response.jsonBody().contains("does not accept raw SPARQL"))
+    }
+
+    @Test
+    fun rejectsCompactRawSparqlRequestBody() {
+        val response = endpointWith(
+            QueryExecutionReport(
+                queryId = "fixtureNamedGraphInventory",
+                mode = QueryMode.SELECT,
+            ),
+        ).handle(
+            post(
+                path = "/semantic/query/fixtureNamedGraphInventory",
+                body = "PREFIX dcai:<urn:dcai:> SELECT?s WHERE{?s ?p ?o}",
+            ),
+        )
+
+        assertEquals(400, response.statusCode)
+        assertErrorCode("contract-validation-failed", response)
+    }
+
+    @Test
+    fun mapsMissingRequiredBindingToSemanticErrorEnvelope() {
+        val response = endpointWith(
+            QueryExecutionReport(
+                queryId = "fixtureNamedGraphInventory",
+                mode = QueryMode.SELECT,
+                rows = listOf(mapOf("graph" to "urn:dcai:graph:fixture:canonical:minimal-incident")),
+            ),
+        ).handle(post("/semantic/query/fixtureNamedGraphInventory"))
+
+        assertEquals(400, response.statusCode)
+        assertErrorCode("missing-required-binding", response)
+    }
+
+    @Test
+    fun mapsUnsupportedEnvelopeToSemanticErrorEnvelope() {
+        val manifest = manifestWith("unsupported")
+        val endpoint = PrivateSemanticQueryEndpoint(
+            queryExecutor = StaticQueryExecutor(
+                QueryExecutionReport(
+                    queryId = "unsupported",
+                    mode = QueryMode.SELECT,
+                ),
+            ),
+            queryResultShaper = QueryResultShaper(manifest),
+            allowedQueryIds = setOf("unsupported"),
+        )
+
+        val response = endpoint.handle(post("/semantic/query/unsupported"))
+
+        assertEquals(500, response.statusCode)
+        assertErrorCode("unsupported-result-envelope", response)
+    }
+
+    @Test
+    fun mapsGraphFailureToUnavailableSemanticErrorEnvelope() {
+        val endpoint = PrivateSemanticQueryEndpoint(
+            queryExecutor = FailingQueryExecutor(RuntimeException("Connection refused")),
+            queryResultShaper = QueryResultShaper(manifestWith("fixtureNamedGraphInventory")),
+        )
+
+        val response = endpoint.handle(post("/semantic/query/fixtureNamedGraphInventory"))
+
+        assertEquals(503, response.statusCode)
+        assertErrorCode("graph-unavailable", response)
+    }
+
+    @Test
+    fun rejectsNonPostMethods() {
+        val response = endpointWith(
+            QueryExecutionReport(
+                queryId = "fixtureNamedGraphInventory",
+                mode = QueryMode.SELECT,
+            ),
+        ).handle(
+            PrivateSemanticQueryRequest(
+                method = "GET",
+                path = "/semantic/query/fixtureNamedGraphInventory",
+            ),
+        )
+
+        assertEquals(405, response.statusCode)
+        assertErrorCode("contract-validation-failed", response)
+    }
+
+    @Test
+    fun servesApprovedQueryOnLoopbackHttpBoundary() {
+        val endpoint = endpointWith(
+            QueryExecutionReport(
+                queryId = "fixtureNamedGraphInventory",
+                mode = QueryMode.SELECT,
+                rows = listOf(
+                    mapOf(
+                        "graph" to "urn:dcai:graph:fixture:source:minimal-incident",
+                        "subjectCount" to "4",
+                    ),
+                ),
+            ),
+        )
+
+        PrivateSemanticQueryEndpointServer(
+            endpoint = endpoint,
+            config = PrivateSemanticQueryEndpointServerConfig(port = 0),
+        ).use { server ->
+            server.start()
+            val response = HttpClient.newHttpClient().send(
+                HttpRequest
+                    .newBuilder(URI.create("http://127.0.0.1:${server.address.port}/semantic/query/fixtureNamedGraphInventory"))
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+
+            assertEquals(200, response.statusCode())
+            assertTrue(response.body().contains("\"queryId\":\"fixtureNamedGraphInventory\""))
+            assertTrue(response.body().contains("\"resultType\":\"named-graph-inventory\""))
+        }
+    }
+
+    @Test
+    fun serverConfigRejectsNonLoopbackHosts() {
+        assertFailsWith<IllegalArgumentException> {
+            PrivateSemanticQueryEndpointServerConfig(host = "0.0.0.0")
+        }
+    }
+
+    @Test
+    fun jsonWriterEscapesStrings() {
+        assertEquals(
+            """{"message":"quote: \" and newline\n"}""",
+            JsonPayloadWriter.write(mapOf("message" to "quote: \" and newline\n")),
+        )
+    }
+
+    private fun endpointWith(report: QueryExecutionReport): PrivateSemanticQueryEndpoint {
+        return PrivateSemanticQueryEndpoint(
+            queryExecutor = StaticQueryExecutor(report),
+            queryResultShaper = QueryResultShaper(manifestWith(report.queryId)),
+        )
+    }
+
+    private fun post(
+        path: String,
+        body: String = "",
+    ): PrivateSemanticQueryRequest {
+        return PrivateSemanticQueryRequest(
+            method = "POST",
+            path = path,
+            body = body,
+        )
+    }
+
+    private fun manifestWith(vararg queryIds: String): ApprovedQueryManifest {
+        return ApprovedQueryManifest(
+            entries = queryIds.associateWith { queryId ->
+                ApprovedQueryDefinition(
+                    id = queryId,
+                    path = Path.of("queries/inspection/$queryId.select.rq"),
+                    mode = QueryMode.SELECT,
+                    graphScope = "fixture graph",
+                    sparql = "SELECT * WHERE { ?s ?p ?o }",
+                )
+            },
+        )
+    }
+
+    private fun assertErrorCode(
+        expected: String,
+        response: PrivateSemanticQueryResponse,
+    ) {
+        val error = response.payload["error"] as Map<*, *>
+        assertEquals(expected, error["code"])
+    }
+
+    private class StaticQueryExecutor(
+        private val report: QueryExecutionReport,
+    ) : ReadOnlyQueryExecutor {
+        override fun execute(queryId: String): QueryExecutionReport {
+            return report.copy(queryId = queryId)
+        }
+    }
+
+    private class FailingQueryExecutor(
+        private val error: RuntimeException,
+    ) : ReadOnlyQueryExecutor {
+        override fun execute(queryId: String): QueryExecutionReport {
+            throw error
+        }
+    }
+}

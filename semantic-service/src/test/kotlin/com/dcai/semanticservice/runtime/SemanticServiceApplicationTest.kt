@@ -134,6 +134,28 @@ class SemanticServiceApplicationTest {
     }
 
     @Test
+    fun parsesPrivateEndpointOptionsOnlyWhenExplicitlyRequested() {
+        val defaultOptions = SemanticServiceRuntimeOptions.fromArgs(emptyArray())
+
+        assertFalse(defaultOptions.servePrivateQueryEndpoint)
+        assertEquals("127.0.0.1", defaultOptions.privateEndpointHost)
+        assertEquals(18080, defaultOptions.privateEndpointPort)
+
+        val endpointOptions = SemanticServiceRuntimeOptions.fromArgs(
+            arrayOf(
+                "--repo-root=/workspace",
+                "--serve-private-query-endpoint",
+                "--private-endpoint-host=localhost",
+                "--private-endpoint-port=19090",
+            ),
+        )
+
+        assertTrue(endpointOptions.servePrivateQueryEndpoint)
+        assertEquals("localhost", endpointOptions.privateEndpointHost)
+        assertEquals(19090, endpointOptions.privateEndpointPort)
+    }
+
+    @Test
     fun locatesRepositoryRootFromSemanticServiceDirectory() {
         val repoRoot = SemanticServiceApplication.locateRepoRoot()
 

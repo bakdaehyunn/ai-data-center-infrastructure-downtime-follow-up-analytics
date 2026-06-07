@@ -1,10 +1,11 @@
 # Semantic Service API DTO Scaffold
 
-This document describes request and response DTO boundaries for the future
-Java/Kotlin semantic service. It is documentation only. Phase 18 aligns future
-query response DTOs with the Phase 17 query-result envelopes. It still does
-not add DTO classes, controllers, route handlers, clients, code generation, or
-runtime service behavior.
+This document describes request and response DTO boundaries for the Kotlin
+semantic service. Phase 18 defined the response contract before HTTP runtime
+existed. Post-Phase-20 implements the first internal-only private query
+endpoint for existing approved fixture inspection query IDs. Product dashboard
+view-model endpoints, public exposure, DTO generation, reasoning endpoints, and
+graph-write commands remain out of scope.
 
 ## Phase 18 Response Contract Checkpoint
 
@@ -39,6 +40,17 @@ Versioning rules:
 ## Query Execution
 
 Endpoint shape: `POST /semantic/query/{queryId}`
+
+Post-Phase-20 implementation status:
+
+- implemented as an internal/private loopback endpoint
+- allowed query IDs are limited to `fixtureNamedGraphInventory`,
+  `fixtureIncidentSummary`, and `fixtureProvenanceSourceRecords`
+- success responses are produced by `SemanticResponseSerializer`
+- semantic errors use the Phase 18 error envelope
+- request bodies must not contain raw SPARQL, arbitrary query text, SPARQL
+  Update, or replacement query definitions
+- product dashboard view-model query IDs are not implemented yet
 
 Request DTO:
 
@@ -102,8 +114,8 @@ Phase 19 internal serialization:
   Phase 18-shaped in-memory response maps.
 - It also converts approved semantic error codes into the Phase 18
   `SemanticErrorResponse` map shape.
-- This is not HTTP serialization, JSON serialization, controller behavior, or
-  public endpoint implementation.
+- Post-Phase-20 wraps this serializer in a private loopback HTTP boundary for
+  the three existing approved inspection queries only.
 
 Phase 20 endpoint readiness:
 
@@ -112,6 +124,12 @@ Phase 20 endpoint readiness:
 - A later endpoint must not return raw SPARQL bindings, accept arbitrary
   browser-supplied SPARQL, run SPARQL Update, or bypass the approved query
   manifest.
+
+Post-Phase-20 private endpoint:
+
+- the private scaffold now exists for the first approved-query slice
+- it remains internal-only and loopback-bound
+- the public endpoint gates in `endpoint-readiness.ttl` are still not accepted
 
 ## Reasoning Validation
 

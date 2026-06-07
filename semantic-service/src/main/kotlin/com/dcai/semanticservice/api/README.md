@@ -1,7 +1,26 @@
-# API Package Placeholder
+# API Package
 
-Reserved for future endpoint adapters that implement
-`semantic-service/openapi.semantic-service.yaml`.
+Contains the post-Phase-20 private semantic query endpoint boundary.
 
-Phase 10 does not add controllers, route handlers, DTO classes, or OpenAPI code
-generation.
+Implemented boundary:
+
+- `PrivateSemanticQueryEndpoint`
+- internal `POST /semantic/query/{queryId}` request handling
+- loopback-only `PrivateSemanticQueryEndpointServer`
+- success/error payloads through `SemanticResponseSerializer`
+
+Allowed query IDs:
+
+- `fixtureNamedGraphInventory`
+- `fixtureIncidentSummary`
+- `fixtureProvenanceSourceRecords`
+
+Non-goals:
+
+- no public endpoints
+- no product dashboard view-model query IDs
+- no raw SPARQL request body
+- no SPARQL Update
+- no graph writes
+- no reasoning execution
+- no old FastAPI/Postgres/React removal

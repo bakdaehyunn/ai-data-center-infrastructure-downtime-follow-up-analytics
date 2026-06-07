@@ -4,9 +4,9 @@ plugins {
 }
 
 group = "com.dcai.semantic"
-version = "2026.06.phase20-endpoint-readiness-decision"
+version = "2026.06.post-phase20-private-query-endpoint"
 
-description = "Endpoint readiness decision checkpoint for the ontology-native semantic service."
+description = "Private semantic query endpoint boundary for the ontology-native semantic service."
 
 dependencies {
     // Jena 5.6.0 keeps this Phase 20 baseline compatible with the current JDK 17
@@ -28,6 +28,6 @@ application {
     mainClass.set("com.dcai.semanticservice.runtime.SemanticServiceApplication")
 }
 
-// Phase 20 intentionally does not apply a web framework plugin, define
-// controllers, generate runtime DTOs, run reasoning, or expose unrestricted graph
-// writes. Endpoint readiness is a static checkpoint; runtime remains CLI-only.
+// The post-Phase-20 private endpoint uses the JDK loopback HTTP server only
+// when explicitly requested. It does not apply a web framework plugin, generate
+// runtime DTOs, run reasoning, expose public endpoints, or allow graph writes.

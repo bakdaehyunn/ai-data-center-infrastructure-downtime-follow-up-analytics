@@ -1,8 +1,9 @@
 # Semantic Service Boundary
 
-This directory records non-runtime service boundary contracts for the future
-Java/Kotlin semantic service. It does not contain service implementation code,
-controllers, clients, build files, route handlers, or executable orchestration.
+This directory contains the Kotlin/JVM semantic service transition runtime and
+its boundary contracts. It started as non-runtime scaffolding in Phases 8-12;
+post-Phase-20 it now includes an internal-only private semantic query endpoint
+for the existing approved fixture inspection queries.
 
 Phase 8 defines the semantic service as a controlled facade over the
 Fuseki/TDB2 RDF dataset. The service may later expose use cases for query
@@ -150,3 +151,27 @@ Phase 20 adds the endpoint readiness decision checkpoint. The runtime remains
 CLI-only; private endpoint scaffolding is deferred to a later approved phase
 and any future endpoint must use the Phase 19 serializer instead of raw SPARQL
 bindings.
+
+Post-Phase-20 adds the first private endpoint slice:
+
+- internal `POST /semantic/query/{queryId}`
+- loopback-only bind host, defaulting to `127.0.0.1`
+- approved query IDs only:
+  - `fixtureNamedGraphInventory`
+  - `fixtureIncidentSummary`
+  - `fixtureProvenanceSourceRecords`
+- all success payloads go through `SemanticResponseSerializer`
+- all errors use the Phase 18 semantic error envelope
+- raw SPARQL request bodies, arbitrary query IDs, graph writes, reasoning
+  execution, and public exposure remain blocked
+
+Run the private endpoint against a fixture-loaded Fuseki dataset:
+
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  -e DCAI_FUSEKI_DATASET_URL=http://host.docker.internal:3030/infrastructure \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon run --args="--repo-root=/workspace --serve-private-query-endpoint"
+```

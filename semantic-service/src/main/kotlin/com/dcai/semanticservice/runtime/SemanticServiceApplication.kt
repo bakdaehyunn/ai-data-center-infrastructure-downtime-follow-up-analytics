@@ -1,5 +1,7 @@
 package com.dcai.semanticservice.runtime
 
+import com.dcai.semanticservice.api.PrivateSemanticQueryEndpointServer
+import com.dcai.semanticservice.api.PrivateSemanticQueryEndpointServerConfig
 import com.dcai.semanticservice.contracts.ContractValidationReport
 import com.dcai.semanticservice.contracts.StaticContractValidator
 import com.dcai.semanticservice.fixtures.ControlledFixtureGraphLoader
@@ -30,6 +32,24 @@ object SemanticServiceApplication {
         val options = SemanticServiceRuntimeOptions.fromArgs(args)
         val repoRoot = options.repoRoot?.let { Path.of(it).toAbsolutePath().normalize() }
             ?: locateRepoRoot()
+        if (options.servePrivateQueryEndpoint) {
+            val server = PrivateSemanticQueryEndpointServer
+                .fromRepoRoot(
+                    repoRoot = repoRoot,
+                    config = PrivateSemanticQueryEndpointServerConfig(
+                        host = options.privateEndpointHost,
+                        port = options.privateEndpointPort,
+                    ),
+                )
+                .start()
+            println("DCAI Semantic Service")
+            println("mode=private-semantic-query-endpoint")
+            println("repoRoot=$repoRoot")
+            println("privateEndpointUrl=http://${server.address.hostString}:${server.address.port}/semantic/query/{queryId}")
+            println("publicEndpointExposure=false")
+            Thread.currentThread().join()
+            return
+        }
         val graphClient = if (options.checkGraph) {
             JenaFusekiReadOnlyGraphClient(FusekiReadOnlyConfig.fromEnvironment())
         } else {
@@ -179,6 +199,9 @@ data class SemanticServiceRuntimeOptions(
     val checkGraph: Boolean = false,
     val loadFixtures: Boolean = false,
     val queryId: String? = null,
+    val servePrivateQueryEndpoint: Boolean = false,
+    val privateEndpointHost: String = "127.0.0.1",
+    val privateEndpointPort: Int = 18080,
 ) {
     companion object {
         fun fromArgs(args: Array<String>): SemanticServiceRuntimeOptions {
@@ -186,11 +209,22 @@ data class SemanticServiceRuntimeOptions(
             var checkGraph = false
             var loadFixtures = false
             var queryId: String? = null
+            var servePrivateQueryEndpoint = false
+            var privateEndpointHost = "127.0.0.1"
+            var privateEndpointPort = 18080
 
             for (arg in args) {
                 when {
                     arg == "--check-graph" -> checkGraph = true
                     arg == "--load-fixtures" -> loadFixtures = true
+                    arg == "--serve-private-query-endpoint" -> servePrivateQueryEndpoint = true
+                    arg.startsWith("--private-endpoint-host=") -> {
+                        privateEndpointHost = arg.substringAfter("=")
+                        require(privateEndpointHost.isNotBlank()) { "--private-endpoint-host requires a value" }
+                    }
+                    arg.startsWith("--private-endpoint-port=") -> {
+                        privateEndpointPort = arg.substringAfter("=").toInt()
+                    }
                     arg.startsWith("--run-query=") -> {
                         queryId = arg.substringAfter("=")
                         require(queryId.isNotBlank()) { "--run-query requires a query id" }
@@ -206,6 +240,9 @@ data class SemanticServiceRuntimeOptions(
                 checkGraph = checkGraph,
                 loadFixtures = loadFixtures,
                 queryId = queryId,
+                servePrivateQueryEndpoint = servePrivateQueryEndpoint,
+                privateEndpointHost = privateEndpointHost,
+                privateEndpointPort = privateEndpointPort,
             )
         }
     }
