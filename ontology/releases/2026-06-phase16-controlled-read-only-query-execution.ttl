@@ -1,0 +1,21 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase16-controlled-read-only-query-execution
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 16 controlled read-only query execution release" ;
+  dcterms:description "Implementation release that adds controlled read-only query execution over fixture-loaded Fuseki named graphs through approved query IDs in the query manifest. This release does not implement public endpoints, graph writes, SPARQL Update execution, reasoning orchestration, UI redesign, old-runtime removal, commit, or push." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase15-controlled-fixture-loading ;
+  dcterms:hasPart
+    <../../queries/manifest.ttl>,
+    <../../queries/inspection/fixture_named_graph_inventory.select.rq>,
+    <../../queries/inspection/fixture_incident_summary.select.rq>,
+    <../../queries/inspection/fixture_provenance_source_records.select.rq>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/query/ApprovedQueryCatalog.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/query/JenaFusekiReadOnlyQueryExecutor.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplication.kt>,
+    <../../docs/ontology-native/phase16_controlled_read_only_query_execution.md> .

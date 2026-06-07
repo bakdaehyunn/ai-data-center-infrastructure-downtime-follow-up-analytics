@@ -1,0 +1,15 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+
+SELECT ?graph ?incident ?incidentId ?asset ?stage ?sourceRecord
+WHERE {
+  GRAPH ?graph {
+    ?incident a dcai:InfrastructureIncident ;
+      dcai:hasIdentifier ?incidentId ;
+      dcai:affectsAsset ?asset ;
+      dcai:hasCurrentStage ?stage .
+    OPTIONAL { ?incident prov:wasDerivedFrom ?sourceRecord . }
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+}
+ORDER BY ?graph ?incidentId

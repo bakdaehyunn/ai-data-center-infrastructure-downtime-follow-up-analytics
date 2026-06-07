@@ -13,6 +13,10 @@ import com.dcai.semanticservice.graph.FusekiNamedGraphWriter
 import com.dcai.semanticservice.graph.GraphConnectionCheck
 import com.dcai.semanticservice.graph.JenaFusekiReadOnlyGraphClient
 import com.dcai.semanticservice.graph.ReadOnlyGraphClient
+import com.dcai.semanticservice.query.ApprovedQueryCatalog
+import com.dcai.semanticservice.query.JenaFusekiReadOnlyQueryExecutor
+import com.dcai.semanticservice.query.QueryExecutionReport
+import com.dcai.semanticservice.query.ReadOnlyQueryExecutor
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -37,10 +41,18 @@ object SemanticServiceApplication {
         } else {
             null
         }
+        val queryExecutor = options.queryId?.let {
+            JenaFusekiReadOnlyQueryExecutor(
+                manifest = ApprovedQueryCatalog(repoRoot).load(),
+                config = FusekiReadOnlyConfig.fromEnvironment(),
+            )
+        }
         val report = run(
             repoRoot = repoRoot,
             graphClient = graphClient,
             fixtureLoader = fixtureLoader,
+            queryExecutor = queryExecutor,
+            queryId = options.queryId,
         )
 
         println("DCAI Semantic Service")
@@ -51,6 +63,7 @@ object SemanticServiceApplication {
         println("graphExecutionEnabled=${report.graphExecutionEnabled}")
         println("httpEndpointsEnabled=${report.httpEndpointsEnabled}")
         println("fixtureLoadingEnabled=${report.fixtureLoadingEnabled}")
+        println("queryExecutionEnabled=${report.queryExecutionEnabled}")
         report.graphConnectionCheck?.let { check ->
             println("graphReachable=${check.reachable}")
             println("graphDatasetUrl=${check.datasetUrl}")
@@ -62,6 +75,12 @@ object SemanticServiceApplication {
             println("fixtureLoadSucceeded=${summary.succeeded}")
             println("fixtureLoadAttempted=${summary.attemptedCount}")
             println("fixtureGraphsPromoted=${summary.promotedCount}")
+        }
+        report.queryExecutionReport?.let { queryReport ->
+            println("queryId=${queryReport.queryId}")
+            println("queryMode=${queryReport.mode.value}")
+            println("queryRows=${queryReport.rowCount}")
+            queryReport.askResult?.let { result -> println("queryAskResult=$result") }
         }
 
         if (!report.isReady) {
@@ -79,17 +98,24 @@ object SemanticServiceApplication {
         graphClient: ReadOnlyGraphClient? = null,
         fixtureLoader: FixtureGraphLoader? = null,
         fixtureLoadPlan: FixtureGraphLoadPlan? = null,
+        queryExecutor: ReadOnlyQueryExecutor? = null,
+        queryId: String? = null,
     ): SemanticServiceRuntimeReport {
         val validation = StaticContractValidator().validate(repoRoot)
         val graphConnectionCheck = graphClient?.checkConnectivity()
         val fixtureLoadSummary = fixtureLoader?.load(
             fixtureLoadPlan ?: FixtureGraphLoadPlan.default(repoRoot),
         )
+        val queryExecutionReport = queryId?.let { id ->
+            requireNotNull(queryExecutor) { "queryExecutor is required when queryId is provided" }
+                .execute(id)
+        }
         return SemanticServiceRuntimeReport(
             repoRoot = repoRoot,
             contractValidation = validation,
             graphConnectionCheck = graphConnectionCheck,
             fixtureLoadSummary = fixtureLoadSummary,
+            queryExecutionReport = queryExecutionReport,
         )
     }
 
@@ -114,6 +140,7 @@ data class SemanticServiceRuntimeReport(
     val contractValidation: ContractValidationReport,
     val graphConnectionCheck: GraphConnectionCheck? = null,
     val fixtureLoadSummary: FixtureLoadSummary? = null,
+    val queryExecutionReport: QueryExecutionReport? = null,
 ) {
     val mode: String = "contract-validation-runtime"
     val isReady: Boolean = contractValidation.isValid &&
@@ -123,23 +150,30 @@ data class SemanticServiceRuntimeReport(
     val graphExecutionEnabled: Boolean = false
     val httpEndpointsEnabled: Boolean = false
     val fixtureLoadingEnabled: Boolean = fixtureLoadSummary != null
+    val queryExecutionEnabled: Boolean = queryExecutionReport != null
 }
 
 data class SemanticServiceRuntimeOptions(
     val repoRoot: String? = null,
     val checkGraph: Boolean = false,
     val loadFixtures: Boolean = false,
+    val queryId: String? = null,
 ) {
     companion object {
         fun fromArgs(args: Array<String>): SemanticServiceRuntimeOptions {
             var repoRoot: String? = null
             var checkGraph = false
             var loadFixtures = false
+            var queryId: String? = null
 
             for (arg in args) {
                 when {
                     arg == "--check-graph" -> checkGraph = true
                     arg == "--load-fixtures" -> loadFixtures = true
+                    arg.startsWith("--run-query=") -> {
+                        queryId = arg.substringAfter("=")
+                        require(queryId.isNotBlank()) { "--run-query requires a query id" }
+                    }
                     arg.startsWith("--repo-root=") -> repoRoot = arg.substringAfter("=")
                     repoRoot == null -> repoRoot = arg
                     else -> error("Unknown argument: $arg")
@@ -150,6 +184,7 @@ data class SemanticServiceRuntimeOptions(
                 repoRoot = repoRoot,
                 checkGraph = checkGraph,
                 loadFixtures = loadFixtures,
+                queryId = queryId,
             )
         }
     }

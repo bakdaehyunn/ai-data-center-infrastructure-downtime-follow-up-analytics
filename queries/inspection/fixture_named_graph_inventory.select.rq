@@ -1,0 +1,10 @@
+SELECT ?graph (COUNT(?s) AS ?subjectCount)
+WHERE {
+  GRAPH ?graph {
+    ?s ?p ?o .
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:source:") ||
+         STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+}
+GROUP BY ?graph
+ORDER BY ?graph

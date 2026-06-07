@@ -18,7 +18,10 @@ dcai-query:manifest
     dcai-query:restoreReadinessReasoning,
     dcai-query:impactTrustReasoning,
     dcai-query:blastRadiusReasoning,
-    dcai-query:reasoningFindingLineageLookup .
+    dcai-query:reasoningFindingLineageLookup,
+    dcai-query:fixtureNamedGraphInventory,
+    dcai-query:fixtureIncidentSummary,
+    dcai-query:fixtureProvenanceSourceRecords .
 
 dcai-query:sourceToCanonicalPromotion
   rdf:type dcai-query:QueryEntry ;
@@ -99,3 +102,27 @@ dcai-query:reasoningFindingLineageLookup
   dcai-query:queryMode "SELECT" ;
   dcai-query:graphScope "reasoning graph, reasoning audit graph, provenance graph" ;
   dcai-query:implementationStatus "parseable-placeholder" .
+
+dcai-query:fixtureNamedGraphInventory
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Fixture named graph inventory" ;
+  dcai-query:queryPath "queries/inspection/fixture_named_graph_inventory.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture source graph, fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:fixtureIncidentSummary
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Fixture incident summary" ;
+  dcai-query:queryPath "queries/inspection/fixture_incident_summary.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .
+
+dcai-query:fixtureProvenanceSourceRecords
+  rdf:type dcai-query:QueryEntry ;
+  dcterms:title "Fixture provenance source records" ;
+  dcai-query:queryPath "queries/inspection/fixture_provenance_source_records.select.rq" ;
+  dcai-query:queryMode "SELECT" ;
+  dcai-query:graphScope "fixture source graph, fixture canonical graph" ;
+  dcai-query:implementationStatus "phase16-approved" .

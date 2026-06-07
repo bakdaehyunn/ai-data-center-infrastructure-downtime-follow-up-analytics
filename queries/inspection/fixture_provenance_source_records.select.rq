@@ -1,0 +1,16 @@
+PREFIX dcai: <urn:dcai:ontology:>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+
+SELECT ?graph ?sourceRecord ?sourceRecordId ?sourceSystem ?payloadHash ?activity
+WHERE {
+  GRAPH ?graph {
+    ?sourceRecord a dcai:SourceRecord ;
+      dcai:hasSourceRecordId ?sourceRecordId ;
+      dcai:hasSourceSystem ?sourceSystem ;
+      dcai:hasSourcePayloadHash ?payloadHash ;
+      prov:wasGeneratedBy ?activity .
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:source:") ||
+         STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+}
+ORDER BY ?graph ?sourceRecordId

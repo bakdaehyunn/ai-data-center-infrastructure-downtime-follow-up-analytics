@@ -115,3 +115,19 @@ docker run --rm \
   gradle:8.10.2-jdk17 \
   gradle --no-daemon run --args="--repo-root=/workspace --load-fixtures"
 ```
+
+Phase 16 adds controlled read-only query execution. Queries must be listed in
+`queries/manifest.ttl` with `implementationStatus "phase16-approved"` and must
+parse as SELECT or ASK. Placeholder reasoning queries and update queries are not
+executable in this phase.
+
+Run an approved read-only query against fixture-loaded named graphs:
+
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  -e DCAI_FUSEKI_DATASET_URL=http://host.docker.internal:3030/infrastructure \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon run --args="--repo-root=/workspace --run-query=fixtureNamedGraphInventory"
+```
