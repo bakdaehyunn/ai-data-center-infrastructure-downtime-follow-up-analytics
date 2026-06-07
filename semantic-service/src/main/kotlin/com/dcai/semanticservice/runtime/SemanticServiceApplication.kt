@@ -16,6 +16,8 @@ import com.dcai.semanticservice.graph.ReadOnlyGraphClient
 import com.dcai.semanticservice.query.ApprovedQueryCatalog
 import com.dcai.semanticservice.query.JenaFusekiReadOnlyQueryExecutor
 import com.dcai.semanticservice.query.QueryExecutionReport
+import com.dcai.semanticservice.query.QueryResultEnvelope
+import com.dcai.semanticservice.query.QueryResultShaper
 import com.dcai.semanticservice.query.ReadOnlyQueryExecutor
 import java.nio.file.Files
 import java.nio.file.Path
@@ -41,11 +43,17 @@ object SemanticServiceApplication {
         } else {
             null
         }
-        val queryExecutor = options.queryId?.let {
+        val approvedQueryManifest = options.queryId?.let {
+            ApprovedQueryCatalog(repoRoot).load()
+        }
+        val queryExecutor = approvedQueryManifest?.let { manifest ->
             JenaFusekiReadOnlyQueryExecutor(
-                manifest = ApprovedQueryCatalog(repoRoot).load(),
+                manifest = manifest,
                 config = FusekiReadOnlyConfig.fromEnvironment(),
             )
+        }
+        val queryResultShaper = approvedQueryManifest?.let { manifest ->
+            QueryResultShaper(manifest)
         }
         val report = run(
             repoRoot = repoRoot,
@@ -53,6 +61,7 @@ object SemanticServiceApplication {
             fixtureLoader = fixtureLoader,
             queryExecutor = queryExecutor,
             queryId = options.queryId,
+            queryResultShaper = queryResultShaper,
         )
 
         println("DCAI Semantic Service")
@@ -82,6 +91,11 @@ object SemanticServiceApplication {
             println("queryRows=${queryReport.rowCount}")
             queryReport.askResult?.let { result -> println("queryAskResult=$result") }
         }
+        report.queryResultEnvelope?.let { envelope ->
+            println("queryResultType=${envelope.resultType.value}")
+            println("queryResultRecords=${envelope.recordCount}")
+            println("queryResultContract=${envelope.provenance.contractVersion}")
+        }
 
         if (!report.isReady) {
             report.contractValidation.errors.forEach { error -> println("error=$error") }
@@ -100,6 +114,7 @@ object SemanticServiceApplication {
         fixtureLoadPlan: FixtureGraphLoadPlan? = null,
         queryExecutor: ReadOnlyQueryExecutor? = null,
         queryId: String? = null,
+        queryResultShaper: QueryResultShaper? = null,
     ): SemanticServiceRuntimeReport {
         val validation = StaticContractValidator().validate(repoRoot)
         val graphConnectionCheck = graphClient?.checkConnectivity()
@@ -110,12 +125,17 @@ object SemanticServiceApplication {
             requireNotNull(queryExecutor) { "queryExecutor is required when queryId is provided" }
                 .execute(id)
         }
+        val queryResultEnvelope = queryExecutionReport?.let { report ->
+            requireNotNull(queryResultShaper) { "queryResultShaper is required when query execution is enabled" }
+                .shape(report)
+        }
         return SemanticServiceRuntimeReport(
             repoRoot = repoRoot,
             contractValidation = validation,
             graphConnectionCheck = graphConnectionCheck,
             fixtureLoadSummary = fixtureLoadSummary,
             queryExecutionReport = queryExecutionReport,
+            queryResultEnvelope = queryResultEnvelope,
         )
     }
 
@@ -141,6 +161,7 @@ data class SemanticServiceRuntimeReport(
     val graphConnectionCheck: GraphConnectionCheck? = null,
     val fixtureLoadSummary: FixtureLoadSummary? = null,
     val queryExecutionReport: QueryExecutionReport? = null,
+    val queryResultEnvelope: QueryResultEnvelope? = null,
 ) {
     val mode: String = "contract-validation-runtime"
     val isReady: Boolean = contractValidation.isValid &&

@@ -1,0 +1,17 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-phase17-query-result-contract-shaping
+  rdf:type owl:Ontology ;
+  dcterms:title "Phase 17 query result contract shaping release" ;
+  dcterms:description "Implementation release that adds stable typed query-result envelopes for future semantic service responses while keeping execution CLI-only. This release does not implement public endpoints, graph writes, SPARQL Update execution, reasoning orchestration, UI redesign, old-runtime removal, commit, or push." ;
+  dcterms:created "2026-06-07"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase16-controlled-read-only-query-execution ;
+  dcterms:hasPart
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/query/QueryResultEnvelope.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/query/QueryResultShaper.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplication.kt>,
+    <../../docs/ontology-native/phase17_query_result_contract_shaping.md> .

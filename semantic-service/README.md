@@ -131,3 +131,8 @@ docker run --rm \
   gradle:8.10.2-jdk17 \
   gradle --no-daemon run --args="--repo-root=/workspace --run-query=fixtureNamedGraphInventory"
 ```
+
+Phase 17 adds stable result-envelope shaping for future semantic service
+responses. The runtime remains CLI-only, but approved query results now map
+into typed contracts for named graph inventory, incident summary, and
+provenance source-record inspection.

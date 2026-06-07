@@ -10,6 +10,8 @@ import com.dcai.semanticservice.graph.GraphConnectionCheck
 import com.dcai.semanticservice.graph.ReadOnlyGraphClient
 import com.dcai.semanticservice.query.QueryExecutionReport
 import com.dcai.semanticservice.query.QueryMode
+import com.dcai.semanticservice.query.QueryResultEnvelopeProvenance
+import com.dcai.semanticservice.query.QueryResultShaper
 import com.dcai.semanticservice.query.ReadOnlyQueryExecutor
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -82,21 +84,44 @@ class SemanticServiceApplicationTest {
 
     @Test
     fun canRunControlledReadOnlyQueryExecutionBoundary() {
+        val manifest = com.dcai.semanticservice.query.ApprovedQueryManifest(
+            entries = mapOf(
+                "fixtureNamedGraphInventory" to com.dcai.semanticservice.query.ApprovedQueryDefinition(
+                    id = "fixtureNamedGraphInventory",
+                    path = Path.of("queries/inspection/fixture_named_graph_inventory.select.rq"),
+                    mode = QueryMode.SELECT,
+                    graphScope = "fixture source graph, fixture canonical graph",
+                    sparql = "SELECT * WHERE { ?s ?p ?o }",
+                ),
+            ),
+        )
         val report = SemanticServiceApplication.run(
             queryExecutor = StaticReadOnlyQueryExecutor(
                 QueryExecutionReport(
                     queryId = "fixtureNamedGraphInventory",
                     mode = QueryMode.SELECT,
                     rowCount = 2,
-                    rows = listOf(mapOf("graph" to "urn:dcai:graph:fixture:canonical:minimal-incident")),
+                    rows = listOf(
+                        mapOf(
+                            "graph" to "urn:dcai:graph:fixture:canonical:minimal-incident",
+                            "subjectCount" to "8",
+                        ),
+                        mapOf(
+                            "graph" to "urn:dcai:graph:fixture:source:minimal-incident",
+                            "subjectCount" to "8",
+                        ),
+                    ),
                 ),
             ),
             queryId = "fixtureNamedGraphInventory",
+            queryResultShaper = QueryResultShaper(manifest),
         )
 
         assertTrue(report.isReady, report.contractValidation.errors.joinToString(separator = "\n"))
         assertTrue(report.queryExecutionEnabled)
         assertEquals(2, report.queryExecutionReport?.rowCount)
+        assertEquals("named-graph-inventory", report.queryResultEnvelope?.resultType?.value)
+        assertEquals(QueryResultEnvelopeProvenance.CONTRACT_VERSION, report.queryResultEnvelope?.provenance?.contractVersion)
         assertFalse(report.graphExecutionEnabled)
         assertFalse(report.httpEndpointsEnabled)
     }
