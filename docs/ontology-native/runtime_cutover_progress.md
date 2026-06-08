@@ -10,8 +10,8 @@ now calls the private semantic-service endpoint instead of the old FastAPI
 This is now an active runtime cutover state. The frontend adapter maps semantic
 envelopes into the existing UI contracts, while the tracked
 FastAPI/Postgres/SQLAlchemy backend has been removed from the active tree. The
-remaining work is semantic enrichment for a few optional operational fields,
-not preserving or reactivating the old relational runtime.
+remaining work is ongoing semantic enrichment, not preserving or reactivating
+the old relational runtime.
 
 ## Semantic-Service Read Models Implemented
 
@@ -72,15 +72,17 @@ request title, current status, hours in current stage, needed-by time, priority
 level, business impact, priority score inputs, capacity risk, GPU impact,
 redundancy, mitigation, vendor state, thermal exposure, stage thresholds,
 stage history, aggregate downtime/wait-hour summaries, evidence timestamps,
-work-order assignment, validation-result rows, and telemetry readings when
-those fields exist in the semantic graph.
+work-order assignment, validation-result rows, telemetry readings, telemetry
+alerts, repeat-failure counters, engineer-assignment counters, and semantic
+trust-finding detail records when those fields exist in the semantic graph.
 
-It still keeps defensive defaults for:
+Incident, evidence, dependency-impact, blast-radius, and trust-finding lookups
+now use approved parameterized semantic queries instead of fetching broad graph
+result sets and filtering them in the browser.
 
-1. telemetry alert rows beyond telemetry readings
-2. repeat-failure and engineer-assignment specialty counters
-3. old data-quality check detail identifiers beyond semantic trust finding IDs
-4. parameterized incident and asset lookup instead of client-side filtering
+The adapter still keeps narrow defensive fallbacks for optional graph facts
+that may be absent from a fixture or future source extract. Those fallbacks are
+not old-runtime dependencies.
 
 ## Deletion Status
 
@@ -98,16 +100,11 @@ Current checks should prove:
 4. `rg` scans prove remaining FastAPI/Postgres/SQLAlchemy references are
    historical/reference documentation, not active runtime requirements.
 
-## Next Implementation Slice
+## Latest Product Polish Slice
 
-The next cutover slice should expand fixture/domain coverage for optional
-dashboard fields that are still defensive-default backed:
-
-1. telemetry alert rows beyond telemetry readings
-2. repeat-failure and engineer-assignment specialty counters
-3. data-quality/trust detail records equivalent to old failed-check detail
-   pages
-4. parameterized private query execution for incident and asset lookup
-
-Only after those contracts exist and pass fixture parity checks should the
-frontend compatibility defaults be removed.
+The post-cutover polish slice added graph-backed support for telemetry alerts,
+repeat-failure counters, engineer-assignment counters, semantic data-quality
+detail lookup, and parameterized incident/asset query execution. These
+contracts are covered by RDF fixture facts, read-only SPARQL bindings, Kotlin
+envelopes, result shaping, serializer output, frontend adapter mapping, and
+focused tests.

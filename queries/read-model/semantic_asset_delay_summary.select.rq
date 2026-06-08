@@ -13,6 +13,7 @@ SELECT
   (COALESCE(SUM(?capacityRisk), 0) AS ?capacityRiskKw)
   (COALESCE(SUM(?gpuCount), 0) AS ?affectedGpuCount)
   (COUNT(DISTINCT ?delayedIncident) AS ?delayedIncidentCount)
+  (COALESCE(SUM(?repeatFailureCountValue), 0) AS ?repeatFailureCount)
   (COALESCE(SUM(?durationHours), 0) AS ?totalDurationHours)
   (COALESCE(AVG(?durationHours), 0) AS ?avgDurationHours)
   (SAMPLE(?stageLabel) AS ?topFailureMode)
@@ -41,6 +42,7 @@ WHERE {
           ?queueItem a dcai:FollowUpQueueItem ;
             dcai:queueItemForIncident ?incident ;
             dcai:hoursInCurrentStage ?durationHours .
+          OPTIONAL { ?queueItem dcai:hasRepeatFailureAssetCount ?repeatFailureCountValue . }
           BIND(IF(BOUND(?thresholdHours), ?thresholdHours, 0) AS ?activeThresholdHours)
           BIND(IF(?durationHours > ?activeThresholdHours, ?incident, ?nothing) AS ?delayedIncident)
         }

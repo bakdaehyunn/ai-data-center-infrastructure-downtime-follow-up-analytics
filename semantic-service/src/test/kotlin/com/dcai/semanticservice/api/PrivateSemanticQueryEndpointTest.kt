@@ -136,6 +136,68 @@ class PrivateSemanticQueryEndpointTest {
     }
 
     @Test
+    fun passesStringParametersToApprovedQueryExecutor() {
+        val executor = CapturingQueryExecutor(
+            QueryExecutionReport(
+                queryId = "semanticFollowUpDetail",
+                mode = QueryMode.SELECT,
+                rows = listOf(
+                    mapOf(
+                        "graph" to "urn:dcai:graph:fixture:canonical:reasoning-output",
+                        "incident" to "urn:dcai:fixture:valid:reasoning-output:incident-0001",
+                        "incidentId" to "INC-REASONING-0001",
+                        "asset" to "urn:dcai:fixture:valid:reasoning-output:asset-a",
+                        "assetId" to "ASSET-A",
+                        "zone" to "urn:dcai:fixture:valid:reasoning-output:zone-a",
+                        "zoneId" to "ZONE-A",
+                        "stage" to "urn:dcai:fixture:valid:reasoning-output:stage-waiting",
+                        "sourceRecord" to "urn:dcai:fixture:valid:reasoning-output:source-record-0001",
+                    ),
+                ),
+            ),
+        )
+        val endpoint = PrivateSemanticQueryEndpoint(
+            queryExecutor = executor,
+            queryResultShaper = QueryResultShaper(manifestWith("semanticFollowUpDetail")),
+        )
+
+        val response = endpoint.handle(
+            post(
+                path = "/semantic/query/semanticFollowUpDetail",
+                body = """{"parameters":{"incidentIdParam":"INC-REASONING-0001"}}""",
+            ),
+        )
+
+        assertEquals(200, response.statusCode)
+        assertEquals(mapOf("incidentIdParam" to "INC-REASONING-0001"), executor.lastParameters)
+    }
+
+    @Test
+    fun rejectsMalformedParametersWithoutExecutingQuery() {
+        val executor = CapturingQueryExecutor(
+            QueryExecutionReport(
+                queryId = "semanticFollowUpDetail",
+                mode = QueryMode.SELECT,
+            ),
+        )
+        val endpoint = PrivateSemanticQueryEndpoint(
+            queryExecutor = executor,
+            queryResultShaper = QueryResultShaper(manifestWith("semanticFollowUpDetail")),
+        )
+
+        val response = endpoint.handle(
+            post(
+                path = "/semantic/query/semanticFollowUpDetail",
+                body = """{"parameters":{"incidentIdParam":42}}""",
+            ),
+        )
+
+        assertEquals(400, response.statusCode)
+        assertErrorCode("contract-validation-failed", response)
+        assertEquals(emptyMap(), executor.lastParameters)
+    }
+
+    @Test
     fun rejectsCompactRawSparqlRequestBody() {
         val response = endpointWith(
             QueryExecutionReport(
@@ -349,6 +411,24 @@ class PrivateSemanticQueryEndpointTest {
     ) : ReadOnlyQueryExecutor {
         override fun execute(queryId: String): QueryExecutionReport {
             throw error
+        }
+    }
+
+    private class CapturingQueryExecutor(
+        private val report: QueryExecutionReport,
+    ) : ReadOnlyQueryExecutor {
+        var lastParameters: Map<String, String> = emptyMap()
+
+        override fun execute(queryId: String): QueryExecutionReport {
+            return execute(queryId, emptyMap())
+        }
+
+        override fun execute(
+            queryId: String,
+            parameters: Map<String, String>,
+        ): QueryExecutionReport {
+            lastParameters = parameters
+            return report.copy(queryId = queryId)
         }
     }
 }

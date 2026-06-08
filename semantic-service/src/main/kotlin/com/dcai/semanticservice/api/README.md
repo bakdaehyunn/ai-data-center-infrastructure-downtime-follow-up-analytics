@@ -8,6 +8,7 @@ Implemented boundary:
 - internal `POST /semantic/query/{queryId}` request handling
 - loopback-only `PrivateSemanticQueryEndpointServer`
 - success/error payloads through `SemanticResponseSerializer`
+- optional string-valued `parameters` for approved lookup queries only
 
 Allowed query IDs:
 

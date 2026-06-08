@@ -173,10 +173,12 @@ Post-Phase-20 adds the first private endpoint slice:
   - `semanticSpareWaitSummary`
   - `semanticValidationSummary`
   - `semanticIncidentEvidence`
+  - `semanticIncidentTimeline`
   - `semanticDependencyImpactByAsset`
   - `semanticBlastRadiusByAsset`
 - all success payloads go through `SemanticResponseSerializer`
 - all errors use the Phase 18 semantic error envelope
+- approved lookup queries accept string-valued `parameters`
 - raw SPARQL request bodies, arbitrary query IDs, graph writes, reasoning
   execution, and public exposure remain blocked
 
@@ -190,9 +192,11 @@ for dashboard overview, filter metadata, follow-up detail, impact summary,
 topology dependencies, trust findings, stage bottlenecks, asset/zone delay
 summaries, spare/vendor wait summaries, validation summaries, incident
 evidence, dependency impact, and blast radius. The React dashboard now reads
-these graph-backed semantic-service contracts through its API adapter. Some UI
-fields still use compatibility defaults until the RDF fixtures and SPARQL read
-models expose full operational parity.
+these graph-backed semantic-service contracts through its API adapter.
+Telemetry alerts, repeat-failure counters, engineer-assignment counters,
+semantic data-quality detail lookup, and parameterized incident/asset lookup
+are backed by RDF fixture facts, approved SPARQL bindings, typed envelopes,
+result shaping, and serializer output.
 
 Run the private endpoint against a fixture-loaded Fuseki dataset:
 

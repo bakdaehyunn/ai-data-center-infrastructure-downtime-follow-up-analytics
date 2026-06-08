@@ -8,7 +8,7 @@ contracts, approved SPARQL read models, and Kotlin result envelopes.
 - reconstruct follow-up state from canonical graph facts
 - rank active follow-up queue items
 - expose impact, redundancy, capacity, GPU, vendor, mitigation, telemetry,
-  validation, and work-order evidence
+  telemetry alert, validation, and work-order evidence
 - separate trusted facts from findings that need review
 - preserve source-record and reasoning provenance
 - keep graph access behind approved query IDs
@@ -32,12 +32,12 @@ contracts, approved SPARQL read models, and Kotlin result envelopes.
 - `semanticDependencyImpactByAsset`
 - `semanticBlastRadiusByAsset`
 
-## Remaining Control Gaps
+## Current Control Status
 
-The old FastAPI/Postgres analytics runtime has been removed. Remaining control
-work is semantic enrichment, not relational-runtime parity work. Current
-defensive defaults should be replaced by graph facts for:
-
-- telemetry alert rows beyond telemetry readings
-- data-quality detail identifiers beyond semantic trust finding IRIs
-- parameterized incident and asset lookup
+The old FastAPI/Postgres analytics runtime has been removed. Current control
+work is semantic enrichment, not relational-runtime parity work. Telemetry
+alerts, repeat-failure counters, engineer-assignment counters, data-quality
+detail lookup, and parameterized incident/asset lookup are graph-backed through
+approved read-only semantic queries. Remaining frontend null guards are
+acceptable optional fallbacks for graph facts that may be absent from a fixture
+or source extract.

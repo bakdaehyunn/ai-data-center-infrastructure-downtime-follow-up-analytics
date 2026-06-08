@@ -9,6 +9,8 @@ POST /semantic/query/{queryId}
 The endpoint accepts approved query IDs from `queries/manifest.ttl`. It does
 not accept raw SPARQL, graph writes, SPARQL Update, or public endpoint binding.
 All success and error payloads go through `SemanticResponseSerializer`.
+Approved queries may accept string-valued `parameters`; raw SPARQL remains
+forbidden.
 
 ## Product Read Models
 
@@ -43,6 +45,8 @@ analytics route surface:
 - evidence, trust, validation, work-order, and telemetry context from
   `semanticIncidentEvidence`
 - dependency and blast-radius context from topology and reasoning read models
+- parameterized incident, asset, and trust-finding detail lookups through the
+  same approved-query endpoint
 
 ## Response Contract
 

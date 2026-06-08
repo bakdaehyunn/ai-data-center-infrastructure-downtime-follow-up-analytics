@@ -48,9 +48,9 @@ Current response result types include:
 - `blast-radius`
 
 Remaining parity work is field-level and behavior-level, not old-runtime
-ownership. The current frontend adapter fills some missing old fields with
-compatibility defaults until RDF fixtures and SPARQL read models expose those
-facts natively.
+ownership. The current frontend adapter keeps narrow null guards for optional
+graph facts, but active dashboard fields are backed by approved semantic read
+models where the ontology contract requires them.
 
 ## Migration Status Legend
 
@@ -96,7 +96,7 @@ facts natively.
 | `GET /api/connectors/contracts` | Developer/reference | `semanticConnectorContractCatalog` | `ConnectorContractEnvelope` | contract artifact version and source-system vocabulary | Retire/reference or new read-model query | contract list parses from semantic contract graph; no dashboard dependency |
 | `GET /api/pipeline-runs` | Ops/reference | `semanticIngestionActivityHistory` | `IngestionActivityEnvelope` | PROV activity, graph promotion, validation gates, source batch | New read-model query | latest activity ordering, status mapping, row/source counts |
 | `GET /api/data-quality/checks` | Dashboard trust summary | `semanticTrustFindingList` | `TrustFindingEnvelope` | SHACL result, reconciliation/trust finding, source records, graph release | Reasoning-backed read model | failed-only filtering, latest-run default, limit handling, severity/status fields |
-| `GET /api/data-quality/checks/{check_result_id}` | Ops/detail reference | `semanticTrustFindingDetail` | `TrustFindingDetailEnvelope` | SHACL result or trust finding IRI, source records, activity lineage | Reasoning-backed read model | found/not-found behavior, evidence payload, stable finding ID |
+| `GET /api/data-quality/checks/{check_result_id}` | Ops/detail reference | `semanticTrustFindingList` with `trustFindingIdParam` | `TrustFindingsEnvelope` | SHACL result or trust finding IRI, source records, activity lineage | Reasoning-backed read model | found/not-found behavior, stable finding ID, severity/status fields |
 
 ## Frontend Consumer Priority
 
@@ -145,7 +145,6 @@ typed envelope are implemented and tested:
 - `semanticConnectorContractCatalog`
 - `semanticIngestionActivityHistory`
 - `semanticTrustFindingList`
-- `semanticTrustFindingDetail`
 
 Do not mark any new product query `phase16-approved` until:
 
@@ -191,12 +190,13 @@ The first product parity slice on that boundary is `semanticFollowUpQueueList`,
 because it supports the primary workflow and starts migration of the Follow-up
 Queue without redesigning the dashboard.
 
-Current limitation: the semantic-service now has first product read-model
-contracts for queue, overview, filters, detail, impact, topology, and trust,
-but they are still fixture/canonical graph-backed slices. They do not yet
-provide full semantic parity for ranking, queue filtering, stage delay
-analytics, spare wait analytics, detailed timeline/work-order/validation
-records, or all dashboard fields without compatibility defaults.
+Current limitation: the semantic-service read models are still
+fixture/canonical graph-backed slices. They now cover queue, overview, filters,
+detail, impact, topology, trust, stage delay, spare wait, timeline,
+work-order/validation context, telemetry alert context, data-quality detail
+lookup, and parameterized incident/asset lookups. Remaining work is production
+source breadth, fixture coverage, and optional-field hardening rather than
+old-runtime parity.
 
 ## Private Endpoint Tests For The First Slice
 

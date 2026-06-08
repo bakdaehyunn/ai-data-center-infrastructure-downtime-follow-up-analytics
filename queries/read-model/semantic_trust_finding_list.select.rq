@@ -1,14 +1,19 @@
 PREFIX dcai: <urn:dcai:ontology:>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 
-SELECT ?graph ?trustFinding ?summary ?sourceFact ?activity
+SELECT ?graph ?trustFinding ?trustFindingId ?summary ?sourceFact ?activity ?severity ?status ?createdAt
 WHERE {
   GRAPH ?graph {
     ?trustFinding a dcai:TrustFinding ;
       dcai:hasFindingSummary ?summary ;
       prov:wasDerivedFrom ?sourceFact .
+    OPTIONAL { ?trustFinding dcai:hasIdentifier ?trustFindingId . }
+    OPTIONAL { ?trustFinding dcai:hasEvidenceSeverity ?severity . }
+    OPTIONAL { ?trustFinding dcai:hasConfidenceState ?status . }
+    OPTIONAL { ?trustFinding dcai:createdAt ?createdAt . }
     OPTIONAL { ?trustFinding prov:wasGeneratedBy ?activity . }
   }
   FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(?trustFindingId = COALESCE(?trustFindingIdParam, ?trustFindingId))
 }
 ORDER BY ?trustFinding

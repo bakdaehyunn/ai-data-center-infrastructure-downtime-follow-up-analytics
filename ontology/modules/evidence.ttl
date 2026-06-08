@@ -52,6 +52,21 @@ dcai:hasMetricUnit rdf:type owl:DatatypeProperty ;
 dcai:hasTelemetryStatus rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:TelemetryEvidence ;
   rdfs:range xsd:string .
+dcai:hasTelemetryAlertId rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:TelemetryEvidence ;
+  rdfs:range xsd:string .
+dcai:hasAlertType rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:TelemetryEvidence ;
+  rdfs:range xsd:string .
+dcai:hasAlertSeverity rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:TelemetryEvidence ;
+  rdfs:range xsd:string .
+dcai:alertTriggeredAt rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:TelemetryEvidence ;
+  rdfs:range xsd:dateTime .
+dcai:alertResolvedAt rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:TelemetryEvidence ;
+  rdfs:range xsd:dateTime .
 dcai:hasValidationId rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:ValidationEvidence ;
   rdfs:range xsd:string .

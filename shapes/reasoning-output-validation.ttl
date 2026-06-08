@@ -74,6 +74,20 @@ dcai:FollowUpDecisionShape
     sh:class dcai:ReasoningActivity
   ] .
 
+dcai:FollowUpQueueItemShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:FollowUpQueueItem ;
+  sh:property [
+    sh:path dcai:hasRepeatFailureAssetCount ;
+    sh:minCount 0 ;
+    sh:datatype xsd:integer
+  ] ;
+  sh:property [
+    sh:path dcai:hasEngineerAssignmentDelayHours ;
+    sh:minCount 0 ;
+    sh:datatype xsd:decimal
+  ] .
+
 dcai:RestoreReadinessFindingShape
   a sh:NodeShape ;
   sh:targetClass dcai:RestoreReadinessFinding ;
@@ -95,6 +109,26 @@ dcai:RestoreReadinessFindingShape
 dcai:TrustFindingShape
   a sh:NodeShape ;
   sh:targetClass dcai:TrustFinding ;
+  sh:property [
+    sh:path dcai:hasIdentifier ;
+    sh:minCount 0 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:createdAt ;
+    sh:minCount 0 ;
+    sh:datatype xsd:dateTime
+  ] ;
+  sh:property [
+    sh:path dcai:hasEvidenceSeverity ;
+    sh:minCount 0 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasConfidenceState ;
+    sh:minCount 0 ;
+    sh:datatype xsd:string
+  ] ;
   sh:property [
     sh:path dcai:hasFindingSummary ;
     sh:minCount 1 ;

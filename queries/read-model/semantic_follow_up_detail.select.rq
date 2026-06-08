@@ -35,6 +35,8 @@ SELECT
   ?infrastructureZoneImpactScore
   ?neededByUrgencyScore
   ?repeatFailureScore
+  ?repeatFailureAssetCount
+  ?engineerAssignmentDelayHours
   ?spareRiskScore
   ?capacityRiskScore
   ?redundancyRiskScore
@@ -81,6 +83,8 @@ WHERE {
       OPTIONAL { ?queueItem dcai:hasInfrastructureZoneImpactScore ?infrastructureZoneImpactScore . }
       OPTIONAL { ?queueItem dcai:hasNeededByUrgencyScore ?neededByUrgencyScore . }
       OPTIONAL { ?queueItem dcai:hasRepeatFailureScore ?repeatFailureScore . }
+      OPTIONAL { ?queueItem dcai:hasRepeatFailureAssetCount ?repeatFailureAssetCount . }
+      OPTIONAL { ?queueItem dcai:hasEngineerAssignmentDelayHours ?engineerAssignmentDelayHours . }
       OPTIONAL { ?queueItem dcai:hasSpareRiskScore ?spareRiskScore . }
       OPTIONAL { ?queueItem dcai:hasCapacityRiskScore ?capacityRiskScore . }
       OPTIONAL { ?queueItem dcai:hasRedundancyRiskScore ?redundancyRiskScore . }
@@ -121,5 +125,6 @@ WHERE {
     }
   }
   FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(?incidentId = COALESCE(?incidentIdParam, ?incidentId))
 }
 ORDER BY ?incidentId

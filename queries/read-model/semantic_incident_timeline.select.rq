@@ -35,5 +35,6 @@ WHERE {
     OPTIONAL { ?event dcai:hasDelayHours ?delayHours . }
   }
   FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(?incidentId = COALESCE(?incidentIdParam, ?incidentId))
 }
 ORDER BY ?incidentId ?enteredAt ?event

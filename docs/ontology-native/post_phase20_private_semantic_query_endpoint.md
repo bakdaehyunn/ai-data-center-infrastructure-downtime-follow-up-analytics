@@ -50,17 +50,26 @@ Only these approved query IDs are allowed:
 - `semanticSpareWaitSummary`
 - `semanticValidationSummary`
 - `semanticIncidentEvidence`
+- `semanticIncidentTimeline`
 - `semanticDependencyImpactByAsset`
 - `semanticBlastRadiusByAsset`
 
 The endpoint rejects any other query ID with `unapproved-query-id`.
 
 The product read-model queries return canonical graph-backed dashboard and
-detail fields through typed envelopes. `semanticFollowUpQueueList` and
-`semanticFollowUpDetail` now include graph-backed rank, title, status, current
-stage hours, priority level, business impact, priority score inputs, impact,
-trust, blocker, recommendation, redundancy, mitigation, vendor, and thermal
-fields when those facts exist in the graph.
+detail fields through typed envelopes. They include graph-backed rank, title,
+status, current stage hours, priority level, business impact, priority score
+inputs, impact, trust, blocker, recommendation, redundancy, mitigation, vendor,
+thermal, telemetry alert, repeat-failure, engineer-assignment, and semantic
+trust-finding detail fields when those facts exist in the graph.
+
+The endpoint accepts string-valued `parameters` for approved query IDs. Current
+parameterized lookups include:
+
+- `incidentIdParam` for follow-up detail, incident evidence, and timeline
+  lookup
+- `assetIdParam` for dependency impact and blast-radius lookup
+- `trustFindingIdParam` for semantic data-quality detail lookup
 
 ## Explicit Non-Goals
 
@@ -109,10 +118,10 @@ docker run --rm \
   gradle --no-daemon test
 ```
 
-## Next Implementation Slice
+## Current Product Polish Status
 
-The next implementation slice should replace remaining frontend defensive
-defaults with graph facts for telemetry alert records, repeat-failure and
-engineer-assignment specialty counters, data-quality finding details, and
-parameterized incident/asset lookup. Keep SPARQL read-only and keep the
-endpoint private/internal through `POST /semantic/query/{queryId}`.
+The post-cutover product polish slice added graph-backed telemetry alert
+records, repeat-failure counters, engineer-assignment counters, data-quality
+finding details, and parameterized incident/asset lookup. Keep future additions
+SPARQL read-only and keep the endpoint private/internal through
+`POST /semantic/query/{queryId}`.

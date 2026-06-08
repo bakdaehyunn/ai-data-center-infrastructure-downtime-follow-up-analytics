@@ -460,6 +460,10 @@ components:
           type: integer
         trustFindingCount:
           type: integer
+        repeatFailureAssetCount:
+          type: integer
+        engineerAssignmentDelayHours:
+          type: number
       additionalProperties: false
     FilterMetadataResponse:
       allOf:
@@ -531,6 +535,10 @@ components:
               type: string
             trustSummary:
               type: string
+            repeatFailureAssetCount:
+              type: integer
+            engineerAssignmentDelayHours:
+              type: number
             redundancyState:
               type: string
             affectedRackCount:
@@ -662,12 +670,21 @@ components:
           type: string
         trustFindingUri:
           type: string
+        trustFindingId:
+          type: string
         summary:
           type: string
         sourceFactUri:
           type: string
         activityUri:
           type: string
+        severity:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
       additionalProperties: false
     StageBottlenecksResponse:
       allOf:
@@ -732,6 +749,8 @@ components:
               type: string
             zoneId:
               type: string
+            repeatFailureCount:
+              type: integer
     ZoneDelaySummaryResponse:
       allOf:
         - $ref: "#/components/schemas/QueryResultEnvelopeBase"
@@ -906,6 +925,18 @@ components:
           type: string
         telemetryStatus:
           type: string
+        telemetryAlertId:
+          type: string
+        alertType:
+          type: string
+        alertSeverity:
+          type: string
+        alertTriggeredAt:
+          type: string
+          format: date-time
+        alertResolvedAt:
+          type: string
+          format: date-time
         validationId:
           type: string
         validationStatus:

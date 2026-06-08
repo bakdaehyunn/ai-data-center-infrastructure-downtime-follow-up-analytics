@@ -19,6 +19,11 @@ SELECT
   ?metricValue
   ?metricUnit
   ?telemetryStatus
+  ?telemetryAlertId
+  ?alertType
+  ?alertSeverity
+  ?alertTriggeredAt
+  ?alertResolvedAt
   ?validationId
   ?validationStatus
   ?validatorId
@@ -62,6 +67,11 @@ WHERE {
       OPTIONAL { ?evidence dcai:hasMetricValue ?metricValue . }
       OPTIONAL { ?evidence dcai:hasMetricUnit ?metricUnit . }
       OPTIONAL { ?evidence dcai:hasTelemetryStatus ?telemetryStatus . }
+      OPTIONAL { ?evidence dcai:hasTelemetryAlertId ?telemetryAlertId . }
+      OPTIONAL { ?evidence dcai:hasAlertType ?alertType . }
+      OPTIONAL { ?evidence dcai:hasAlertSeverity ?alertSeverity . }
+      OPTIONAL { ?evidence dcai:alertTriggeredAt ?alertTriggeredAt . }
+      OPTIONAL { ?evidence dcai:alertResolvedAt ?alertResolvedAt . }
       OPTIONAL { ?evidence dcai:hasValidationId ?validationId . }
       OPTIONAL { ?evidence dcai:hasValidationStatus ?validationStatus . }
       OPTIONAL { ?evidence dcai:hasValidatorId ?validatorId . }
@@ -86,5 +96,6 @@ WHERE {
     }
   }
   FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(?incidentId = COALESCE(?incidentIdParam, ?incidentId))
 }
 ORDER BY ?incidentId ?evidence ?trustFinding

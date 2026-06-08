@@ -30,6 +30,7 @@ WHERE {
     }
   }
   FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(?assetId = COALESCE(?assetIdParam, ?assetId))
   FILTER(BOUND(?downstreamAsset) || BOUND(?finding))
 }
 ORDER BY ?assetId ?downstreamAssetId ?incidentId

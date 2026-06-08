@@ -18,6 +18,8 @@ SELECT
   (COALESCE(SUM(?thermalMinutes), 0) AS ?thermalBreachMinutes)
   (COUNT(DISTINCT ?redundancyLostImpact) AS ?redundancyLostIncidentCount)
   (COUNT(DISTINCT ?vendorEtaMissedImpact) AS ?vendorEtaMissedCount)
+  (COALESCE(SUM(?repeatFailureAssetCountValue), 0) AS ?repeatFailureAssetCount)
+  (COALESCE(SUM(?engineerAssignmentDelayHoursValue), 0) AS ?engineerAssignmentDelayHours)
 WHERE {
   GRAPH ?graph {
     OPTIONAL { ?incident a dcai:InfrastructureIncident . }
@@ -47,6 +49,11 @@ WHERE {
       ?event a dcai:WorkflowEvent .
       OPTIONAL { ?event dcai:hasDurationHours ?durationHours . }
       OPTIONAL { ?event dcai:hasDelayHours ?delayHours . }
+    }
+    OPTIONAL {
+      ?queueItem a dcai:FollowUpQueueItem .
+      OPTIONAL { ?queueItem dcai:hasRepeatFailureAssetCount ?repeatFailureAssetCountValue . }
+      OPTIONAL { ?queueItem dcai:hasEngineerAssignmentDelayHours ?engineerAssignmentDelayHoursValue . }
     }
     OPTIONAL { ?dependencyEdge a dcai:DependencyEdge . }
     OPTIONAL { ?trustFinding a dcai:TrustFinding . }

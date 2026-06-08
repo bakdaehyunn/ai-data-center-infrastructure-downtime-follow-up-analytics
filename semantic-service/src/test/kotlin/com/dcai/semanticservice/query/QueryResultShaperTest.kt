@@ -149,6 +149,8 @@ class QueryResultShaperTest {
                         "affectedGpuCount" to "320",
                         "dependencyEdgeCount" to "1",
                         "trustFindingCount" to "1",
+                        "repeatFailureAssetCount" to "1",
+                        "engineerAssignmentDelayHours" to "4.0",
                     ),
                 ),
             ),
@@ -158,6 +160,8 @@ class QueryResultShaperTest {
         assertEquals(QueryResultType.DASHBOARD_OVERVIEW, typed.resultType)
         assertEquals(900.0, typed.records.single().capacityRiskKw)
         assertEquals(320, typed.records.single().affectedGpuCount)
+        assertEquals(1, typed.records.single().repeatFailureAssetCount)
+        assertEquals(4.0, typed.records.single().engineerAssignmentDelayHours)
     }
 
     @Test
@@ -202,6 +206,8 @@ class QueryResultShaperTest {
         assertEquals("Escalate vendor ETA.", record.recommendedAction)
         assertEquals("N-1", record.redundancyState)
         assertEquals(40, record.affectedRackCount)
+        assertEquals(1, record.repeatFailureAssetCount)
+        assertEquals(4.0, record.engineerAssignmentDelayHours)
         assertEquals(true, record.powerRedundancyLost)
         assertEquals("ETA_MISSED", record.vendorStatus)
     }
@@ -257,9 +263,13 @@ class QueryResultShaperTest {
                     mapOf(
                         "graph" to "urn:dcai:graph:fixture:canonical:reasoning-output",
                         "trustFinding" to "urn:dcai:fixture:valid:reasoning-output:trust-finding-0001",
+                        "trustFindingId" to "TRUST-0001",
                         "summary" to "Impact evidence is supported by telemetry.",
                         "sourceFact" to "urn:dcai:fixture:valid:reasoning-output:impact-0001",
                         "activity" to "urn:dcai:fixture:valid:reasoning-output:reasoning-activity-0001",
+                        "severity" to "WARNING",
+                        "status" to "FAILED",
+                        "createdAt" to "2026-01-08T02:20:00Z",
                     ),
                 ),
             ),
@@ -268,6 +278,10 @@ class QueryResultShaperTest {
         val typed = assertIs<TrustFindingsEnvelope>(envelope)
         assertEquals(QueryResultType.TRUST_FINDINGS, typed.resultType)
         assertEquals("Impact evidence is supported by telemetry.", typed.records.single().summary)
+        assertEquals("TRUST-0001", typed.records.single().trustFindingId)
+        assertEquals("WARNING", typed.records.single().severity)
+        assertEquals("FAILED", typed.records.single().status)
+        assertEquals("2026-01-08T02:20:00Z", typed.records.single().createdAt)
     }
 
     @Test
@@ -293,6 +307,10 @@ class QueryResultShaperTest {
                         "metricValue" to "18.0",
                         "metricUnit" to "psi",
                         "telemetryStatus" to "CRITICAL",
+                        "telemetryAlertId" to "TEL-ALERT-0001",
+                        "alertType" to "FUEL_PRESSURE_LOW",
+                        "alertSeverity" to "CRITICAL",
+                        "alertTriggeredAt" to "2026-01-08T02:10:00Z",
                         "trustFinding" to "urn:dcai:fixture:valid:reasoning-output:trust-finding-0001",
                         "trustSummary" to "Impact evidence is supported by telemetry.",
                     ),
@@ -308,6 +326,10 @@ class QueryResultShaperTest {
         assertEquals("fuel_pressure_psi", record.metricName)
         assertEquals(18.0, record.metricValue)
         assertEquals("CRITICAL", record.telemetryStatus)
+        assertEquals("TEL-ALERT-0001", record.telemetryAlertId)
+        assertEquals("FUEL_PRESSURE_LOW", record.alertType)
+        assertEquals("CRITICAL", record.alertSeverity)
+        assertEquals("2026-01-08T02:10:00Z", record.alertTriggeredAt)
     }
 
     @Test
@@ -370,6 +392,7 @@ class QueryResultShaperTest {
                 "capacityRiskKw" to "900.0",
                 "affectedGpuCount" to "320",
                 "delayedIncidentCount" to "1",
+                "repeatFailureCount" to "1",
                 "totalDurationHours" to "63.0",
                 "avgDurationHours" to "63.0",
                 "topFailureMode" to "Spare/vendor waiting",
@@ -425,6 +448,10 @@ class QueryResultShaperTest {
                 "metricValue" to "18.0",
                 "metricUnit" to "psi",
                 "telemetryStatus" to "CRITICAL",
+                "telemetryAlertId" to "TEL-ALERT-0001",
+                "alertType" to "FUEL_PRESSURE_LOW",
+                "alertSeverity" to "CRITICAL",
+                "alertTriggeredAt" to "2026-01-08T02:10:00Z",
                 "trustFinding" to "urn:dcai:fixture:valid:reasoning-output:trust-finding-0001",
                 "trustSummary" to "Impact evidence is supported by telemetry.",
             ),
@@ -602,6 +629,8 @@ class QueryResultShaperTest {
             "infrastructureZoneImpactScore" to "20.0",
             "neededByUrgencyScore" to "10.0",
             "repeatFailureScore" to "0.0",
+            "repeatFailureAssetCount" to "1",
+            "engineerAssignmentDelayHours" to "4.0",
             "spareRiskScore" to "22.0",
             "capacityRiskScore" to "30.0",
             "redundancyRiskScore" to "24.0",

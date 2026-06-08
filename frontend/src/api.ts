@@ -363,6 +363,8 @@ type SemanticDashboardOverviewRecord = {
   thermalBreachMinutes?: number
   redundancyLostIncidentCount?: number
   vendorEtaMissedCount?: number
+  repeatFailureAssetCount?: number
+  engineerAssignmentDelayHours?: number
 }
 
 type SemanticFollowUpQueueRecord = {
@@ -389,6 +391,8 @@ type SemanticFollowUpQueueRecord = {
   infrastructureZoneImpactScore?: number
   neededByUrgencyScore?: number
   repeatFailureScore?: number
+  repeatFailureAssetCount?: number
+  engineerAssignmentDelayHours?: number
   spareRiskScore?: number
   capacityRiskScore?: number
   redundancyRiskScore?: number
@@ -457,6 +461,7 @@ type SemanticAssetDelaySummaryRecord = {
   capacityRiskKw: number
   affectedGpuCount: number
   delayedIncidentCount?: number
+  repeatFailureCount?: number
   totalDurationHours?: number
   avgDurationHours?: number
   topFailureMode?: string
@@ -490,9 +495,13 @@ type SemanticSpareWaitSummaryRecord = {
 
 type SemanticTrustFindingRecord = {
   trustFindingUri: string
+  trustFindingId?: string
   summary: string
   sourceFactUri: string
   activityUri?: string
+  severity?: string
+  status?: string
+  createdAt?: string
 }
 
 type SemanticTopologyDependencyRecord = {
@@ -528,6 +537,11 @@ type SemanticIncidentEvidenceRecord = {
   metricValue?: number
   metricUnit?: string
   telemetryStatus?: string
+  telemetryAlertId?: string
+  alertType?: string
+  alertSeverity?: string
+  alertTriggeredAt?: string
+  alertResolvedAt?: string
   validationId?: string
   validationStatus?: string
   validatorId?: string
@@ -649,18 +663,29 @@ export async function fetchFilterMetadata(): Promise<FilterMetadata> {
 export async function fetchRequestDetail(infrastructureRequestId: string): Promise<RequestDetail> {
   const [queueRecords, detailRecords, evidenceRecords, timelineRecords] = await Promise.all([
     postSemanticQuery<SemanticFollowUpQueueRecord>('semanticFollowUpQueueList'),
-    postSemanticQuery<SemanticFollowUpDetailRecord>('semanticFollowUpDetail'),
-    postSemanticQuery<SemanticIncidentEvidenceRecord>('semanticIncidentEvidence'),
-    postSemanticQuery<SemanticIncidentTimelineRecord>('semanticIncidentTimeline'),
+    postSemanticQuery<SemanticFollowUpDetailRecord>('semanticFollowUpDetail', { incidentIdParam: infrastructureRequestId }),
+    postSemanticQuery<SemanticIncidentEvidenceRecord>('semanticIncidentEvidence', { incidentIdParam: infrastructureRequestId }),
+    postSemanticQuery<SemanticIncidentTimelineRecord>('semanticIncidentTimeline', { incidentIdParam: infrastructureRequestId }),
   ])
   const request = buildFollowUps(queueRecords, detailRecords).find((row) => row.incident_id === infrastructureRequestId)
   if (!request) {
     throw new Error(`Semantic follow-up not found: ${infrastructureRequestId}`)
   }
   const detailRecord = detailRecords.find((record) => record.incidentId === infrastructureRequestId)
-  const evidence = evidenceRecords.filter((record) => record.incidentId === infrastructureRequestId)
-  const timeline = timelineRecords.filter((record) => record.incidentId === infrastructureRequestId)
+  const evidence = evidenceRecords
+  const timeline = timelineRecords
   return buildRequestDetail(request, detailRecord, evidence, timeline)
+}
+
+export async function fetchDataQualityCheck(checkResultId: string): Promise<DataQualityCheck> {
+  const records = await postSemanticQuery<SemanticTrustFindingRecord>('semanticTrustFindingList', {
+    trustFindingIdParam: checkResultId,
+  })
+  const selected = records[0]
+  if (!selected) {
+    throw new Error(`Semantic trust finding not found: ${checkResultId}`)
+  }
+  return mapTrustFinding(selected)
 }
 
 export async function fetchTopologyDependencies(): Promise<InfrastructureDependency[]> {
@@ -678,13 +703,13 @@ export async function fetchRequestSemanticContext(
 ): Promise<RequestSemanticContext> {
   const [validationRecords, evidenceRecords, dependencyRecords, blastRadiusRecords] = await Promise.all([
     postSemanticQuery<SemanticValidationSummaryRecord>('semanticValidationSummary'),
-    postSemanticQuery<SemanticIncidentEvidenceRecord>('semanticIncidentEvidence'),
-    postSemanticQuery<SemanticDependencyImpactRecord>('semanticDependencyImpactByAsset'),
-    postSemanticQuery<SemanticBlastRadiusRecord>('semanticBlastRadiusByAsset'),
+    postSemanticQuery<SemanticIncidentEvidenceRecord>('semanticIncidentEvidence', { incidentIdParam: incidentId }),
+    postSemanticQuery<SemanticDependencyImpactRecord>('semanticDependencyImpactByAsset', { assetIdParam: assetId }),
+    postSemanticQuery<SemanticBlastRadiusRecord>('semanticBlastRadiusByAsset', { assetIdParam: assetId }),
   ])
-  const incidentEvidenceRecords = evidenceRecords.filter((record) => record.incidentId === incidentId)
-  const dependencyImpactRecords = dependencyRecords.filter((record) => record.assetId === assetId)
-  const selectedBlastRadiusRecords = blastRadiusRecords.filter((record) => record.assetId === assetId)
+  const incidentEvidenceRecords = evidenceRecords
+  const dependencyImpactRecords = dependencyRecords
+  const selectedBlastRadiusRecords = blastRadiusRecords
   return {
     validation: mapSemanticValidation(validationRecords),
     incidentEvidence: mapSemanticIncidentEvidence(incidentId, incidentEvidenceRecords),
@@ -693,9 +718,14 @@ export async function fetchRequestSemanticContext(
   }
 }
 
-async function postSemanticQuery<T>(queryId: string): Promise<T[]> {
+async function postSemanticQuery<T>(
+  queryId: string,
+  parameters: Record<string, string> = {},
+): Promise<T[]> {
   const response = await fetch(`${SEMANTIC_API_BASE_URL}/semantic/query/${queryId}`, {
     method: 'POST',
+    headers: Object.keys(parameters).length ? { 'Content-Type': 'application/json' } : undefined,
+    body: Object.keys(parameters).length ? JSON.stringify({ parameters }) : undefined,
   })
   if (!response.ok) {
     const payload = await response.text()
@@ -795,8 +825,8 @@ function buildOverview(record: SemanticDashboardOverviewRecord | undefined, foll
     avg_downtime_hours: record?.avgDurationHours ?? 0,
     top_bottleneck_stage: topStage(followUps),
     spare_waiting_delay_hours: followUps.filter((row) => row.current_stage === 'SPARE_VENDOR_WAITING').reduce((total, row) => total + row.hours_in_current_stage, 0),
-    repeat_failure_asset_count: 0,
-    engineer_assignment_delay_hours: 0,
+    repeat_failure_asset_count: record?.repeatFailureAssetCount ?? 0,
+    engineer_assignment_delay_hours: record?.engineerAssignmentDelayHours ?? 0,
     capacity_risk_kw: capacityRiskKw,
     affected_gpu_count: affectedGpuCount,
     redundancy_lost_incidents: record?.redundancyLostIncidentCount ?? followUps.filter((row) => row.redundancy_state === 'N-1').length,
@@ -843,7 +873,7 @@ function mapAssetDelaySummary(record: SemanticAssetDelaySummaryRecord): Infrastr
     zone_name: humanize(record.zoneId),
     request_count: record.incidentCount,
     delayed_request_count: record.delayedIncidentCount ?? (record.capacityRiskKw > 0 ? record.incidentCount : 0),
-    repeat_failure_count: 0,
+    repeat_failure_count: record.repeatFailureCount ?? 0,
     total_downtime_hours: record.totalDurationHours ?? 0,
     avg_repair_duration_hours: record.avgDurationHours ?? 0,
     top_failure_mode: record.topFailureMode ?? (record.impactObservationCount ? 'Semantic impact observation' : 'None'),
@@ -877,16 +907,16 @@ function mapSpareWaitSummary(record: SemanticSpareWaitSummaryRecord): SpareWaiti
 
 function mapTrustFinding(record: SemanticTrustFindingRecord): DataQualityCheck {
   return {
-    check_result_id: record.trustFindingUri,
+    check_result_id: record.trustFindingId ?? record.trustFindingUri,
     pipeline_run_id: record.activityUri ?? 'semantic-service',
     check_name: 'Semantic trust finding',
     target_table: 'rdf_named_graph',
-    severity: 'WARNING',
-    status: 'FAILED',
+    severity: record.severity ?? 'WARNING',
+    status: record.status ?? 'FAILED',
     failed_row_count: 1,
     sample_failed_keys: [record.sourceFactUri],
     message: record.summary,
-    created_at: '',
+    created_at: record.createdAt ?? '',
   }
 }
 
@@ -1010,7 +1040,16 @@ function buildRequestDetail(
       validation_completed_at: record.validationCompletedAt ?? null,
       failure_reason: record.failureReason ?? null,
     })),
-    telemetry_alerts: [],
+    telemetry_alerts: telemetryEvidence
+      .filter((record) => record.telemetryAlertId || record.alertType || record.alertSeverity || record.alertTriggeredAt)
+      .map((record) => ({
+        telemetry_alert_id: record.telemetryAlertId ?? record.evidenceUri ?? `${request.incident_id}:semantic-telemetry-alert`,
+        asset_id: request.asset_id,
+        alert_type: record.alertType ?? record.metricName ?? 'SEMANTIC_TELEMETRY',
+        severity: record.alertSeverity ?? record.telemetryStatus ?? record.confidenceState ?? 'INFO',
+        triggered_at: record.alertTriggeredAt ?? record.evidenceTimestamp ?? '',
+        resolved_at: record.alertResolvedAt ?? null,
+      })),
     impact_snapshot: {
       impact_snapshot_id: detail?.impactUri ?? `${request.incident_id}:semantic-impact`,
       incident_id: request.incident_id,

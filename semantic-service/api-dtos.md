@@ -2,10 +2,10 @@
 
 This document describes request and response DTO boundaries for the Kotlin
 semantic service. Phase 18 defined the response contract before HTTP runtime
-existed. Post-Phase-20 implements the first internal-only private query
-endpoint for existing approved fixture inspection query IDs. Product dashboard
-view-model endpoints, public exposure, DTO generation, reasoning endpoints, and
-graph-write commands remain out of scope.
+existed. Post-Phase-20 now implements an internal-only private query endpoint
+for approved fixture inspection and product read-model query IDs. Public
+exposure, DTO generation, reasoning endpoints, and graph-write commands remain
+out of scope.
 
 ## Phase 18 Response Contract Checkpoint
 
@@ -67,6 +67,8 @@ Post-Phase-20 implementation status:
 - semantic errors use the Phase 18 error envelope
 - request bodies must not contain raw SPARQL, arbitrary query text, SPARQL
   Update, or replacement query definitions
+- request bodies may include string-valued `parameters` for approved lookup
+  query IDs; unsupported parameter names are rejected before execution
 - product dashboard view-model query IDs are implemented only when backed by
   approved SPARQL, typed envelopes, shaper support, serializer support, and
   private endpoint tests
@@ -150,6 +152,8 @@ Dashboard overview record:
   `totalDelayHours`, `mitigatedIncidentCount`, `affectedRackCount`,
   `thermalBreachMinutes`, `redundancyLostIncidentCount`, and
   `vendorEtaMissedCount`
+- optional specialty counters: `repeatFailureAssetCount` and
+  `engineerAssignmentDelayHours`
 
 Filter metadata record:
 
@@ -172,6 +176,8 @@ Follow-up detail record:
 - `blockerSummary`: optional recovery blocker summary
 - `trustFindingUri`: optional trust finding IRI
 - `trustSummary`: optional trust finding summary
+- specialty counters: optional `repeatFailureAssetCount` and
+  `engineerAssignmentDelayHours`
 - impact state fields: optional `redundancyState`, `affectedRackCount`,
   `estimatedGpuCapacityRiskPct`, `thermalBreachMinutes`,
   `powerRedundancyLost`, `coolingRedundancyLost`, `mitigationStatus`,
@@ -208,9 +214,13 @@ Trust finding record:
 
 - `graphUri`: named graph IRI
 - `trustFindingUri`: trust finding IRI
+- `trustFindingId`: optional stable trust finding identifier
 - `summary`: finding summary
 - `sourceFactUri`: source fact IRI used by the finding
 - `activityUri`: optional reasoning activity IRI
+- `severity`: optional semantic severity
+- `status`: optional confidence or validation status
+- `createdAt`: optional finding creation timestamp
 
 Stage bottleneck record:
 
@@ -235,6 +245,7 @@ Asset delay summary record:
 - `affectedGpuCount`: summed affected GPU count
 - optional delay fields: `delayedIncidentCount`, `totalDurationHours`,
   `avgDurationHours`, and `topFailureMode`
+- `repeatFailureCount`: optional repeat-failure count for the asset
 - `sourceRecordUri`: source record IRI for asset provenance
 
 Zone delay summary record:
@@ -285,6 +296,8 @@ Incident evidence record:
 - `confidenceState`: optional evidence confidence state
 - telemetry fields: optional `metricName`, `metricValue`, `metricUnit`, and
   `telemetryStatus`
+- telemetry alert fields: optional `telemetryAlertId`, `alertType`,
+  `alertSeverity`, `alertTriggeredAt`, and `alertResolvedAt`
 - validation fields: optional `validationId`, `validationStatus`,
   `validatorId`, `validationStartedAt`, `validationCompletedAt`, and
   `failureReason`
@@ -363,7 +376,7 @@ Phase 19 internal serialization:
 - It also converts approved semantic error codes into the Phase 18
   `SemanticErrorResponse` map shape.
 - Post-Phase-20 wraps this serializer in a private loopback HTTP boundary for
-  the three existing approved inspection queries only.
+  approved inspection and product read-model queries.
 
 Phase 20 endpoint readiness:
 

@@ -12,8 +12,8 @@ The active product runtime has been cut over to the ontology-native path:
 
 The frontend still contains a compatibility adapter that maps graph-backed
 semantic envelopes into the current dashboard component contracts. Remaining
-defaults are defensive handling for optional semantic facts, not a dependency
-on the removed relational runtime.
+defaults are defensive handling for absent optional semantic facts, not a
+dependency on the removed relational runtime.
 
 ## Removed Old Runtime Scope
 
@@ -45,24 +45,23 @@ Removed from the active source tree:
 The adapter now reads graph-backed queue rank/title/status/time, priority
 level, business impact, priority score inputs, impact exposure, redundancy,
 mitigation, vendor, thermal, stage thresholds, stage history, aggregate
-downtime/wait-hour summaries, evidence timestamp, work-order, validation, and
-telemetry fields when present.
+downtime/wait-hour summaries, evidence timestamp, work-order, validation,
+telemetry readings, telemetry alerts, repeat-failure counters,
+engineer-assignment counters, and semantic trust-finding detail fields when
+present.
 
-These fields still need native semantic modeling before the adapter can become
-a pure graph DTO mapping:
-
-1. telemetry alert records beyond telemetry readings
-2. repeat-failure and engineer-assignment specialty counters
-3. old data-quality check detail IDs beyond semantic trust finding IDs
-4. parameterized semantic queries for incident and asset detail lookup
+Parameterized approved semantic queries now cover incident evidence, incident
+timeline, follow-up detail, trust-finding detail, dependency impact, and blast
+radius lookups. The remaining adapter fallbacks are narrow null guards for
+optional facts that may be missing from a fixture or future source extract.
 
 ## Safe Next Migration Work
 
-1. Add RDF fixtures and SHACL shapes for the missing operational fields.
-2. Extend approved SPARQL read models to return those fields directly.
-3. Replace frontend compatibility defaults with graph-backed values.
-4. Add semantic-service contract tests for parameterized lookup behavior.
-5. Keep old Python/Postgres code out of the runtime unless a historical
+1. Continue replacing optional null guards only when new graph facts and tests
+   make the field mandatory.
+2. Add SHACL constraints for any operational fields promoted from optional to
+   required.
+3. Keep old Python/Postgres code out of the runtime unless a historical
    reference is intentionally restored from Git history.
 
 ## Verification Commands

@@ -86,6 +86,12 @@ dcai:hasVendorEtaRiskScore rdf:type owl:DatatypeProperty ;
 dcai:hasMitigationCreditScore rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:FollowUpQueueItem ;
   rdfs:range xsd:decimal .
+dcai:hasRepeatFailureAssetCount rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:FollowUpQueueItem ;
+  rdfs:range xsd:integer .
+dcai:hasEngineerAssignmentDelayHours rdf:type owl:DatatypeProperty ;
+  rdfs:domain dcai:FollowUpQueueItem ;
+  rdfs:range xsd:decimal .
 dcai:hasFindingSummary rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:DerivedFact ;
   rdfs:range xsd:string .

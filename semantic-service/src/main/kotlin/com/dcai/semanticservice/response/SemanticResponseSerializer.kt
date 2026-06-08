@@ -104,6 +104,8 @@ class SemanticResponseSerializer {
                     record.thermalBreachMinutes?.let { put("thermalBreachMinutes", it) }
                     record.redundancyLostIncidentCount?.let { put("redundancyLostIncidentCount", it) }
                     record.vendorEtaMissedCount?.let { put("vendorEtaMissedCount", it) }
+                    record.repeatFailureAssetCount?.let { put("repeatFailureAssetCount", it) }
+                    record.engineerAssignmentDelayHours?.let { put("engineerAssignmentDelayHours", it) }
                 }
             }
             is FilterMetadataEnvelope -> envelope.records.map { record ->
@@ -150,6 +152,8 @@ class SemanticResponseSerializer {
                     record.infrastructureZoneImpactScore?.let { put("infrastructureZoneImpactScore", it) }
                     record.neededByUrgencyScore?.let { put("neededByUrgencyScore", it) }
                     record.repeatFailureScore?.let { put("repeatFailureScore", it) }
+                    record.repeatFailureAssetCount?.let { put("repeatFailureAssetCount", it) }
+                    record.engineerAssignmentDelayHours?.let { put("engineerAssignmentDelayHours", it) }
                     record.spareRiskScore?.let { put("spareRiskScore", it) }
                     record.capacityRiskScore?.let { put("capacityRiskScore", it) }
                     record.redundancyRiskScore?.let { put("redundancyRiskScore", it) }
@@ -203,9 +207,13 @@ class SemanticResponseSerializer {
                 buildMap {
                     put("graphUri", record.graphUri)
                     put("trustFindingUri", record.trustFindingUri)
+                    record.trustFindingId?.let { put("trustFindingId", it) }
                     put("summary", record.summary)
                     put("sourceFactUri", record.sourceFactUri)
                     record.activityUri?.let { put("activityUri", it) }
+                    record.severity?.let { put("severity", it) }
+                    record.status?.let { put("status", it) }
+                    record.createdAt?.let { put("createdAt", it) }
                 }
             }
             is StageBottlenecksEnvelope -> envelope.records.map { record ->
@@ -233,6 +241,7 @@ class SemanticResponseSerializer {
                     put("capacityRiskKw", record.capacityRiskKw)
                     put("affectedGpuCount", record.affectedGpuCount)
                     record.delayedIncidentCount?.let { put("delayedIncidentCount", it) }
+                    record.repeatFailureCount?.let { put("repeatFailureCount", it) }
                     record.totalDurationHours?.let { put("totalDurationHours", it) }
                     record.avgDurationHours?.let { put("avgDurationHours", it) }
                     record.topFailureMode?.let { put("topFailureMode", it) }
@@ -296,6 +305,11 @@ class SemanticResponseSerializer {
                     record.metricValue?.let { put("metricValue", it) }
                     record.metricUnit?.let { put("metricUnit", it) }
                     record.telemetryStatus?.let { put("telemetryStatus", it) }
+                    record.telemetryAlertId?.let { put("telemetryAlertId", it) }
+                    record.alertType?.let { put("alertType", it) }
+                    record.alertSeverity?.let { put("alertSeverity", it) }
+                    record.alertTriggeredAt?.let { put("alertTriggeredAt", it) }
+                    record.alertResolvedAt?.let { put("alertResolvedAt", it) }
                     record.validationId?.let { put("validationId", it) }
                     record.validationStatus?.let { put("validationStatus", it) }
                     record.validatorId?.let { put("validatorId", it) }

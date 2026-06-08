@@ -29,3 +29,32 @@ dcai:EvidenceSupportShape
     [ sh:property [ sh:path dcai:supportsFact ; sh:minCount 1 ] ]
     [ sh:property [ sh:path dcai:contradictsFact ; sh:minCount 1 ] ]
   ) .
+
+dcai:TelemetryEvidenceShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:TelemetryEvidence ;
+  sh:property [
+    sh:path dcai:hasTelemetryAlertId ;
+    sh:minCount 0 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasAlertType ;
+    sh:minCount 0 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasAlertSeverity ;
+    sh:minCount 0 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:alertTriggeredAt ;
+    sh:minCount 0 ;
+    sh:datatype xsd:dateTime
+  ] ;
+  sh:property [
+    sh:path dcai:alertResolvedAt ;
+    sh:minCount 0 ;
+    sh:datatype xsd:dateTime
+  ] .

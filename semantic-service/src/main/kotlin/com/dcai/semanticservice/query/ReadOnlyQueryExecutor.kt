@@ -2,6 +2,10 @@ package com.dcai.semanticservice.query
 
 interface ReadOnlyQueryExecutor {
     fun execute(queryId: String): QueryExecutionReport
+    fun execute(
+        queryId: String,
+        parameters: Map<String, String>,
+    ): QueryExecutionReport = execute(queryId)
 }
 
 data class QueryExecutionReport(

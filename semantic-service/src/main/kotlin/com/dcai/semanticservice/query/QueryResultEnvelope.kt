@@ -160,6 +160,8 @@ data class DashboardOverviewRecord(
     val thermalBreachMinutes: Int? = null,
     val redundancyLostIncidentCount: Int? = null,
     val vendorEtaMissedCount: Int? = null,
+    val repeatFailureAssetCount: Int? = null,
+    val engineerAssignmentDelayHours: Double? = null,
 )
 
 data class FilterMetadataEnvelope(
@@ -222,6 +224,8 @@ data class FollowUpDetailRecord(
     val infrastructureZoneImpactScore: Double? = null,
     val neededByUrgencyScore: Double? = null,
     val repeatFailureScore: Double? = null,
+    val repeatFailureAssetCount: Int? = null,
+    val engineerAssignmentDelayHours: Double? = null,
     val spareRiskScore: Double? = null,
     val capacityRiskScore: Double? = null,
     val redundancyRiskScore: Double? = null,
@@ -299,9 +303,13 @@ data class TrustFindingsEnvelope(
 data class TrustFindingRecord(
     val graphUri: String,
     val trustFindingUri: String,
+    val trustFindingId: String? = null,
     val summary: String,
     val sourceFactUri: String,
     val activityUri: String? = null,
+    val severity: String? = null,
+    val status: String? = null,
+    val createdAt: String? = null,
 )
 
 data class StageBottlenecksEnvelope(
@@ -345,6 +353,7 @@ data class AssetDelaySummaryRecord(
     val capacityRiskKw: Double,
     val affectedGpuCount: Int,
     val delayedIncidentCount: Int? = null,
+    val repeatFailureCount: Int? = null,
     val totalDurationHours: Double? = null,
     val avgDurationHours: Double? = null,
     val topFailureMode: String? = null,
@@ -440,6 +449,11 @@ data class IncidentEvidenceRecord(
     val metricValue: Double? = null,
     val metricUnit: String? = null,
     val telemetryStatus: String? = null,
+    val telemetryAlertId: String? = null,
+    val alertType: String? = null,
+    val alertSeverity: String? = null,
+    val alertTriggeredAt: String? = null,
+    val alertResolvedAt: String? = null,
     val validationId: String? = null,
     val validationStatus: String? = null,
     val validatorId: String? = null,

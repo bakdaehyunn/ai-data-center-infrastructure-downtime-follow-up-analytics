@@ -90,6 +90,8 @@ fixture:queue-item-0001
   dcai:hasInfrastructureZoneImpactScore "20.0"^^xsd:decimal ;
   dcai:hasNeededByUrgencyScore "10.0"^^xsd:decimal ;
   dcai:hasRepeatFailureScore "0.0"^^xsd:decimal ;
+  dcai:hasRepeatFailureAssetCount "1"^^xsd:integer ;
+  dcai:hasEngineerAssignmentDelayHours "4.0"^^xsd:decimal ;
   dcai:hasSpareRiskScore "22.0"^^xsd:decimal ;
   dcai:hasCapacityRiskScore "30.0"^^xsd:decimal ;
   dcai:hasRedundancyRiskScore "24.0"^^xsd:decimal ;
@@ -156,6 +158,10 @@ fixture:evidence-0001
   dcai:hasMetricValue "18.0"^^xsd:decimal ;
   dcai:hasMetricUnit "psi" ;
   dcai:hasTelemetryStatus "CRITICAL" ;
+  dcai:hasTelemetryAlertId "TEL-ALERT-0001" ;
+  dcai:hasAlertType "FUEL_PRESSURE_LOW" ;
+  dcai:hasAlertSeverity "CRITICAL" ;
+  dcai:alertTriggeredAt "2026-01-08T02:10:00Z"^^xsd:dateTime ;
   prov:wasDerivedFrom fixture:source-record-0001 .
 
 fixture:validation-evidence-0001
@@ -211,6 +217,10 @@ fixture:restore-readiness-0001
 
 fixture:trust-finding-0001
   rdf:type dcai:TrustFinding ;
+  dcai:hasIdentifier "TRUST-0001" ;
+  dcai:createdAt "2026-01-08T02:20:00Z"^^xsd:dateTime ;
+  dcai:hasEvidenceSeverity "WARNING" ;
+  dcai:hasConfidenceState "FAILED" ;
   dcai:hasFindingSummary "Impact evidence is supported by telemetry." ;
   prov:wasDerivedFrom fixture:impact-0001 ;
   prov:wasGeneratedBy fixture:reasoning-activity-0001 .

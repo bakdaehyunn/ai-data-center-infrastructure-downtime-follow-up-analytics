@@ -1,5 +1,7 @@
 package com.dcai.semanticservice.response
 
+import com.dcai.semanticservice.query.AssetDelaySummaryEnvelope
+import com.dcai.semanticservice.query.AssetDelaySummaryRecord
 import com.dcai.semanticservice.query.DashboardOverviewEnvelope
 import com.dcai.semanticservice.query.DashboardOverviewRecord
 import com.dcai.semanticservice.query.FilterMetadataEnvelope
@@ -197,6 +199,8 @@ class SemanticResponseSerializerTest {
                             trustFindingCount = 1,
                             avgDurationHours = 17.5,
                             totalDelayHours = 45.0,
+                            repeatFailureAssetCount = 1,
+                            engineerAssignmentDelayHours = 4.0,
                         ),
                     ),
                     provenance = provenance("semanticDashboardOverview"),
@@ -233,6 +237,8 @@ class SemanticResponseSerializerTest {
                             sourceRecordUri = "urn:dcai:fixture:valid:reasoning-output:source-record-0001",
                             capacityRiskKw = 900.0,
                             recommendedAction = "Escalate vendor ETA.",
+                            repeatFailureAssetCount = 1,
+                            engineerAssignmentDelayHours = 4.0,
                         ),
                     ),
                     provenance = provenance("semanticFollowUpDetail"),
@@ -279,6 +285,27 @@ class SemanticResponseSerializerTest {
                 ),
             ),
             serializer.serialize(
+                AssetDelaySummaryEnvelope(
+                    queryId = "semanticAssetDelaySummary",
+                    records = listOf(
+                        AssetDelaySummaryRecord(
+                            graphUri = "urn:dcai:graph:fixture:canonical:reasoning-output",
+                            assetUri = "urn:dcai:fixture:valid:reasoning-output:asset-a",
+                            assetId = "ASSET-A",
+                            zoneUri = "urn:dcai:fixture:valid:reasoning-output:zone-a",
+                            zoneId = "ZONE-A",
+                            incidentCount = 1,
+                            impactObservationCount = 1,
+                            capacityRiskKw = 900.0,
+                            affectedGpuCount = 320,
+                            repeatFailureCount = 1,
+                            sourceRecordUri = "urn:dcai:fixture:valid:reasoning-output:source-record-0001",
+                        ),
+                    ),
+                    provenance = provenance("semanticAssetDelaySummary"),
+                ),
+            ),
+            serializer.serialize(
                 IncidentEvidenceEnvelope(
                     queryId = "semanticIncidentEvidence",
                     records = listOf(
@@ -295,6 +322,10 @@ class SemanticResponseSerializerTest {
                             metricValue = 18.0,
                             metricUnit = "psi",
                             telemetryStatus = "CRITICAL",
+                            telemetryAlertId = "TEL-ALERT-0001",
+                            alertType = "FUEL_PRESSURE_LOW",
+                            alertSeverity = "CRITICAL",
+                            alertTriggeredAt = "2026-01-08T02:10:00Z",
                         ),
                     ),
                     provenance = provenance("semanticIncidentEvidence"),
@@ -330,8 +361,12 @@ class SemanticResponseSerializerTest {
                         TrustFindingRecord(
                             graphUri = "urn:dcai:graph:fixture:canonical:reasoning-output",
                             trustFindingUri = "urn:dcai:fixture:valid:reasoning-output:trust-finding-0001",
+                            trustFindingId = "TRUST-0001",
                             summary = "Impact evidence is supported by telemetry.",
                             sourceFactUri = "urn:dcai:fixture:valid:reasoning-output:impact-0001",
+                            severity = "WARNING",
+                            status = "FAILED",
+                            createdAt = "2026-01-08T02:20:00Z",
                         ),
                     ),
                     provenance = provenance("semanticTrustFindingList"),
@@ -345,6 +380,7 @@ class SemanticResponseSerializerTest {
                 "filter-metadata",
                 "follow-up-detail",
                 "impact-summary",
+                "asset-delay-summary",
                 "incident-evidence",
                 "incident-timeline",
                 "topology-dependencies",
@@ -353,13 +389,22 @@ class SemanticResponseSerializerTest {
             payloads.map { it["resultType"] }.toSet(),
         )
         assertEquals(900.0, firstRecord(payloads[0])["capacityRiskKw"])
+        assertEquals(1, firstRecord(payloads[0])["repeatFailureAssetCount"])
+        assertEquals(4.0, firstRecord(payloads[0])["engineerAssignmentDelayHours"])
         assertEquals("ASSET-GPU-RACK-ROW-A", firstRecord(payloads[1])["id"])
         assertEquals("Escalate vendor ETA.", firstRecord(payloads[2])["recommendedAction"])
+        assertEquals(1, firstRecord(payloads[2])["repeatFailureAssetCount"])
+        assertEquals(4.0, firstRecord(payloads[2])["engineerAssignmentDelayHours"])
         assertEquals(45.0, firstRecord(payloads[0])["totalDelayHours"])
         assertEquals("POWER_SUPPLY", firstRecord(payloads[4])["dependencyRole"])
-        assertEquals("fuel_pressure_psi", firstRecord(payloads[5])["metricName"])
-        assertEquals("EVT-0004", firstRecord(payloads[6])["eventId"])
-        assertEquals("Impact evidence is supported by telemetry.", firstRecord(payloads[7])["summary"])
+        assertEquals(1, firstRecord(payloads[5])["repeatFailureCount"])
+        assertEquals("fuel_pressure_psi", firstRecord(payloads[6])["metricName"])
+        assertEquals("TEL-ALERT-0001", firstRecord(payloads[6])["telemetryAlertId"])
+        assertEquals("FUEL_PRESSURE_LOW", firstRecord(payloads[6])["alertType"])
+        assertEquals("EVT-0004", firstRecord(payloads[7])["eventId"])
+        assertEquals("Impact evidence is supported by telemetry.", firstRecord(payloads[8])["summary"])
+        assertEquals("TRUST-0001", firstRecord(payloads[8])["trustFindingId"])
+        assertEquals("FAILED", firstRecord(payloads[8])["status"])
     }
 
     @Test
