@@ -8,8 +8,13 @@ import com.dcai.semanticservice.fixtures.FixtureLoadSummary
 import com.dcai.semanticservice.fixtures.FixtureValidationReport
 import com.dcai.semanticservice.graph.GraphConnectionCheck
 import com.dcai.semanticservice.graph.ReadOnlyGraphClient
+import com.dcai.semanticservice.ingestion.FileSourceExtractLoader
+import com.dcai.semanticservice.ingestion.SourceExtractRdfMapper
+import com.dcai.semanticservice.lifecycle.GraphLifecycleInspectionPlan
+import com.dcai.semanticservice.lifecycle.GraphLifecycleInspector
 import com.dcai.semanticservice.promotion.GraphPromotionResult
 import com.dcai.semanticservice.promotion.ProductionGraphPromotionPlan
+import com.dcai.semanticservice.promotion.ProductionGraphUris
 import com.dcai.semanticservice.promotion.ProductionGraphValidationReport
 import com.dcai.semanticservice.promotion.PromotionReleaseManifest
 import com.dcai.semanticservice.promotion.SourceGraphPromoter
@@ -18,11 +23,16 @@ import com.dcai.semanticservice.query.QueryMode
 import com.dcai.semanticservice.query.QueryResultEnvelopeProvenance
 import com.dcai.semanticservice.query.QueryResultShaper
 import com.dcai.semanticservice.query.ReadOnlyQueryExecutor
+import com.dcai.semanticservice.reasoning.ReasoningInput
 import com.dcai.semanticservice.reasoning.ReasoningPromotionPlan
 import com.dcai.semanticservice.reasoning.ReasoningPromotionResult
 import com.dcai.semanticservice.reasoning.ReasoningRefresher
 import com.dcai.semanticservice.reasoning.ReasoningReleaseManifest
 import com.dcai.semanticservice.reasoning.ReasoningValidationReport
+import com.dcai.semanticservice.reasoning.ReasoningModelBuilder
+import com.dcai.semanticservice.reasoning.ReasoningOutputGraphUris
+import com.dcai.semanticservice.testfixtures.InMemoryNamedGraphStore
+import java.time.Instant
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.test.Test
@@ -268,6 +278,49 @@ class SemanticServiceApplicationTest {
     }
 
     @Test
+    fun canRunGraphLifecycleInspectionBoundary() {
+        val repoRoot = SemanticServiceApplication.locateRepoRoot()
+        val releaseId = "local-controlled-source-v1"
+        val runId = "local-controlled-reasoning-v1"
+        val productionGraphs = ProductionGraphUris.forRelease(releaseId)
+        val reasoningGraphs = ReasoningOutputGraphUris.forRun(runId)
+        val mapping = SourceExtractRdfMapper().map(
+            FileSourceExtractLoader().load(repoRoot.resolve("fixtures/source-extracts/local-controlled-source-v1.properties")),
+        )
+        val reasoning = ReasoningModelBuilder().build(
+            ReasoningInput(
+                runId = runId,
+                generatedAt = Instant.parse("2026-06-09T01:00:00Z"),
+                canonicalModel = mapping.canonicalModel,
+                provenanceModel = mapping.provenanceModel,
+            ),
+        )
+        val report = SemanticServiceApplication.run(
+            lifecycleInspector = GraphLifecycleInspector(
+                InMemoryNamedGraphStore(
+                    mapOf(
+                        productionGraphs.sourceGraphUri to mapping.sourceModel,
+                        productionGraphs.canonicalGraphUri to mapping.canonicalModel,
+                        productionGraphs.provenanceGraphUri to mapping.provenanceModel,
+                        reasoningGraphs.auditGraphUri to reasoning.auditModel,
+                        reasoningGraphs.reasoningGraphUri to reasoning.reasoningModel,
+                    ),
+                ),
+            ),
+            lifecycleInspectionPlan = GraphLifecycleInspectionPlan(
+                releaseId = releaseId,
+                reasoningRunId = runId,
+            ),
+        )
+
+        assertTrue(report.isReady, report.lifecycleInspectionResult?.errors.orEmpty().joinToString(separator = "\n"))
+        assertTrue(report.graphLifecycleInspectionEnabled)
+        assertEquals("promoted", report.lifecycleInspectionResult?.lifecycleStatus)
+        assertEquals("refreshed", report.lifecycleInspectionResult?.reasoningStatus)
+        assertFalse(report.httpEndpointsEnabled)
+    }
+
+    @Test
     fun rejectsBlankQueryIdArgument() {
         assertFailsWith<IllegalArgumentException> {
             SemanticServiceRuntimeOptions.fromArgs(arrayOf("--run-query="))
@@ -303,17 +356,64 @@ class SemanticServiceApplicationTest {
                 "--repo-root=/workspace",
                 "--promote-source",
                 "--source-release-id=release-a",
+                "--source-extract-file=fixtures/source-extracts/local-controlled-source-v1.properties",
                 "--refresh-reasoning",
                 "--reasoning-input-release-id=release-a",
                 "--reasoning-run-id=reasoning-a",
+                "--inspect-graph-lifecycle",
+                "--inspect-release-id=release-a",
+                "--inspect-reasoning-run-id=reasoning-a",
             ),
         )
 
         assertTrue(options.promoteSource)
         assertEquals("release-a", options.sourceReleaseId)
+        assertEquals("fixtures/source-extracts/local-controlled-source-v1.properties", options.sourceExtractFile)
         assertTrue(options.refreshReasoning)
         assertEquals("release-a", options.reasoningInputReleaseId)
         assertEquals("reasoning-a", options.reasoningRunId)
+        assertTrue(options.inspectGraphLifecycle)
+        assertEquals("release-a", options.inspectReleaseId)
+        assertEquals("reasoning-a", options.inspectReasoningRunId)
+    }
+
+    @Test
+    fun sourceExtractFileMustResolveUnderControlledFixtureDirectory() {
+        val repoRoot = Path.of("/workspace").toAbsolutePath().normalize()
+
+        assertEquals(
+            repoRoot.resolve("fixtures/source-extracts/local-controlled-source-v1.properties"),
+            SemanticServiceApplication.resolveControlledSourceExtractPath(
+                repoRoot = repoRoot,
+                sourceExtractFile = "fixtures/source-extracts/local-controlled-source-v1.properties",
+            ),
+        )
+        assertFailsWith<IllegalArgumentException> {
+            SemanticServiceApplication.resolveControlledSourceExtractPath(
+                repoRoot = repoRoot,
+                sourceExtractFile = "../uncontrolled.properties",
+            )
+        }
+    }
+
+    @Test
+    fun fileBackedSourceReleaseIdMustMatchBatchId() {
+        val repoRoot = SemanticServiceApplication.locateRepoRoot()
+
+        val batch = SemanticServiceApplication.loadSourceExtractBatch(
+            repoRoot = repoRoot,
+            sourceReleaseId = "local-controlled-source-v1",
+            sourceExtractFile = "fixtures/source-extracts/local-controlled-source-v1.properties",
+        )
+
+        assertEquals("local-controlled-source-v1", batch.batchId)
+        assertFailsWith<IllegalArgumentException> {
+            SemanticServiceApplication.loadSourceExtractBatch(
+                repoRoot = repoRoot,
+                sourceReleaseId = "different-release",
+                sourceExtractFile = "fixtures/source-extracts/local-controlled-source-v1.properties",
+            )
+        }
     }
 
     @Test

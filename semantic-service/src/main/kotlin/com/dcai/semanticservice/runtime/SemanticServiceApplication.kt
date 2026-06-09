@@ -16,8 +16,13 @@ import com.dcai.semanticservice.graph.GraphConnectionCheck
 import com.dcai.semanticservice.graph.JenaFusekiReadOnlyGraphClient
 import com.dcai.semanticservice.graph.NamedGraphStore
 import com.dcai.semanticservice.graph.ReadOnlyGraphClient
+import com.dcai.semanticservice.ingestion.FileSourceExtractLoader
 import com.dcai.semanticservice.ingestion.LocalControlledSourceExtract
+import com.dcai.semanticservice.ingestion.SourceExtractBatch
 import com.dcai.semanticservice.ingestion.SourceExtractRdfMapper
+import com.dcai.semanticservice.lifecycle.GraphLifecycleInspectionPlan
+import com.dcai.semanticservice.lifecycle.GraphLifecycleInspectionResult
+import com.dcai.semanticservice.lifecycle.GraphLifecycleInspector
 import com.dcai.semanticservice.promotion.GraphPromotionResult
 import com.dcai.semanticservice.promotion.GraphPromotionService
 import com.dcai.semanticservice.promotion.ProductionGraphPromotionPlan
@@ -93,14 +98,14 @@ object SemanticServiceApplication {
         val queryResultShaper = approvedQueryManifest?.let { manifest ->
             QueryResultShaper(manifest)
         }
-        val graphStore: NamedGraphStore? = if (options.promoteSource || options.refreshReasoning) {
+        val graphStore: NamedGraphStore? = if (options.promoteSource || options.refreshReasoning || options.inspectGraphLifecycle) {
             FusekiNamedGraphWriter(FusekiGraphStoreConfig.fromEnvironment())
         } else {
             null
         }
         val sourcePromotionPlan = if (options.promoteSource) {
             ProductionGraphPromotionPlan(
-                batch = LocalControlledSourceExtract.batch(options.sourceReleaseId),
+                batch = loadSourceExtractBatch(repoRoot, options.sourceReleaseId, options.sourceExtractFile),
                 graphs = ProductionGraphUris.forRelease(options.sourceReleaseId),
             )
         } else {
@@ -131,6 +136,17 @@ object SemanticServiceApplication {
                 graphStore = requireNotNull(graphStore),
             )
         }
+        val lifecycleInspectionPlan = if (options.inspectGraphLifecycle) {
+            GraphLifecycleInspectionPlan(
+                releaseId = options.inspectReleaseId ?: options.sourceReleaseId,
+                reasoningRunId = options.inspectReasoningRunId ?: options.reasoningRunId,
+            )
+        } else {
+            null
+        }
+        val lifecycleInspector = lifecycleInspectionPlan?.let {
+            GraphLifecycleInspector(requireNotNull(graphStore))
+        }
         val report = run(
             repoRoot = repoRoot,
             graphClient = graphClient,
@@ -142,6 +158,8 @@ object SemanticServiceApplication {
             sourcePromotionPlan = sourcePromotionPlan,
             reasoningRefresher = reasoningRefresher,
             reasoningPromotionPlan = reasoningPromotionPlan,
+            lifecycleInspector = lifecycleInspector,
+            lifecycleInspectionPlan = lifecycleInspectionPlan,
         )
 
         println("DCAI Semantic Service")
@@ -155,6 +173,7 @@ object SemanticServiceApplication {
         println("queryExecutionEnabled=${report.queryExecutionEnabled}")
         println("sourcePromotionEnabled=${report.sourcePromotionEnabled}")
         println("reasoningRefreshEnabled=${report.reasoningRefreshEnabled}")
+        println("graphLifecycleInspectionEnabled=${report.graphLifecycleInspectionEnabled}")
         report.graphConnectionCheck?.let { check ->
             println("graphReachable=${check.reachable}")
             println("graphDatasetUrl=${check.datasetUrl}")
@@ -189,6 +208,30 @@ object SemanticServiceApplication {
             println("reasoningWrittenGraphs=${result.writtenGraphUris.size}")
             result.releaseManifest?.let { manifest -> println("reasoningRun=${manifest.runId}") }
         }
+        report.lifecycleInspectionResult?.let { result ->
+            println("lifecycleInspectionSucceeded=${result.inspected}")
+            println("lifecycleRelease=${result.releaseId}")
+            println("lifecycleStatus=${result.lifecycleStatus}")
+            println("lifecycleReasoningStatus=${result.reasoningStatus}")
+            result.sourceGraph?.let { println("lifecycleSourceGraphExists=${it.exists}") }
+            result.canonicalGraph?.let { graph ->
+                println("lifecycleCanonicalGraphExists=${graph.exists}")
+                println("lifecycleCanonicalIncidents=${graph.incidentCount}")
+                println("lifecycleCanonicalAssets=${graph.assetCount}")
+                println("lifecycleCanonicalDependencies=${graph.dependencyEdgeCount}")
+            }
+            result.provenanceGraph?.let { graph ->
+                println("lifecycleProvenanceGraphExists=${graph.exists}")
+                println("lifecycleSourceRecords=${graph.sourceRecordCount}")
+                println("lifecyclePromotionActivities=${graph.promotionActivityCount}")
+                println("lifecycleGeneratedFacts=${graph.generatedFactCount}")
+            }
+            result.reasoningGraph?.let { graph ->
+                println("lifecycleReasoningGraphExists=${graph.exists}")
+                println("lifecycleReasoningActivities=${graph.reasoningActivityCount}")
+                println("lifecycleReasoningFindings=${graph.findingCount}")
+            }
+        }
 
         if (!report.isReady) {
             report.contractValidation.errors.forEach { error -> println("error=$error") }
@@ -198,6 +241,7 @@ object SemanticServiceApplication {
             report.fixtureLoadSummary?.errors?.forEach { error -> println("error=$error") }
             report.sourcePromotionResult?.errors?.forEach { error -> println("error=$error") }
             report.reasoningPromotionResult?.errors?.forEach { error -> println("error=$error") }
+            report.lifecycleInspectionResult?.errors?.forEach { error -> println("error=$error") }
             exitProcess(1)
         }
     }
@@ -214,6 +258,8 @@ object SemanticServiceApplication {
         sourcePromotionPlan: ProductionGraphPromotionPlan? = null,
         reasoningRefresher: ReasoningRefresher? = null,
         reasoningPromotionPlan: ReasoningPromotionPlan? = null,
+        lifecycleInspector: GraphLifecycleInspector? = null,
+        lifecycleInspectionPlan: GraphLifecycleInspectionPlan? = null,
     ): SemanticServiceRuntimeReport {
         val validation = StaticContractValidator().validate(repoRoot)
         val graphConnectionCheck = graphClient?.checkConnectivity()
@@ -240,6 +286,10 @@ object SemanticServiceApplication {
                     .run(plan)
             }
         }
+        val lifecycleInspectionResult = lifecycleInspectionPlan?.let { plan ->
+            requireNotNull(lifecycleInspector) { "lifecycleInspector is required when lifecycleInspectionPlan is provided" }
+                .inspect(plan)
+        }
         return SemanticServiceRuntimeReport(
             repoRoot = repoRoot,
             contractValidation = validation,
@@ -249,6 +299,7 @@ object SemanticServiceApplication {
             queryResultEnvelope = queryResultEnvelope,
             sourcePromotionResult = sourcePromotionResult,
             reasoningPromotionResult = reasoningPromotionResult,
+            lifecycleInspectionResult = lifecycleInspectionResult,
         )
     }
 
@@ -265,6 +316,29 @@ object SemanticServiceApplication {
             current = current.parent
         }
         error("Unable to locate repository root from $start")
+    }
+
+    fun resolveControlledSourceExtractPath(repoRoot: Path, sourceExtractFile: String): Path {
+        val sourceExtractRoot = repoRoot.resolve("fixtures/source-extracts").toAbsolutePath().normalize()
+        val sourceExtractPath = repoRoot.resolve(sourceExtractFile).toAbsolutePath().normalize()
+        require(sourceExtractPath.startsWith(sourceExtractRoot)) {
+            "--source-extract-file must resolve under fixtures/source-extracts"
+        }
+        return sourceExtractPath
+    }
+
+    fun loadSourceExtractBatch(
+        repoRoot: Path,
+        sourceReleaseId: String,
+        sourceExtractFile: String?,
+    ): SourceExtractBatch {
+        return sourceExtractFile?.let { file ->
+            FileSourceExtractLoader().load(resolveControlledSourceExtractPath(repoRoot, file)).also { loadedBatch ->
+                require(loadedBatch.batchId == sourceReleaseId) {
+                    "--source-release-id must match source extract batch.id for file-backed promotion"
+                }
+            }
+        } ?: LocalControlledSourceExtract.batch(sourceReleaseId)
     }
 }
 
@@ -294,13 +368,15 @@ data class SemanticServiceRuntimeReport(
     val queryResultEnvelope: QueryResultEnvelope? = null,
     val sourcePromotionResult: GraphPromotionResult? = null,
     val reasoningPromotionResult: ReasoningPromotionResult? = null,
+    val lifecycleInspectionResult: GraphLifecycleInspectionResult? = null,
 ) {
     val mode: String = "contract-validation-runtime"
     val isReady: Boolean = contractValidation.isValid &&
         (graphConnectionCheck == null || graphConnectionCheck.reachable) &&
         (fixtureLoadSummary == null || fixtureLoadSummary.succeeded) &&
         (sourcePromotionResult == null || sourcePromotionResult.promoted) &&
-        (reasoningPromotionResult == null || reasoningPromotionResult.promoted)
+        (reasoningPromotionResult == null || reasoningPromotionResult.promoted) &&
+        (lifecycleInspectionResult == null || lifecycleInspectionResult.inspected)
     val status: String = if (isReady) "ready" else "blocked"
     val graphExecutionEnabled: Boolean = sourcePromotionResult != null || reasoningPromotionResult != null
     val httpEndpointsEnabled: Boolean = false
@@ -308,6 +384,7 @@ data class SemanticServiceRuntimeReport(
     val queryExecutionEnabled: Boolean = queryExecutionReport != null
     val sourcePromotionEnabled: Boolean = sourcePromotionResult != null
     val reasoningRefreshEnabled: Boolean = reasoningPromotionResult != null
+    val graphLifecycleInspectionEnabled: Boolean = lifecycleInspectionResult != null
 }
 
 data class SemanticServiceRuntimeOptions(
@@ -317,9 +394,13 @@ data class SemanticServiceRuntimeOptions(
     val queryId: String? = null,
     val promoteSource: Boolean = false,
     val sourceReleaseId: String = LocalControlledSourceExtract.DEFAULT_RELEASE_ID,
+    val sourceExtractFile: String? = null,
     val refreshReasoning: Boolean = false,
     val reasoningInputReleaseId: String? = null,
     val reasoningRunId: String = "local-controlled-reasoning-v1",
+    val inspectGraphLifecycle: Boolean = false,
+    val inspectReleaseId: String? = null,
+    val inspectReasoningRunId: String? = null,
     val servePrivateQueryEndpoint: Boolean = false,
     val privateEndpointHost: String = "127.0.0.1",
     val privateEndpointPort: Int = 18080,
@@ -332,9 +413,13 @@ data class SemanticServiceRuntimeOptions(
             var queryId: String? = null
             var promoteSource = false
             var sourceReleaseId = LocalControlledSourceExtract.DEFAULT_RELEASE_ID
+            var sourceExtractFile: String? = null
             var refreshReasoning = false
             var reasoningInputReleaseId: String? = null
             var reasoningRunId = "local-controlled-reasoning-v1"
+            var inspectGraphLifecycle = false
+            var inspectReleaseId: String? = null
+            var inspectReasoningRunId: String? = null
             var servePrivateQueryEndpoint = false
             var privateEndpointHost = "127.0.0.1"
             var privateEndpointPort = 18080
@@ -345,10 +430,23 @@ data class SemanticServiceRuntimeOptions(
                     arg == "--load-fixtures" -> loadFixtures = true
                     arg == "--promote-source" -> promoteSource = true
                     arg == "--refresh-reasoning" -> refreshReasoning = true
+                    arg == "--inspect-graph-lifecycle" -> inspectGraphLifecycle = true
                     arg == "--serve-private-query-endpoint" -> servePrivateQueryEndpoint = true
+                    arg.startsWith("--source-extract-file=") -> {
+                        sourceExtractFile = arg.substringAfter("=")
+                        require(sourceExtractFile.isNotBlank()) { "--source-extract-file requires a value" }
+                    }
                     arg.startsWith("--source-release-id=") -> {
                         sourceReleaseId = arg.substringAfter("=")
                         require(sourceReleaseId.isNotBlank()) { "--source-release-id requires a value" }
+                    }
+                    arg.startsWith("--inspect-release-id=") -> {
+                        inspectReleaseId = arg.substringAfter("=")
+                        require(inspectReleaseId.isNotBlank()) { "--inspect-release-id requires a value" }
+                    }
+                    arg.startsWith("--inspect-reasoning-run-id=") -> {
+                        inspectReasoningRunId = arg.substringAfter("=")
+                        require(inspectReasoningRunId.isNotBlank()) { "--inspect-reasoning-run-id requires a value" }
                     }
                     arg.startsWith("--reasoning-input-release-id=") -> {
                         reasoningInputReleaseId = arg.substringAfter("=")
@@ -382,9 +480,13 @@ data class SemanticServiceRuntimeOptions(
                 queryId = queryId,
                 promoteSource = promoteSource,
                 sourceReleaseId = sourceReleaseId,
+                sourceExtractFile = sourceExtractFile,
                 refreshReasoning = refreshReasoning,
                 reasoningInputReleaseId = reasoningInputReleaseId,
                 reasoningRunId = reasoningRunId,
+                inspectGraphLifecycle = inspectGraphLifecycle,
+                inspectReleaseId = inspectReleaseId,
+                inspectReasoningRunId = inspectReasoningRunId,
                 servePrivateQueryEndpoint = servePrivateQueryEndpoint,
                 privateEndpointHost = privateEndpointHost,
                 privateEndpointPort = privateEndpointPort,

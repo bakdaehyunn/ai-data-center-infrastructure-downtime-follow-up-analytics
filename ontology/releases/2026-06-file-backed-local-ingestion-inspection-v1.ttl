@@ -1,0 +1,22 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-file-backed-local-ingestion-inspection-v1
+  rdf:type owl:Ontology ;
+  dcterms:title "File-backed local ingestion and graph lifecycle inspection v1 release" ;
+  dcterms:description "Internal local file-backed source extract loading and graph lifecycle inspection for the ontology-native semantic-service runtime. This release adds a deterministic properties fixture format, CLI source promotion from file-backed extracts, read-only lifecycle/provenance/reasoning status inspection, focused tests, and docs. It does not add production connectors, public endpoints, authentication, frontend read-model changes, AI governance workflows, commit, or push." ;
+  dcterms:created "2026-06-09"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-internal-graph-lifecycle-cli ;
+  dcterms:hasPart
+    <../../fixtures/source-extracts/local-controlled-source-v1.properties>,
+    <../../fixtures/source-extracts/README.md>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/ingestion/FileSourceExtractLoader.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/lifecycle/GraphLifecycleInspector.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplication.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/ingestion/FileSourceExtractLoaderTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/lifecycle/GraphLifecycleInspectorTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplicationTest.kt>,
+    <../../semantic-service/README.md> .

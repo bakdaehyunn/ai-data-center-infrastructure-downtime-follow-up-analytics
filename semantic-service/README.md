@@ -240,6 +240,33 @@ snapshots. `--promote-source` uses the built-in local controlled source extract;
 `--refresh-reasoning` reads a managed canonical/provenance release and writes
 managed reasoning-audit/reasoning graphs.
 
+File-backed local ingestion and graph lifecycle inspection v1 extends the same
+internal CLI boundary:
+
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  -e DCAI_FUSEKI_DATASET_URL=http://host.docker.internal:3030/infrastructure \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon run --args="--repo-root=/workspace --promote-source --source-release-id=local-controlled-source-v1 --source-extract-file=fixtures/source-extracts/local-controlled-source-v1.properties"
+```
+
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  -e DCAI_FUSEKI_DATASET_URL=http://host.docker.internal:3030/infrastructure \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon run --args="--repo-root=/workspace --inspect-graph-lifecycle --inspect-release-id=local-controlled-source-v1 --inspect-reasoning-run-id=local-controlled-reasoning-v1"
+```
+
+The file-backed source extract format is a deterministic local `.properties`
+fixture under `fixtures/source-extracts/`. Lifecycle inspection is read-only and
+reports graph existence, canonical counts, provenance counts, and reasoning
+finding counts for managed graph URIs. It does not add production connectors,
+public endpoints, authentication, UI changes, or AI governance workflows.
+
 Post-Phase-20 semantic queue read-model implementation adds
 `semanticFollowUpQueueList` as the first product read model. It returns
 canonical graph incident, asset, zone, stage, and source-record provenance

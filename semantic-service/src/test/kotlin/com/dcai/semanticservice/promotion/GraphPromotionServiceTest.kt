@@ -3,6 +3,7 @@ package com.dcai.semanticservice.promotion
 import com.dcai.semanticservice.graph.NamedGraphSnapshot
 import com.dcai.semanticservice.graph.NamedGraphStore
 import com.dcai.semanticservice.graph.NamedGraphWriteResult
+import com.dcai.semanticservice.ingestion.FileSourceExtractLoader
 import com.dcai.semanticservice.ingestion.SourceExtractRdfMapper
 import com.dcai.semanticservice.runtime.SemanticServiceApplication
 import com.dcai.semanticservice.testfixtures.ProductionSourceExtractFixtures
@@ -57,6 +58,26 @@ class GraphPromotionServiceTest {
         assertFalse(result.promoted)
         assertFalse(result.validation.conforms)
         assertEquals(emptyList(), store.writeOrder)
+    }
+
+    @Test
+    fun promotesFileBackedSourceExtract() {
+        val store = InMemoryNamedGraphStore()
+        val releaseId = "local-controlled-source-v1"
+        val graphs = ProductionGraphUris.forRelease(releaseId)
+        val batch = FileSourceExtractLoader().load(repoRoot.resolve("fixtures/source-extracts/local-controlled-source-v1.properties"))
+
+        val result = service(store).promote(
+            ProductionGraphPromotionPlan(
+                batch = batch,
+                graphs = graphs,
+            ),
+        )
+
+        assertTrue(result.promoted, result.errors.joinToString(separator = "\n"))
+        assertEquals(releaseId, result.releaseManifest?.releaseId)
+        assertTrue(store.graph(graphs.canonicalGraphUri)!!.contains(incident("INC-001"), RDF.type))
+        assertTrue(store.graph(graphs.provenanceGraphUri)!!.contains(promotionActivity(releaseId), RDF.type))
     }
 
     @Test
