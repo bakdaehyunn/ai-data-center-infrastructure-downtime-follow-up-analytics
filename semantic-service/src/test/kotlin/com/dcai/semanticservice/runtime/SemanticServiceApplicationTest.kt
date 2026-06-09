@@ -8,11 +8,21 @@ import com.dcai.semanticservice.fixtures.FixtureLoadSummary
 import com.dcai.semanticservice.fixtures.FixtureValidationReport
 import com.dcai.semanticservice.graph.GraphConnectionCheck
 import com.dcai.semanticservice.graph.ReadOnlyGraphClient
+import com.dcai.semanticservice.promotion.GraphPromotionResult
+import com.dcai.semanticservice.promotion.ProductionGraphPromotionPlan
+import com.dcai.semanticservice.promotion.ProductionGraphValidationReport
+import com.dcai.semanticservice.promotion.PromotionReleaseManifest
+import com.dcai.semanticservice.promotion.SourceGraphPromoter
 import com.dcai.semanticservice.query.QueryExecutionReport
 import com.dcai.semanticservice.query.QueryMode
 import com.dcai.semanticservice.query.QueryResultEnvelopeProvenance
 import com.dcai.semanticservice.query.QueryResultShaper
 import com.dcai.semanticservice.query.ReadOnlyQueryExecutor
+import com.dcai.semanticservice.reasoning.ReasoningPromotionPlan
+import com.dcai.semanticservice.reasoning.ReasoningPromotionResult
+import com.dcai.semanticservice.reasoning.ReasoningRefresher
+import com.dcai.semanticservice.reasoning.ReasoningReleaseManifest
+import com.dcai.semanticservice.reasoning.ReasoningValidationReport
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.test.Test
@@ -127,6 +137,137 @@ class SemanticServiceApplicationTest {
     }
 
     @Test
+    fun canRunControlledSourcePromotionCommandBoundary() {
+        val report = SemanticServiceApplication.run(
+            sourcePromoter = StaticSourceGraphPromoter(
+                GraphPromotionResult(
+                    promoted = true,
+                    validation = ProductionGraphValidationReport(conforms = true, tripleCount = 12),
+                    writtenGraphUris = listOf(
+                        "urn:dcai:graph:source:local-controlled-source-v1",
+                        "urn:dcai:graph:canonical:local-controlled-source-v1",
+                        "urn:dcai:graph:provenance:local-controlled-source-v1",
+                    ),
+                    releaseManifest = PromotionReleaseManifest(
+                        releaseId = "local-controlled-source-v1",
+                        sourceGraphUri = "urn:dcai:graph:source:local-controlled-source-v1",
+                        canonicalGraphUri = "urn:dcai:graph:canonical:local-controlled-source-v1",
+                        provenanceGraphUri = "urn:dcai:graph:provenance:local-controlled-source-v1",
+                    ),
+                ),
+            ),
+            sourcePromotionPlan = com.dcai.semanticservice.promotion.ProductionGraphPromotionPlan(
+                batch = com.dcai.semanticservice.ingestion.LocalControlledSourceExtract.batch(),
+                graphs = com.dcai.semanticservice.promotion.ProductionGraphUris.forRelease("local-controlled-source-v1"),
+            ),
+        )
+
+        assertTrue(report.isReady, report.contractValidation.errors.joinToString(separator = "\n"))
+        assertTrue(report.graphExecutionEnabled)
+        assertTrue(report.sourcePromotionEnabled)
+        assertEquals(3, report.sourcePromotionResult?.writtenGraphUris?.size)
+        assertFalse(report.httpEndpointsEnabled)
+    }
+
+    @Test
+    fun canRunReasoningRefreshCommandBoundary() {
+        val report = SemanticServiceApplication.run(
+            reasoningRefresher = StaticReasoningRefresher(
+                ReasoningPromotionResult(
+                    promoted = true,
+                    validation = ReasoningValidationReport(conforms = true, tripleCount = 10),
+                    findingCount = 2,
+                    writtenGraphUris = listOf(
+                        "urn:dcai:graph:reasoning-audit:local-controlled-reasoning-v1",
+                        "urn:dcai:graph:reasoning:local-controlled-reasoning-v1",
+                    ),
+                    releaseManifest = ReasoningReleaseManifest(
+                        runId = "local-controlled-reasoning-v1",
+                        canonicalGraphUri = "urn:dcai:graph:canonical:local-controlled-source-v1",
+                        provenanceGraphUri = "urn:dcai:graph:provenance:local-controlled-source-v1",
+                        auditGraphUri = "urn:dcai:graph:reasoning-audit:local-controlled-reasoning-v1",
+                        reasoningGraphUri = "urn:dcai:graph:reasoning:local-controlled-reasoning-v1",
+                        findingCount = 2,
+                    ),
+                ),
+            ),
+            reasoningPromotionPlan = ReasoningPromotionPlan(
+                runId = "local-controlled-reasoning-v1",
+                generatedAt = java.time.Instant.parse("2026-06-09T01:00:00Z"),
+                inputGraphs = com.dcai.semanticservice.reasoning.ReasoningInputGraphUris.forRelease("local-controlled-source-v1"),
+                outputGraphs = com.dcai.semanticservice.reasoning.ReasoningOutputGraphUris.forRun("local-controlled-reasoning-v1"),
+            ),
+        )
+
+        assertTrue(report.isReady, report.contractValidation.errors.joinToString(separator = "\n"))
+        assertTrue(report.graphExecutionEnabled)
+        assertTrue(report.reasoningRefreshEnabled)
+        assertEquals(2, report.reasoningPromotionResult?.findingCount)
+        assertFalse(report.httpEndpointsEnabled)
+    }
+
+    @Test
+    fun failedReasoningRefreshBlocksRuntimeReport() {
+        val report = SemanticServiceApplication.run(
+            reasoningRefresher = StaticReasoningRefresher(
+                ReasoningPromotionResult(
+                    promoted = false,
+                    validation = ReasoningValidationReport(
+                        conforms = false,
+                        tripleCount = 0,
+                        errors = listOf("Canonical graph is missing or empty"),
+                    ),
+                    errors = listOf("Canonical graph is missing or empty"),
+                ),
+            ),
+            reasoningPromotionPlan = ReasoningPromotionPlan(
+                runId = "local-controlled-reasoning-v1",
+                generatedAt = java.time.Instant.parse("2026-06-09T01:00:00Z"),
+                inputGraphs = com.dcai.semanticservice.reasoning.ReasoningInputGraphUris.forRelease("local-controlled-source-v1"),
+                outputGraphs = com.dcai.semanticservice.reasoning.ReasoningOutputGraphUris.forRun("local-controlled-reasoning-v1"),
+            ),
+        )
+
+        assertFalse(report.isReady)
+        assertEquals("blocked", report.status)
+        assertTrue(report.reasoningRefreshEnabled)
+    }
+
+    @Test
+    fun failedSourcePromotionSkipsCombinedReasoningRefresh() {
+        val report = SemanticServiceApplication.run(
+            sourcePromoter = StaticSourceGraphPromoter(
+                GraphPromotionResult(
+                    promoted = false,
+                    validation = ProductionGraphValidationReport(
+                        conforms = false,
+                        tripleCount = 0,
+                        errors = listOf("Source validation failed"),
+                    ),
+                    errors = listOf("Source validation failed"),
+                ),
+            ),
+            sourcePromotionPlan = com.dcai.semanticservice.promotion.ProductionGraphPromotionPlan(
+                batch = com.dcai.semanticservice.ingestion.LocalControlledSourceExtract.batch(),
+                graphs = com.dcai.semanticservice.promotion.ProductionGraphUris.forRelease("local-controlled-source-v1"),
+            ),
+            reasoningRefresher = FailingIfCalledReasoningRefresher,
+            reasoningPromotionPlan = ReasoningPromotionPlan(
+                runId = "local-controlled-reasoning-v1",
+                generatedAt = java.time.Instant.parse("2026-06-09T01:00:00Z"),
+                inputGraphs = com.dcai.semanticservice.reasoning.ReasoningInputGraphUris.forRelease("local-controlled-source-v1"),
+                outputGraphs = com.dcai.semanticservice.reasoning.ReasoningOutputGraphUris.forRun("local-controlled-reasoning-v1"),
+            ),
+        )
+
+        assertFalse(report.isReady)
+        assertTrue(report.sourcePromotionEnabled)
+        assertTrue(report.reasoningRefreshEnabled)
+        assertEquals(false, report.reasoningPromotionResult?.promoted)
+        assertTrue(report.reasoningPromotionResult?.errors.orEmpty().contains("Reasoning refresh skipped because source promotion failed."))
+    }
+
+    @Test
     fun rejectsBlankQueryIdArgument() {
         assertFailsWith<IllegalArgumentException> {
             SemanticServiceRuntimeOptions.fromArgs(arrayOf("--run-query="))
@@ -156,6 +297,26 @@ class SemanticServiceApplicationTest {
     }
 
     @Test
+    fun parsesGraphLifecycleCommandOptions() {
+        val options = SemanticServiceRuntimeOptions.fromArgs(
+            arrayOf(
+                "--repo-root=/workspace",
+                "--promote-source",
+                "--source-release-id=release-a",
+                "--refresh-reasoning",
+                "--reasoning-input-release-id=release-a",
+                "--reasoning-run-id=reasoning-a",
+            ),
+        )
+
+        assertTrue(options.promoteSource)
+        assertEquals("release-a", options.sourceReleaseId)
+        assertTrue(options.refreshReasoning)
+        assertEquals("release-a", options.reasoningInputReleaseId)
+        assertEquals("reasoning-a", options.reasoningRunId)
+    }
+
+    @Test
     fun locatesRepositoryRootFromSemanticServiceDirectory() {
         val repoRoot = SemanticServiceApplication.locateRepoRoot()
 
@@ -179,5 +340,23 @@ class SemanticServiceApplicationTest {
         private val report: QueryExecutionReport,
     ) : ReadOnlyQueryExecutor {
         override fun execute(queryId: String): QueryExecutionReport = report
+    }
+
+    private class StaticSourceGraphPromoter(
+        private val result: GraphPromotionResult,
+    ) : SourceGraphPromoter {
+        override fun promote(plan: ProductionGraphPromotionPlan): GraphPromotionResult = result
+    }
+
+    private class StaticReasoningRefresher(
+        private val result: ReasoningPromotionResult,
+    ) : ReasoningRefresher {
+        override fun run(plan: ReasoningPromotionPlan): ReasoningPromotionResult = result
+    }
+
+    private object FailingIfCalledReasoningRefresher : ReasoningRefresher {
+        override fun run(plan: ReasoningPromotionPlan): ReasoningPromotionResult {
+            error("Reasoning refresher should not run after failed source promotion")
+        }
     }
 }

@@ -182,6 +182,64 @@ Post-Phase-20 adds the first private endpoint slice:
 - raw SPARQL request bodies, arbitrary query IDs, graph writes, reasoning
   execution, and public exposure remain blocked
 
+Production graph ingestion and canonical promotion v1 adds the first executable
+source-to-canonical lifecycle outside controlled fixture loading:
+
+- source extract DTOs for facility, zone, asset, incident, dependency,
+  workflow event, evidence, and impact records
+- RDF mapping into separate source, canonical, and provenance models
+- SHACL and provenance validation over the combined promotion candidate graph
+- managed graph URI policy for `urn:dcai:graph:source:*`,
+  `urn:dcai:graph:canonical:*`, and `urn:dcai:graph:provenance:*`
+- rollback snapshots for target graphs before multi-graph promotion writes
+- release manifest metadata returned by successful promotion orchestration
+
+This v1 lifecycle is service-internal implementation code and focused tests. It
+does not add public endpoints, authentication, reasoning refreshes, AI
+governance workflows, frontend read-model changes, or live production connector
+jobs.
+
+Executable reasoning v1 adds internal dependency-exposure and blast-radius
+reasoning over promoted canonical graphs:
+
+- reads managed canonical and provenance named graphs through `NamedGraphStore`
+- generates candidate `dcai:DependencyImpactFinding` and
+  `dcai:BlastRadiusFinding` facts plus `dcai:ReasoningActivity` provenance
+- validates reasoning output with SHACL and explicit provenance gates
+- writes managed `urn:dcai:graph:reasoning-audit:*` and
+  `urn:dcai:graph:reasoning:*` graphs with rollback snapshots
+
+This reasoning slice is internal implementation code and tests. It does not add
+public endpoints, authentication, AI governance workflows, frontend read-model
+changes, or raw SPARQL exposure.
+
+Internal graph lifecycle CLI commands add local controlled execution for the
+v1 ingestion and reasoning lifecycles:
+
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  -e DCAI_FUSEKI_DATASET_URL=http://host.docker.internal:3030/infrastructure \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon run --args="--repo-root=/workspace --promote-source --source-release-id=local-controlled-source-v1"
+```
+
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  -e DCAI_FUSEKI_DATASET_URL=http://host.docker.internal:3030/infrastructure \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon run --args="--repo-root=/workspace --refresh-reasoning --reasoning-input-release-id=local-controlled-source-v1 --reasoning-run-id=local-controlled-reasoning-v1"
+```
+
+The commands bind no HTTP routes. They run through the existing local runtime
+entrypoint, managed graph URI policy, SHACL/provenance gates, and rollback
+snapshots. `--promote-source` uses the built-in local controlled source extract;
+`--refresh-reasoning` reads a managed canonical/provenance release and writes
+managed reasoning-audit/reasoning graphs.
+
 Post-Phase-20 semantic queue read-model implementation adds
 `semanticFollowUpQueueList` as the first product read model. It returns
 canonical graph incident, asset, zone, stage, and source-record provenance

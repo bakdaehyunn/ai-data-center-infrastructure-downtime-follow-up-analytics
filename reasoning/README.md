@@ -1,12 +1,13 @@
-# Reasoning Pipeline Scaffold
+# Reasoning Pipeline
 
-This directory records the Phase 4 reasoning pipeline scaffold for the
-ontology-native rewrite. It defines target reasoning outputs, graph boundaries,
-fixture expectations, and placeholder rule/query paths only.
+This directory records the reasoning pipeline for the ontology-native rewrite.
+Phase 4 started as a scaffold. Executable reasoning v1 now adds internal Kotlin
+reasoning for dependency exposure and blast radius over promoted canonical
+graphs.
 
-This scaffold does not implement executable reasoning, production SPARQL rules,
-Java/Kotlin service behavior, graph promotion, UI changes, or old-runtime
-removal.
+Executable reasoning v1 does not add public endpoints, browser-supplied raw
+SPARQL, UI changes, authentication, AI governance workflows, connector jobs, or
+old-runtime restoration.
 
 ## Target Graph Boundaries
 
@@ -28,6 +29,16 @@ removal.
 | Impact trust | `dcai:TrustFinding` | Flag impact claims that are unsupported, stale, contradictory, or low confidence. |
 | Blast radius | `dcai:BlastRadiusFinding` | Identify downstream assets, zones, GPU capacity, and dependency paths affected by an incident. |
 
+Implemented v1 outputs:
+
+- dependency exposure findings from an incident's affected asset to upstream
+  dependency assets through canonical dependency paths
+- blast-radius findings from an incident's affected asset to downstream assets
+  that depend on it through canonical dependency paths
+- `dcai:ReasoningActivity` provenance with `prov:used`, `prov:generated`, and
+  `prov:generatedAtTime`
+- reasoning-audit and approved reasoning graph promotion with rollback
+
 ## Placeholder Structure
 
 - `reasoning/manifest.ttl`: parseable Phase 4 reasoning manifest metadata.
@@ -39,9 +50,14 @@ removal.
 - `queries/manifest.ttl`: query-manifest references for future reasoning
   queries.
 
-Future executable rule or query files should be added only when a later phase
-implements the reasoning runtime and validates each output against fixtures.
+The existing `queries/reasoning/*.rq` files remain parseable SPARQL scaffolds
+and are not exposed to browsers or the private query endpoint. Executable v1
+uses internal Kotlin model rules so graph mutation remains service-owned.
 
-Phase 6 adds the future execution contract for graph inputs, graph outputs,
-promotion gates, provenance requirements, failure modes, and service boundaries.
-It does not add an executor or promote graph data.
+Remaining future work:
+
+- recovery blocker reasoning
+- restore readiness reasoning
+- impact trust reasoning
+- richer path traversal, conflict handling, and policy approval gates
+- production connector scheduling and operator-facing promotion controls

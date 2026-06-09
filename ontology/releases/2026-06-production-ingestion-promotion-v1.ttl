@@ -1,0 +1,26 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-production-ingestion-promotion-v1
+  rdf:type owl:Ontology ;
+  dcterms:title "Production ingestion and canonical promotion v1 release" ;
+  dcterms:description "Executable internal lifecycle for mapping production-style source extracts to RDF source, canonical, and provenance models; validating the combined candidate graph; promoting managed source/canonical/provenance named graphs; and rolling back target graph snapshots when a multi-graph promotion write fails. This release does not add public endpoints, authentication, reasoning refreshes, AI governance workflows, frontend read-model changes, connector jobs, commit, or push." ;
+  dcterms:created "2026-06-09"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-phase20-endpoint-readiness-decision ;
+  dcterms:hasPart
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/ingestion/SourceExtract.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/ingestion/SourceExtractRdfMapper.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/promotion/ProductionGraphValidationGate.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/promotion/GraphPromotionService.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/graph/NamedGraphWriter.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/graph/FusekiNamedGraphWriter.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/ingestion/SourceExtractRdfMapperTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/promotion/ProductionGraphValidationGateTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/promotion/GraphPromotionServiceTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/testfixtures/ProductionSourceExtractFixtures.kt>,
+    <../../fixtures/source-extracts/README.md>,
+    <../../rdf-mapping/README.md>,
+    <../../semantic-service/README.md> .

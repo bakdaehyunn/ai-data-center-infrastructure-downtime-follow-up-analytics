@@ -1,0 +1,24 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-executable-reasoning-v1
+  rdf:type owl:Ontology ;
+  dcterms:title "Executable reasoning v1 release" ;
+  dcterms:description "Internal executable reasoning v1 for dependency exposure and blast radius over promoted canonical graphs. The service generates reasoning-audit candidate output, validates SHACL and reasoning provenance, promotes approved reasoning graph output with rollback snapshots, and records release metadata. This release does not add public endpoints, authentication, raw SPARQL exposure, AI governance workflows, frontend read-model changes, commit, or push." ;
+  dcterms:created "2026-06-09"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-production-ingestion-promotion-v1 ;
+  dcterms:hasPart
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/reasoning/ReasoningModelBuilder.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/reasoning/ReasoningValidationGate.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/reasoning/ReasoningPromotionService.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/graph/FusekiNamedGraphWriter.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/ingestion/OntologyVocabulary.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/reasoning/ReasoningModelBuilderTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/reasoning/ReasoningValidationGateTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/reasoning/ReasoningPromotionServiceTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/testfixtures/InMemoryNamedGraphStore.kt>,
+    <../../reasoning/README.md>,
+    <../../semantic-service/README.md> .

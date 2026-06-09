@@ -1,6 +1,18 @@
-# Reasoning Package Placeholder
+# Reasoning Package
 
-Reserved for future reasoning validation and execution boundaries.
+Contains internal executable reasoning boundaries for ontology-native derived
+facts.
 
-Phase 10 does not implement reasoning orchestration, graph promotion, or
-candidate output generation.
+Implemented v1:
+
+- dependency exposure reasoning
+- blast-radius reasoning
+- reasoning output SHACL/provenance validation
+- reasoning-audit and approved reasoning graph promotion with rollback
+
+Non-goals:
+
+- no public endpoints
+- no raw SPARQL exposure
+- no frontend redesign
+- no authentication or AI governance workflow

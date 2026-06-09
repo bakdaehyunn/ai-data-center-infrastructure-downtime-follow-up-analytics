@@ -1,0 +1,18 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-internal-graph-lifecycle-cli
+  rdf:type owl:Ontology ;
+  dcterms:title "Internal graph lifecycle CLI release" ;
+  dcterms:description "Internal CLI commands for local controlled source promotion and reasoning refresh through the existing semantic-service runtime. The commands use managed graph URI policy, SHACL/provenance gates, rollback snapshots, release metadata, and runtime reports. This release does not add public endpoints, authentication, frontend changes, raw SPARQL exposure, commit, or push." ;
+  dcterms:created "2026-06-09"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-executable-reasoning-v1 ;
+  dcterms:hasPart
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplication.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/ingestion/LocalControlledSourceExtract.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplicationTest.kt>,
+    <../../semantic-service/README.md>,
+    <../../fixtures/source-extracts/README.md> .
