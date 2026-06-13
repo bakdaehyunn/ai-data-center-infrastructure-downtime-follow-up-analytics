@@ -1,0 +1,4 @@
+incidentId,assetId,currentStageId,currentStageLabel
+INC-OPS-1001,ASSET-GPU-POD-17,STAGE-VALIDATION,Validation
+INC-OPS-1002,ASSET-UPS-2A,STAGE-RECOVERY,Recovery
+INC-OPS-BAD-ROW,,STAGE-VALIDATION,Validation

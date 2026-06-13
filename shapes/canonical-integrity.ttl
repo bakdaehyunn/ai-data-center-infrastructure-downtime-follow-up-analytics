@@ -14,14 +14,54 @@ dcai:InfrastructureAssetCanonicalShape
     sh:path dcai:locatedIn ;
     sh:minCount 1 ;
     sh:class dcai:InfrastructureZone
+  ] ;
+  sh:property [
+    sh:path dcai:hasAssetType ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasOperationalStatus ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasOperationalState ;
+    sh:minCount 1 ;
+    sh:class dcai:OperationalStatus
   ] .
 
 dcai:IncidentCanonicalShape
   a sh:NodeShape ;
   sh:targetClass dcai:InfrastructureIncident ;
   sh:property [
+    sh:path dcai:hasIdentifier ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
     sh:path dcai:affectsAsset ;
     sh:minCount 1 ;
     sh:maxCount 1 ;
     sh:class dcai:InfrastructureAsset
+  ] ;
+  sh:property [
+    sh:path dcai:hasCurrentStage ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:class dcai:WorkflowStage
+  ] ;
+  sh:property [
+    sh:path dcai:hasIncidentStageState ;
+    sh:minCount 1 ;
+    sh:class dcai:IncidentStageState
+  ] .
+
+dcai:CapacityGroupCanonicalShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:ComputeCapacityGroup ;
+  sh:property [
+    sh:path dcai:hasIdentifier ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
   ] .

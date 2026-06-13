@@ -30,6 +30,7 @@ fixture:gpu-rack-row-a
   dcai:locatedIn fixture:zone-a ;
   dcai:hasAssetType "GPU_RACK_ROW" ;
   dcai:hasOperationalStatus "DEGRADED" ;
+  dcai:hasOperationalState fixture:operational-status-degraded ;
   prov:wasDerivedFrom fixture:source-record-topology-0001 .
 
 fixture:rack-pdu-a
@@ -38,7 +39,18 @@ fixture:rack-pdu-a
   dcai:locatedIn fixture:zone-a ;
   dcai:hasAssetType "RACK_PDU" ;
   dcai:hasOperationalStatus "RUNNING" ;
+  dcai:hasOperationalState fixture:operational-status-running ;
   prov:wasDerivedFrom fixture:source-record-topology-0001 .
+
+fixture:operational-status-degraded
+  rdf:type dcai:OperationalStatus ;
+  dcai:hasIdentifier "degraded" ;
+  rdfs:label "DEGRADED" .
+
+fixture:operational-status-running
+  rdf:type dcai:OperationalStatus ;
+  dcai:hasIdentifier "running" ;
+  rdfs:label "RUNNING" .
 
 fixture:edge-rack-to-pdu
   rdf:type dcai:DependencyEdge ;
@@ -46,8 +58,20 @@ fixture:edge-rack-to-pdu
   dcai:hasDependentAsset fixture:gpu-rack-row-a ;
   dcai:hasDependencyAsset fixture:rack-pdu-a ;
   dcai:hasDependencyRole "POWER_SUPPLY" ;
+  dcai:hasDependencyRoleConcept fixture:dependency-role-power-supply ;
   dcai:hasImpactScope "RACK_ROW" ;
+  dcai:hasImpactScopeConcept fixture:impact-scope-rack-row ;
   prov:wasDerivedFrom fixture:source-record-topology-0001 .
+
+fixture:dependency-role-power-supply
+  rdf:type dcai:DependencyRole ;
+  dcai:hasIdentifier "power-supply" ;
+  rdfs:label "POWER_SUPPLY" .
+
+fixture:impact-scope-rack-row
+  rdf:type dcai:ImpactScope ;
+  dcai:hasIdentifier "rack-row" ;
+  rdfs:label "RACK_ROW" .
 
 fixture:power-path-a
   rdf:type dcai:PowerPath ;

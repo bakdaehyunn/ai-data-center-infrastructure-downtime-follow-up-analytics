@@ -29,7 +29,15 @@ fixture:asset-a
   rdf:type dcai:InfrastructureAsset ;
   dcai:hasIdentifier "ASSET-A" ;
   dcai:locatedIn fixture:zone-a ;
+  dcai:hasAssetType "GPU_RACK_ROW" ;
+  dcai:hasOperationalStatus "DEGRADED" ;
+  dcai:hasOperationalState fixture:operational-status-degraded ;
   prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:operational-status-degraded
+  rdf:type dcai:OperationalStatus ;
+  dcai:hasIdentifier "degraded" ;
+  rdfs:label "DEGRADED" .
 
 fixture:stage-waiting
   rdf:type dcai:WorkflowStage ;
@@ -56,7 +64,13 @@ fixture:incident-0001
   dcai:hasIdentifier "INC-REASONING-0001" ;
   dcai:affectsAsset fixture:asset-a ;
   dcai:hasCurrentStage fixture:stage-waiting ;
+  dcai:hasIncidentStageState fixture:incident-stage-waiting ;
   prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:incident-stage-waiting
+  rdf:type dcai:IncidentStageState ;
+  dcai:hasIdentifier "spare-vendor-waiting" ;
+  rdfs:label "Spare/vendor waiting" .
 
 fixture:impact-0001
   rdf:type dcai:ImpactObservation ;
@@ -108,6 +122,7 @@ fixture:workflow-event-0001
   dcai:eventForIncident fixture:incident-0001 ;
   dcai:enteredStage fixture:stage-reported ;
   dcai:hasEventStatus "COMPLETED" ;
+  dcai:hasWorkflowEventStatus fixture:workflow-status-completed ;
   dcai:enteredAt "2026-01-06T01:00:00Z"^^xsd:dateTime ;
   dcai:exitedAt "2026-01-06T02:00:00Z"^^xsd:dateTime ;
   dcai:hasDurationHours "1.0"^^xsd:decimal ;
@@ -120,6 +135,7 @@ fixture:workflow-event-0002
   dcai:eventForIncident fixture:incident-0001 ;
   dcai:enteredStage fixture:stage-triage ;
   dcai:hasEventStatus "COMPLETED" ;
+  dcai:hasWorkflowEventStatus fixture:workflow-status-completed ;
   dcai:enteredAt "2026-01-06T02:00:00Z"^^xsd:dateTime ;
   dcai:exitedAt "2026-01-06T04:00:00Z"^^xsd:dateTime ;
   dcai:hasDurationHours "2.0"^^xsd:decimal ;
@@ -132,6 +148,7 @@ fixture:workflow-event-0003
   dcai:eventForIncident fixture:incident-0001 ;
   dcai:enteredStage fixture:stage-engineer ;
   dcai:hasEventStatus "COMPLETED" ;
+  dcai:hasWorkflowEventStatus fixture:workflow-status-completed ;
   dcai:enteredAt "2026-01-06T04:00:00Z"^^xsd:dateTime ;
   dcai:exitedAt "2026-01-06T08:00:00Z"^^xsd:dateTime ;
   dcai:hasDurationHours "4.0"^^xsd:decimal ;
@@ -144,20 +161,33 @@ fixture:workflow-event-0004
   dcai:eventForIncident fixture:incident-0001 ;
   dcai:enteredStage fixture:stage-waiting ;
   dcai:hasEventStatus "ACTIVE" ;
+  dcai:hasWorkflowEventStatus fixture:workflow-status-active ;
   dcai:enteredAt "2026-01-06T08:00:00Z"^^xsd:dateTime ;
   dcai:hasDurationHours "63.0"^^xsd:decimal ;
   dcai:hasDelayHours "45.0"^^xsd:decimal ;
   prov:wasDerivedFrom fixture:source-record-0001 .
 
+fixture:workflow-status-completed
+  rdf:type dcai:WorkflowEventStatus ;
+  dcai:hasIdentifier "completed" ;
+  rdfs:label "COMPLETED" .
+
+fixture:workflow-status-active
+  rdf:type dcai:WorkflowEventStatus ;
+  dcai:hasIdentifier "active" ;
+  rdfs:label "ACTIVE" .
+
 fixture:evidence-0001
   rdf:type dcai:TelemetryEvidence ;
   dcai:supportsFact fixture:impact-0001 ;
   dcai:hasConfidenceState "TRUSTED" ;
+  dcai:hasEvidenceConfidence fixture:evidence-confidence-trusted ;
   dcai:hasEvidenceTimestamp "2026-01-08T02:15:00Z"^^xsd:dateTime ;
   dcai:hasMetricName "fuel_pressure_psi" ;
   dcai:hasMetricValue "18.0"^^xsd:decimal ;
   dcai:hasMetricUnit "psi" ;
   dcai:hasTelemetryStatus "CRITICAL" ;
+  dcai:hasTelemetryState fixture:telemetry-status-critical ;
   dcai:hasTelemetryAlertId "TEL-ALERT-0001" ;
   dcai:hasAlertType "FUEL_PRESSURE_LOW" ;
   dcai:hasAlertSeverity "CRITICAL" ;
@@ -168,9 +198,11 @@ fixture:validation-evidence-0001
   rdf:type dcai:ValidationEvidence ;
   dcai:supportsFact fixture:incident-0001 ;
   dcai:hasConfidenceState "REVIEW" ;
+  dcai:hasEvidenceConfidence fixture:evidence-confidence-review ;
   dcai:hasEvidenceTimestamp "2026-01-08T03:00:00Z"^^xsd:dateTime ;
   dcai:hasValidationId "VAL-0001" ;
   dcai:hasValidationStatus "BLOCKED" ;
+  dcai:hasValidationState fixture:validation-status-blocked ;
   dcai:hasValidatorId "semantic-validator" ;
   dcai:validationStartedAt "2026-01-08T03:00:00Z"^^xsd:dateTime ;
   dcai:hasFailureReason "Restore validation blocked by missing spare evidence." ;
@@ -180,16 +212,43 @@ fixture:work-order-evidence-0001
   rdf:type dcai:WorkOrderEvidence ;
   dcai:supportsFact fixture:incident-0001 ;
   dcai:hasConfidenceState "REVIEW" ;
+  dcai:hasEvidenceConfidence fixture:evidence-confidence-review ;
   dcai:hasEvidenceTimestamp "2026-01-08T01:30:00Z"^^xsd:dateTime ;
   dcai:hasWorkOrderId "WO-0001" ;
   dcai:hasAssignedTeam "Backup Power" ;
   dcai:hasAssignedEngineerId "ENG-POWER-01" ;
   dcai:hasWorkOrderStatus "WAITING_SPARE_VENDOR" ;
+  dcai:hasWorkOrderState fixture:work-order-status-waiting-spare-vendor ;
   dcai:plannedStartAt "2026-01-08T02:00:00Z"^^xsd:dateTime ;
   dcai:hasRequiredSpareId "SPARE-FUEL-PUMP" ;
   dcai:hasRequiredSpareName "Generator Fuel Pump" ;
   dcai:hasStockStatus "OUT_OF_STOCK" ;
   prov:wasDerivedFrom fixture:source-record-0001 .
+
+fixture:evidence-confidence-trusted
+  rdf:type dcai:EvidenceConfidenceState ;
+  dcai:hasIdentifier "trusted" ;
+  rdfs:label "TRUSTED" .
+
+fixture:evidence-confidence-review
+  rdf:type dcai:EvidenceConfidenceState ;
+  dcai:hasIdentifier "review" ;
+  rdfs:label "REVIEW" .
+
+fixture:telemetry-status-critical
+  rdf:type dcai:TelemetryStatus ;
+  dcai:hasIdentifier "critical" ;
+  rdfs:label "CRITICAL" .
+
+fixture:validation-status-blocked
+  rdf:type dcai:ValidationStatus ;
+  dcai:hasIdentifier "blocked" ;
+  rdfs:label "BLOCKED" .
+
+fixture:work-order-status-waiting-spare-vendor
+  rdf:type dcai:WorkOrderStatus ;
+  dcai:hasIdentifier "waiting-spare-vendor" ;
+  rdfs:label "WAITING_SPARE_VENDOR" .
 
 fixture:dependency-impact-0001
   rdf:type dcai:DependencyImpactFinding ;

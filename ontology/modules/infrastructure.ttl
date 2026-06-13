@@ -8,24 +8,52 @@
 dcai:infrastructure
   rdf:type owl:Ontology ;
   dcterms:title "DCAI infrastructure ontology module" ;
-  dcterms:description "Phase 2 skeleton for facilities, zones, assets, and compute capacity groups." ;
+  dcterms:description "AI data center facilities, halls, zones, rows, racks, GPU capacity groups, and critical power, cooling, and telemetry assets." ;
   owl:imports dcai:core ;
-  owl:versionInfo "2026-06-phase2-skeleton" .
+  owl:versionInfo "2026-06-ai-data-center-ontology-hardening-v1" .
 
 dcai:Facility rdf:type owl:Class ;
   rdfs:subClassOf dcai:InfrastructureEntity .
+dcai:DataHall rdf:type owl:Class ;
+  rdfs:subClassOf dcai:InfrastructureEntity .
 dcai:InfrastructureZone rdf:type owl:Class ;
+  rdfs:subClassOf dcai:InfrastructureEntity .
+dcai:InfrastructureRow rdf:type owl:Class ;
+  rdfs:subClassOf dcai:InfrastructureEntity .
+dcai:Rack rdf:type owl:Class ;
   rdfs:subClassOf dcai:InfrastructureEntity .
 dcai:InfrastructureAsset rdf:type owl:Class ;
   rdfs:subClassOf dcai:InfrastructureEntity .
 dcai:PowerAsset rdf:type owl:Class ;
   rdfs:subClassOf dcai:InfrastructureAsset .
+dcai:UpsAsset rdf:type owl:Class ;
+  rdfs:subClassOf dcai:PowerAsset .
+dcai:PowerDistributionUnit rdf:type owl:Class ;
+  rdfs:subClassOf dcai:PowerAsset .
+dcai:GeneratorAsset rdf:type owl:Class ;
+  rdfs:subClassOf dcai:PowerAsset .
 dcai:CoolingAsset rdf:type owl:Class ;
   rdfs:subClassOf dcai:InfrastructureAsset .
+dcai:CoolingLoop rdf:type owl:Class ;
+  rdfs:subClassOf dcai:CoolingAsset .
+dcai:ChilledWaterLoop rdf:type owl:Class ;
+  rdfs:subClassOf dcai:CoolingLoop .
+dcai:CracAsset rdf:type owl:Class ;
+  rdfs:subClassOf dcai:CoolingAsset .
+dcai:ChillerAsset rdf:type owl:Class ;
+  rdfs:subClassOf dcai:CoolingAsset .
 dcai:ControlTelemetryAsset rdf:type owl:Class ;
   rdfs:subClassOf dcai:InfrastructureAsset .
+dcai:TelemetryBridge rdf:type owl:Class ;
+  rdfs:subClassOf dcai:ControlTelemetryAsset .
 dcai:ComputeCapacityGroup rdf:type owl:Class ;
   rdfs:subClassOf dcai:InfrastructureEntity .
+dcai:GpuPod rdf:type owl:Class ;
+  rdfs:subClassOf dcai:ComputeCapacityGroup .
+dcai:CriticalityLevel rdf:type owl:Class ;
+  rdfs:subClassOf dcai:ControlledVocabularyTerm .
+dcai:OperationalStatus rdf:type owl:Class ;
+  rdfs:subClassOf dcai:ControlledVocabularyTerm .
 
 dcai:locatedIn rdf:type owl:ObjectProperty ;
   rdfs:domain dcai:InfrastructureAsset ;
@@ -33,12 +61,36 @@ dcai:locatedIn rdf:type owl:ObjectProperty ;
 dcai:zoneInFacility rdf:type owl:ObjectProperty ;
   rdfs:domain dcai:InfrastructureZone ;
   rdfs:range dcai:Facility .
+dcai:hallInFacility rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:DataHall ;
+  rdfs:range dcai:Facility .
+dcai:zoneInHall rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:InfrastructureZone ;
+  rdfs:range dcai:DataHall .
+dcai:rowInZone rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:InfrastructureRow ;
+  rdfs:range dcai:InfrastructureZone .
+dcai:rackInRow rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:Rack ;
+  rdfs:range dcai:InfrastructureRow .
+dcai:assetInRack rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:InfrastructureAsset ;
+  rdfs:range dcai:Rack .
+dcai:assetInCapacityGroup rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:InfrastructureAsset ;
+  rdfs:range dcai:ComputeCapacityGroup .
 dcai:hasAssetType rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:InfrastructureAsset ;
   rdfs:range xsd:string .
 dcai:hasCriticalityLevel rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:InfrastructureAsset ;
   rdfs:range xsd:string .
+dcai:hasCriticality rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:InfrastructureAsset ;
+  rdfs:range dcai:CriticalityLevel .
 dcai:hasOperationalStatus rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:InfrastructureEntity ;
   rdfs:range xsd:string .
+dcai:hasOperationalState rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:InfrastructureEntity ;
+  rdfs:range dcai:OperationalStatus .

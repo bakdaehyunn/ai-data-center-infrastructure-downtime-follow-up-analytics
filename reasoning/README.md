@@ -2,8 +2,8 @@
 
 This directory records the reasoning pipeline for the ontology-native rewrite.
 Phase 4 started as a scaffold. Executable reasoning v1 now adds internal Kotlin
-reasoning for dependency exposure and blast radius over promoted canonical
-graphs.
+reasoning for dependency exposure, recovery blockers, and blast radius over
+promoted canonical graphs.
 
 Executable reasoning v1 does not add public endpoints, browser-supplied raw
 SPARQL, UI changes, authentication, AI governance workflows, connector jobs, or
@@ -35,6 +35,9 @@ Implemented v1 outputs:
   dependency assets through canonical dependency paths
 - blast-radius findings from an incident's affected asset to downstream assets
   that depend on it through canonical dependency paths
+- recovery-blocker findings from blocked, delayed, awaiting, missing,
+  conflicting, or manual-review workflow, work-order, validation, or telemetry
+  states supporting an incident
 - `dcai:ReasoningActivity` provenance with `prov:used`, `prov:generated`, and
   `prov:generatedAtTime`
 - reasoning-audit and approved reasoning graph promotion with rollback
@@ -56,7 +59,6 @@ uses internal Kotlin model rules so graph mutation remains service-owned.
 
 Remaining future work:
 
-- recovery blocker reasoning
 - restore readiness reasoning
 - impact trust reasoning
 - richer path traversal, conflict handling, and policy approval gates

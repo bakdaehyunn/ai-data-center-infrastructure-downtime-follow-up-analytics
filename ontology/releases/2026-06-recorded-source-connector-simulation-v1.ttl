@@ -1,0 +1,32 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-recorded-source-connector-simulation-v1
+  rdf:type owl:Ontology ;
+  dcterms:title "Recorded source-system connector simulation v1 release" ;
+  dcterms:description "Internal local recorded source-system export simulation for ontology-native ingestion. This release adds controlled CSV export fixtures for incident/workflow, asset/topology, work-order/validation, and telemetry/impact source families; maps them through connector-style adapters into existing SourceExtract DTOs; reports invalid-row quarantine and duplicate events; promotes accepted rows through existing SHACL/provenance gates; and adds focused deterministic rerun, promotion, and lifecycle inspection tests. It does not add public endpoints, authentication, UI redesign, real external connectors, AI governance, commit, or push." ;
+  dcterms:created "2026-06-10"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-file-backed-local-ingestion-inspection-v1 ;
+  dcterms:hasPart
+    <../../fixtures/source-extracts/recorded-source-systems/local-ops-v1/manifest.properties>,
+    <../../fixtures/source-extracts/recorded-source-systems/local-ops-v1/facilities.csv>,
+    <../../fixtures/source-extracts/recorded-source-systems/local-ops-v1/zones.csv>,
+    <../../fixtures/source-extracts/recorded-source-systems/local-ops-v1/assets.csv>,
+    <../../fixtures/source-extracts/recorded-source-systems/local-ops-v1/incidents.csv>,
+    <../../fixtures/source-extracts/recorded-source-systems/local-ops-v1/dependencies.csv>,
+    <../../fixtures/source-extracts/recorded-source-systems/local-ops-v1/workflow_events.csv>,
+    <../../fixtures/source-extracts/recorded-source-systems/local-ops-v1/work_orders.csv>,
+    <../../fixtures/source-extracts/recorded-source-systems/local-ops-v1/validation_results.csv>,
+    <../../fixtures/source-extracts/recorded-source-systems/local-ops-v1/telemetry_impacts.csv>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/connectors/RecordedSourceConnectorSimulation.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplication.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/connectors/RecordedSourceConnectorSimulationLoaderTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/lifecycle/GraphLifecycleInspectorTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/promotion/GraphPromotionServiceTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplicationTest.kt>,
+    <../../fixtures/source-extracts/README.md>,
+    <../../rdf-mapping/README.md>,
+    <../../semantic-service/README.md> .

@@ -8,9 +8,9 @@
 dcai:evidence
   rdf:type owl:Ontology ;
   dcterms:title "DCAI evidence ontology module" ;
-  dcterms:description "Phase 2 skeleton for operational evidence, source quality, and trust findings." ;
+  dcterms:description "Telemetry, validation, work-order, confidence, and trust evidence for AI data center downtime follow-up." ;
   owl:imports dcai:core ;
-  owl:versionInfo "2026-06-phase2-skeleton" .
+  owl:versionInfo "2026-06-ai-data-center-ontology-hardening-v1" .
 
 dcai:EvidenceRecord rdf:type owl:Class ;
   rdfs:subClassOf dcai:EvidenceArtifact .
@@ -24,6 +24,14 @@ dcai:SourceQualityIssue rdf:type owl:Class ;
   rdfs:subClassOf dcai:EvidenceArtifact .
 dcai:TrustFinding rdf:type owl:Class ;
   rdfs:subClassOf dcai:DerivedFact .
+dcai:EvidenceConfidenceState rdf:type owl:Class ;
+  rdfs:subClassOf dcai:ControlledVocabularyTerm .
+dcai:TelemetryStatus rdf:type owl:Class ;
+  rdfs:subClassOf dcai:ControlledVocabularyTerm .
+dcai:ValidationStatus rdf:type owl:Class ;
+  rdfs:subClassOf dcai:ControlledVocabularyTerm .
+dcai:WorkOrderStatus rdf:type owl:Class ;
+  rdfs:subClassOf dcai:ControlledVocabularyTerm .
 
 dcai:supportsFact rdf:type owl:ObjectProperty ;
   rdfs:domain dcai:EvidenceRecord ;
@@ -34,6 +42,9 @@ dcai:contradictsFact rdf:type owl:ObjectProperty ;
 dcai:hasConfidenceState rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:EvidenceArtifact ;
   rdfs:range xsd:string .
+dcai:hasEvidenceConfidence rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:EvidenceArtifact ;
+  rdfs:range dcai:EvidenceConfidenceState .
 dcai:hasEvidenceSeverity rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:EvidenceArtifact ;
   rdfs:range xsd:string .
@@ -52,6 +63,9 @@ dcai:hasMetricUnit rdf:type owl:DatatypeProperty ;
 dcai:hasTelemetryStatus rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:TelemetryEvidence ;
   rdfs:range xsd:string .
+dcai:hasTelemetryState rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:TelemetryEvidence ;
+  rdfs:range dcai:TelemetryStatus .
 dcai:hasTelemetryAlertId rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:TelemetryEvidence ;
   rdfs:range xsd:string .
@@ -73,6 +87,9 @@ dcai:hasValidationId rdf:type owl:DatatypeProperty ;
 dcai:hasValidationStatus rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:ValidationEvidence ;
   rdfs:range xsd:string .
+dcai:hasValidationState rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:ValidationEvidence ;
+  rdfs:range dcai:ValidationStatus .
 dcai:hasValidatorId rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:ValidationEvidence ;
   rdfs:range xsd:string .
@@ -97,6 +114,9 @@ dcai:hasAssignedEngineerId rdf:type owl:DatatypeProperty ;
 dcai:hasWorkOrderStatus rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:WorkOrderEvidence ;
   rdfs:range xsd:string .
+dcai:hasWorkOrderState rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:WorkOrderEvidence ;
+  rdfs:range dcai:WorkOrderStatus .
 dcai:plannedStartAt rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:WorkOrderEvidence ;
   rdfs:range xsd:dateTime .

@@ -21,7 +21,8 @@ class ReasoningModelBuilder {
 
         val dependencyFindings = dependencyExposureFindings(input.canonicalModel, activity, output)
         val blastRadiusFindings = blastRadiusFindings(input.canonicalModel, activity, output)
-        val findingCount = dependencyFindings + blastRadiusFindings
+        val recoveryBlockers = recoveryBlockerFindings(input.canonicalModel, activity, output)
+        val findingCount = dependencyFindings + blastRadiusFindings + recoveryBlockers
 
         return ReasoningOutput(
             auditModel = output,
@@ -102,11 +103,90 @@ class ReasoningModelBuilder {
         return count
     }
 
+    private fun recoveryBlockerFindings(
+        canonical: Model,
+        activity: Resource,
+        output: Model,
+    ): Int {
+        var count = 0
+        canonical.listSubjectsWithProperty(RDF.type, Dcai.InfrastructureIncident).toList().forEach { incident ->
+            val signals = recoveryBlockerSignals(canonical, incident)
+            if (signals.isEmpty()) {
+                return@forEach
+            }
+
+            val finding = ResourceFactory.createResource(
+                "urn:dcai:reasoning:recovery-blocker:${encode(incident.uri)}",
+            )
+            output.add(finding, RDF.type, Dcai.RecoveryBlocker)
+            output.add(finding, Dcai.hasFindingSummary, "Recovery blocker for ${incident.localNameOrUri()}: ${signals.joinToString(separator = "; ") { it.summary }}")
+            output.add(finding, Prov.wasDerivedFrom, incident)
+            output.add(finding, Prov.wasGeneratedBy, activity)
+            output.add(activity, Prov.used, incident)
+            output.add(activity, Prov.generated, finding)
+            signals.forEach { signal ->
+                output.add(finding, Prov.wasDerivedFrom, signal.source)
+                output.add(activity, Prov.used, signal.source)
+            }
+            count += 1
+        }
+        return count
+    }
+
+    private fun recoveryBlockerSignals(canonical: Model, incident: Resource): List<RecoveryBlockerSignal> {
+        val signals = mutableListOf<RecoveryBlockerSignal>()
+
+        canonical.listSubjectsWithProperty(Dcai.eventForIncident, incident).toList().forEach { event ->
+            val status = canonical.literalValue(event, Dcai.hasEventStatus)
+            if (status.isBlockerToken()) {
+                signals += RecoveryBlockerSignal(event, "workflow status $status")
+            }
+        }
+
+        canonical.listSubjectsWithProperty(Dcai.supportsFact, incident).toList().forEach { evidence ->
+            val workOrderStatus = canonical.literalValue(evidence, Dcai.hasWorkOrderStatus)
+            if (workOrderStatus.isBlockerToken()) {
+                signals += RecoveryBlockerSignal(evidence, "work order status $workOrderStatus")
+            }
+            val validationStatus = canonical.literalValue(evidence, Dcai.hasValidationStatus)
+            if (validationStatus.isBlockerToken()) {
+                signals += RecoveryBlockerSignal(evidence, "validation status $validationStatus")
+            }
+            val telemetryStatus = canonical.literalValue(evidence, Dcai.hasTelemetryStatus)
+            if (telemetryStatus.isBlockerToken()) {
+                signals += RecoveryBlockerSignal(evidence, "telemetry status $telemetryStatus")
+            }
+        }
+
+        return signals
+    }
+
     private fun pathForEdge(canonical: Model, edge: Resource): Resource? {
         return canonical.listSubjectsWithProperty(Dcai.hasPathStep, edge).toList().firstOrNull()
     }
 
+    private data class RecoveryBlockerSignal(
+        val source: Resource,
+        val summary: String,
+    )
+
     private fun Resource.localNameOrUri(): String = localName ?: uri
+
+    private fun Model.literalValue(subject: Resource, property: org.apache.jena.rdf.model.Property): String? {
+        return listObjectsOfProperty(subject, property).toList()
+            .firstOrNull { it.isLiteral }
+            ?.asLiteral()
+            ?.string
+    }
+
+    private fun String?.isBlockerToken(): Boolean {
+        if (this.isNullOrBlank()) {
+            return false
+        }
+        val normalized = trim().lowercase()
+        return listOf("blocked", "delayed", "awaiting", "missing", "conflict", "manual-review", "review_required")
+            .any { it in normalized }
+    }
 
     private companion object {
         private fun encode(value: String): String {

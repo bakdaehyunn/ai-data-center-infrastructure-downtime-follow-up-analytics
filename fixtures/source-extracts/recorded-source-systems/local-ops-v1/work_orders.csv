@@ -1,0 +1,3 @@
+workOrderId,incidentId,assignedTeam,timestamp,confidenceState
+WO-90001,INC-OPS-1001,Facilities Electrical,2026-06-10T00:20:00Z,TRUSTED
+WO-90002,INC-OPS-1002,Site Reliability,2026-06-10T00:25:00Z,TRUSTED

@@ -1,0 +1,9 @@
+impactId,evidenceId,incidentId,timestamp,estimatedCapacityRiskKw,affectedGpuCount,affectedRackCount,redundancyState,mitigationState,vendorState,vendorEtaAt,metricName,metricValue,metricUnit,telemetryStatus,confidenceState
+IMPACT-GEN-SCN-20260611-CAPACITY,TEL-GEN-SCN-20260611-CAPACITY,INC-GEN-SCN-20260611,2026-06-10T00:15:00Z,260.0,80,3,N_PLUS_0,restore-blocked,vendor-engaged,2026-06-10T02:00:00Z,restore-readiness-score,0.4,ratio,alerting,REVIEW_REQUIRED
+IMPACT-GEN-SCN-20260611-WORKFLOW,TEL-GEN-SCN-20260611-WORKFLOW,INC-GEN-SCN-20260611,2026-06-10T00:25:00Z,110.0,24,1,N_PLUS_1,awaiting-signoff,monitoring,,open-blocker-count,3.0,count,warning,REVIEW_REQUIRED
+IMPACT-GEN-SCN-20260612-CAPACITY,TEL-GEN-SCN-20260612-CAPACITY,INC-GEN-SCN-20260612,2026-06-10T00:25:00Z,390.0,96,4,N_PLUS_0,load-shed-active,vendor-engaged,2026-06-10T02:10:00Z,ups-output-kw,390.0,kW,alerting,TRUSTED
+IMPACT-GEN-SCN-20260612-WORKFLOW,TEL-GEN-SCN-20260612-WORKFLOW,INC-GEN-SCN-20260612,2026-06-10T00:35:00Z,120.0,24,1,N_PLUS_1,capacity-watch,monitoring,,battery-runtime-min,12.0,minute,warning,TRUSTED
+IMPACT-GEN-SCN-20260613-CAPACITY,TEL-GEN-SCN-20260613-CAPACITY,INC-GEN-SCN-20260613,2026-06-10T00:35:00Z,280.0,72,3,N_PLUS_0,thermal-throttle-active,vendor-engaged,2026-06-10T02:20:00Z,chw-supply-temp-c,19.5,celsius,alerting,TRUSTED
+IMPACT-GEN-SCN-20260613-WORKFLOW,TEL-GEN-SCN-20260613-WORKFLOW,INC-GEN-SCN-20260613,2026-06-10T00:45:00Z,95.0,18,1,N_PLUS_1,fan-curve-adjusted,monitoring,,return-temp-c,28.0,celsius,warning,TRUSTED
+IMPACT-GEN-SCN-20260614-CAPACITY,TEL-GEN-SCN-20260614-CAPACITY,INC-GEN-SCN-20260614,2026-06-10T00:45:00Z,160.0,48,2,N_PLUS_1,manual-sampling-active,monitoring,2026-06-10T02:30:00Z,dcim-signal-loss,9.0,count,degraded,REVIEW_REQUIRED
+IMPACT-GEN-SCN-20260614-WORKFLOW,TEL-GEN-SCN-20260614-WORKFLOW,INC-GEN-SCN-20260614,2026-06-10T00:55:00Z,60.0,12,1,N_PLUS_1,telemetry-replay-pending,monitoring,,missing-sample-window-min,18.0,minute,degraded,REVIEW_REQUIRED

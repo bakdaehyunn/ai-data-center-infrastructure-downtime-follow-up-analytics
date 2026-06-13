@@ -56,6 +56,10 @@ data class AssetSourceRecord(
     val assetType: String,
     val criticalityLevel: String? = null,
     val operationalStatus: String? = null,
+    val hallId: String? = null,
+    val rowId: String? = null,
+    val rackId: String? = null,
+    val capacityGroupId: String? = null,
     val assetClass: AssetClass = AssetClass.INFRASTRUCTURE,
 ) : SourceRecordIdentity
 
@@ -124,6 +128,7 @@ data class EvidenceSourceRecord(
     val validationId: String? = null,
     val validationStatus: String? = null,
     val workOrderId: String? = null,
+    val workOrderStatus: String? = null,
     val assignedTeam: String? = null,
 ) : SourceRecordIdentity
 

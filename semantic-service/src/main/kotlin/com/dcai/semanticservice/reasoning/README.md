@@ -6,6 +6,7 @@ facts.
 Implemented v1:
 
 - dependency exposure reasoning
+- recovery-blocker reasoning
 - blast-radius reasoning
 - reasoning output SHACL/provenance validation
 - reasoning-audit and approved reasoning graph promotion with rollback

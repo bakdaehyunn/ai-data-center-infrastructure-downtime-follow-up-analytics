@@ -1,5 +1,6 @@
 @prefix dcai: <urn:dcai:ontology:> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 dcai:WorkflowIncidentStageShape
   a sh:NodeShape ;
@@ -9,6 +10,11 @@ dcai:WorkflowIncidentStageShape
     sh:minCount 1 ;
     sh:maxCount 1 ;
     sh:class dcai:WorkflowStage
+  ] ;
+  sh:property [
+    sh:path dcai:hasIncidentStageState ;
+    sh:minCount 1 ;
+    sh:class dcai:IncidentStageState
   ] .
 
 dcai:WorkflowEventStageShape
@@ -17,4 +23,29 @@ dcai:WorkflowEventStageShape
   sh:or (
     [ sh:property [ sh:path dcai:enteredStage ; sh:minCount 1 ; sh:class dcai:WorkflowStage ] ]
     [ sh:property [ sh:path dcai:exitedStage ; sh:minCount 1 ; sh:class dcai:WorkflowStage ] ]
-  ) .
+  ) ;
+  sh:property [
+    sh:path dcai:hasEventId ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:eventForIncident ;
+    sh:minCount 1 ;
+    sh:class dcai:InfrastructureIncident
+  ] ;
+  sh:property [
+    sh:path dcai:hasEventStatus ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasWorkflowEventStatus ;
+    sh:minCount 1 ;
+    sh:class dcai:WorkflowEventStatus
+  ] ;
+  sh:property [
+    sh:path dcai:enteredAt ;
+    sh:minCount 1 ;
+    sh:datatype xsd:dateTime
+  ] .

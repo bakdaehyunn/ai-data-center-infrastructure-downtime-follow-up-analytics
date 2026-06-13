@@ -3,6 +3,7 @@ package com.dcai.semanticservice.promotion
 import com.dcai.semanticservice.graph.NamedGraphSnapshot
 import com.dcai.semanticservice.graph.NamedGraphStore
 import com.dcai.semanticservice.graph.NamedGraphWriteResult
+import com.dcai.semanticservice.connectors.RecordedSourceConnectorSimulationLoader
 import com.dcai.semanticservice.ingestion.FileSourceExtractLoader
 import com.dcai.semanticservice.ingestion.SourceExtractRdfMapper
 import com.dcai.semanticservice.runtime.SemanticServiceApplication
@@ -77,6 +78,28 @@ class GraphPromotionServiceTest {
         assertTrue(result.promoted, result.errors.joinToString(separator = "\n"))
         assertEquals(releaseId, result.releaseManifest?.releaseId)
         assertTrue(store.graph(graphs.canonicalGraphUri)!!.contains(incident("INC-001"), RDF.type))
+        assertTrue(store.graph(graphs.provenanceGraphUri)!!.contains(promotionActivity(releaseId), RDF.type))
+    }
+
+    @Test
+    fun promotesRecordedConnectorSourceExtractThroughExistingGates() {
+        val store = InMemoryNamedGraphStore()
+        val releaseId = "recorded-local-ops-v1"
+        val graphs = ProductionGraphUris.forRelease(releaseId)
+        val simulation = RecordedSourceConnectorSimulationLoader()
+            .load(repoRoot.resolve("fixtures/source-extracts/recorded-source-systems/local-ops-v1"))
+
+        val result = service(store).promote(
+            ProductionGraphPromotionPlan(
+                batch = simulation.batch,
+                graphs = graphs,
+            ),
+        )
+
+        assertTrue(result.promoted, result.errors.joinToString(separator = "\n"))
+        assertEquals(releaseId, result.releaseManifest?.releaseId)
+        assertEquals(2, simulation.report.rejectedRowCount)
+        assertTrue(store.graph(graphs.canonicalGraphUri)!!.contains(incident("INC-OPS-1001"), RDF.type))
         assertTrue(store.graph(graphs.provenanceGraphUri)!!.contains(promotionActivity(releaseId), RDF.type))
     }
 

@@ -21,4 +21,28 @@ dcai:DependencyEdgeShape
     sh:path dcai:hasDependencyRole ;
     sh:minCount 1 ;
     sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasDependencyRoleConcept ;
+    sh:minCount 1 ;
+    sh:class dcai:DependencyRole
+  ] ;
+  sh:property [
+    sh:path dcai:hasImpactScope ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasImpactScopeConcept ;
+    sh:minCount 1 ;
+    sh:class dcai:ImpactScope
+  ] .
+
+dcai:DependencyPathShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:DependencyPath ;
+  sh:property [
+    sh:path dcai:hasPathStep ;
+    sh:minCount 1 ;
+    sh:class dcai:DependencyEdge
   ] .

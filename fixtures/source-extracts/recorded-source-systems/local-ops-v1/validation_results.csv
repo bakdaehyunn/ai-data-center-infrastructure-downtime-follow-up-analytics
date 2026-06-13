@@ -1,0 +1,3 @@
+validationId,incidentId,validationStatus,timestamp,confidenceState
+VAL-70001,INC-OPS-1001,power-path-confirmed,2026-06-10T00:30:00Z,TRUSTED
+VAL-70002,INC-OPS-1002,recovery-blocked-by-telemetry,2026-06-10T00:35:00Z,REVIEW_REQUIRED

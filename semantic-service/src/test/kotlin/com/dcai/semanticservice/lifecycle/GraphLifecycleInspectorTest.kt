@@ -1,5 +1,6 @@
 package com.dcai.semanticservice.lifecycle
 
+import com.dcai.semanticservice.connectors.RecordedSourceConnectorSimulationLoader
 import com.dcai.semanticservice.ingestion.FileSourceExtractLoader
 import com.dcai.semanticservice.ingestion.SourceExtractRdfMapper
 import com.dcai.semanticservice.promotion.ProductionGraphUris
@@ -59,6 +60,40 @@ class GraphLifecycleInspectorTest {
         assertEquals(11, result.provenanceGraph?.sourceRecordCount)
         assertEquals(1, result.provenanceGraph?.promotionActivityCount)
         assertEquals(2, result.reasoningGraph?.findingCount)
+    }
+
+    @Test
+    fun reportsRecordedConnectorPromotionLifecycleStatus() {
+        val releaseId = "recorded-local-ops-v1"
+        val productionGraphs = ProductionGraphUris.forRelease(releaseId)
+        val mapping = SourceExtractRdfMapper().map(
+            RecordedSourceConnectorSimulationLoader()
+                .load(repoRoot.resolve("fixtures/source-extracts/recorded-source-systems/local-ops-v1"))
+                .batch,
+        )
+        val store = InMemoryNamedGraphStore(
+            mapOf(
+                productionGraphs.sourceGraphUri to mapping.sourceModel,
+                productionGraphs.canonicalGraphUri to mapping.canonicalModel,
+                productionGraphs.provenanceGraphUri to mapping.provenanceModel,
+            ),
+        )
+
+        val result = GraphLifecycleInspector(store).inspect(
+            GraphLifecycleInspectionPlan(
+                releaseId = releaseId,
+                reasoningRunId = "missing-reasoning",
+            ),
+        )
+
+        assertTrue(result.inspected, result.errors.joinToString(separator = "\n"))
+        assertEquals("promoted", result.lifecycleStatus)
+        assertEquals("missing-reasoning", result.reasoningStatus)
+        assertEquals(2, result.canonicalGraph?.incidentCount)
+        assertEquals(4, result.canonicalGraph?.assetCount)
+        assertEquals(3, result.canonicalGraph?.dependencyEdgeCount)
+        assertEquals(23, result.provenanceGraph?.sourceRecordCount)
+        assertEquals(1, result.provenanceGraph?.promotionActivityCount)
     }
 
     @Test

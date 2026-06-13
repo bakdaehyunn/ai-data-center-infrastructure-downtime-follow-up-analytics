@@ -1,0 +1,4 @@
+eventId,incidentId,enteredStageId,enteredStageLabel,status,enteredAt,exitedAt,durationHours,delayHours
+WF-OPS-1001-VALIDATION,INC-OPS-1001,STAGE-VALIDATION,Validation,open,2026-06-10T00:07:00Z,,1.5,0.5
+WF-OPS-1001-VALIDATION,INC-OPS-1001,STAGE-VALIDATION,Validation,duplicate,2026-06-10T00:09:00Z,,1.6,0.6
+WF-OPS-1002-RECOVERY,INC-OPS-1002,STAGE-RECOVERY,Recovery,open,2026-06-10T00:15:00Z,,2.0,1.0

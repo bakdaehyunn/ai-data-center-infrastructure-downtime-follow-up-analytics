@@ -46,6 +46,10 @@ class FileSourceExtractLoader {
                     assetType = required("$prefix.assetType"),
                     criticalityLevel = optional("$prefix.criticalityLevel"),
                     operationalStatus = optional("$prefix.operationalStatus"),
+                    hallId = optional("$prefix.hallId"),
+                    rowId = optional("$prefix.rowId"),
+                    rackId = optional("$prefix.rackId"),
+                    capacityGroupId = optional("$prefix.capacityGroupId"),
                     assetClass = enumOptional<AssetClass>("$prefix.assetClass") ?: AssetClass.INFRASTRUCTURE,
                 )
             },
@@ -103,6 +107,7 @@ class FileSourceExtractLoader {
                     validationId = optional("$prefix.validationId"),
                     validationStatus = optional("$prefix.validationStatus"),
                     workOrderId = optional("$prefix.workOrderId"),
+                    workOrderStatus = optional("$prefix.workOrderStatus"),
                     assignedTeam = optional("$prefix.assignedTeam"),
                 )
             },

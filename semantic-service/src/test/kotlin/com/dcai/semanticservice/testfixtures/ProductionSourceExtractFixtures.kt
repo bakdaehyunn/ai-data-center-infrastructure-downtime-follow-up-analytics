@@ -49,6 +49,10 @@ object ProductionSourceExtractFixtures {
                     assetType = "GPU_RACK_ROW",
                     criticalityLevel = "CRITICAL",
                     operationalStatus = "DEGRADED",
+                    hallId = "HALL-A",
+                    rowId = "ROW-A",
+                    rackId = "RACK-A01",
+                    capacityGroupId = "GPU-POD-A",
                 ),
                 AssetSourceRecord(
                     recordId = "SRC-ASSET-PDU-001",
@@ -57,6 +61,9 @@ object ProductionSourceExtractFixtures {
                     zoneId = "ZONE-A",
                     assetType = "RACK_PDU",
                     operationalStatus = "RUNNING",
+                    hallId = "HALL-A",
+                    rowId = "ROW-A",
+                    rackId = "RACK-A01",
                     assetClass = AssetClass.POWER,
                 ),
                 AssetSourceRecord(
@@ -67,6 +74,10 @@ object ProductionSourceExtractFixtures {
                     assetType = "GPU_RACK_ROW",
                     criticalityLevel = "HIGH",
                     operationalStatus = "AT_RISK",
+                    hallId = "HALL-A",
+                    rowId = "ROW-B",
+                    rackId = "RACK-B01",
+                    capacityGroupId = "GPU-POD-B",
                 ),
             ),
             incidents = listOf(

@@ -1,0 +1,4 @@
+zoneId,facilityId,label
+ZONE-GEN-COMPUTE,FAC-GEN-1,Generated Compute Hall
+ZONE-GEN-POWER,FAC-GEN-1,Generated Power Gallery
+ZONE-GEN-COOLING,FAC-GEN-1,Generated Cooling Plant

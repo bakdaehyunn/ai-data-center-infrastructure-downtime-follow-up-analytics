@@ -35,7 +35,15 @@ fixture:gpu-rack-row-a
   rdf:type dcai:InfrastructureAsset ;
   dcai:hasIdentifier "ASSET-GPU-RACK-ROW-A" ;
   dcai:locatedIn fixture:zone-a ;
+  dcai:hasAssetType "GPU_RACK_ROW" ;
+  dcai:hasOperationalStatus "DEGRADED" ;
+  dcai:hasOperationalState fixture:operational-status-degraded ;
   prov:wasDerivedFrom fixture:source-record-evidence-0001 .
+
+fixture:operational-status-degraded
+  rdf:type dcai:OperationalStatus ;
+  dcai:hasIdentifier "degraded" ;
+  rdfs:label "DEGRADED" .
 
 fixture:stage-repair
   rdf:type dcai:WorkflowStage ;
@@ -46,7 +54,13 @@ fixture:inc-0002
   dcai:hasIdentifier "INC-0002" ;
   dcai:affectsAsset fixture:gpu-rack-row-a ;
   dcai:hasCurrentStage fixture:stage-repair ;
+  dcai:hasIncidentStageState fixture:incident-stage-repair ;
   prov:wasDerivedFrom fixture:source-record-evidence-0001 .
+
+fixture:incident-stage-repair
+  rdf:type dcai:IncidentStageState ;
+  dcai:hasIdentifier "repair" ;
+  rdfs:label "Repair in progress" .
 
 fixture:impact-0002
   rdf:type dcai:ImpactObservation ;
@@ -59,7 +73,14 @@ fixture:telemetry-evidence-0002
   rdf:type dcai:TelemetryEvidence ;
   dcai:supportsFact fixture:impact-0002 ;
   dcai:hasConfidenceState "TRUSTED" ;
+  dcai:hasEvidenceConfidence fixture:evidence-confidence-trusted ;
+  dcai:hasEvidenceTimestamp "2026-06-07T00:00:00Z"^^xsd:dateTime ;
   prov:wasDerivedFrom fixture:source-record-evidence-0001 .
+
+fixture:evidence-confidence-trusted
+  rdf:type dcai:EvidenceConfidenceState ;
+  dcai:hasIdentifier "trusted" ;
+  rdfs:label "TRUSTED" .
 
 fixture:trust-finding-0002
   rdf:type dcai:TrustFinding ;

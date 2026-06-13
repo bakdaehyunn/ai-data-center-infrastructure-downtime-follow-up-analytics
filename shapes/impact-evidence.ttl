@@ -20,6 +20,21 @@ dcai:ImpactObservationShape
     sh:path dcai:affectedGpuCount ;
     sh:minCount 0 ;
     sh:datatype xsd:integer
+  ] ;
+  sh:property [
+    sh:path dcai:hasRedundancyStateConcept ;
+    sh:minCount 0 ;
+    sh:class dcai:RedundancyState
+  ] ;
+  sh:property [
+    sh:path dcai:hasMitigationStateConcept ;
+    sh:minCount 0 ;
+    sh:class dcai:MitigationState
+  ] ;
+  sh:property [
+    sh:path dcai:hasVendorStateConcept ;
+    sh:minCount 0 ;
+    sh:class dcai:VendorState
   ] .
 
 dcai:EvidenceSupportShape
@@ -28,7 +43,22 @@ dcai:EvidenceSupportShape
   sh:or (
     [ sh:property [ sh:path dcai:supportsFact ; sh:minCount 1 ] ]
     [ sh:property [ sh:path dcai:contradictsFact ; sh:minCount 1 ] ]
-  ) .
+  ) ;
+  sh:property [
+    sh:path dcai:hasConfidenceState ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasEvidenceConfidence ;
+    sh:minCount 1 ;
+    sh:class dcai:EvidenceConfidenceState
+  ] ;
+  sh:property [
+    sh:path dcai:hasEvidenceTimestamp ;
+    sh:minCount 1 ;
+    sh:datatype xsd:dateTime
+  ] .
 
 dcai:TelemetryEvidenceShape
   a sh:NodeShape ;
@@ -57,4 +87,42 @@ dcai:TelemetryEvidenceShape
     sh:path dcai:alertResolvedAt ;
     sh:minCount 0 ;
     sh:datatype xsd:dateTime
+  ] ;
+  sh:property [
+    sh:path dcai:hasTelemetryState ;
+    sh:minCount 0 ;
+    sh:class dcai:TelemetryStatus
+  ] .
+
+dcai:ValidationEvidenceShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:ValidationEvidence ;
+  sh:property [
+    sh:path dcai:hasValidationId ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasValidationStatus ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasValidationState ;
+    sh:minCount 1 ;
+    sh:class dcai:ValidationStatus
+  ] .
+
+dcai:WorkOrderEvidenceShape
+  a sh:NodeShape ;
+  sh:targetClass dcai:WorkOrderEvidence ;
+  sh:property [
+    sh:path dcai:hasWorkOrderId ;
+    sh:minCount 1 ;
+    sh:datatype xsd:string
+  ] ;
+  sh:property [
+    sh:path dcai:hasWorkOrderState ;
+    sh:minCount 0 ;
+    sh:class dcai:WorkOrderStatus
   ] .

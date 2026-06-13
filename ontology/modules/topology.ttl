@@ -8,9 +8,9 @@
 dcai:topology
   rdf:type owl:Ontology ;
   dcterms:title "DCAI topology ontology module" ;
-  dcterms:description "Phase 2 skeleton for dependency edges and infrastructure paths." ;
+  dcterms:description "AI data center dependency edges and power, cooling, telemetry, redundancy, and transfer paths." ;
   owl:imports dcai:core, dcai:infrastructure ;
-  owl:versionInfo "2026-06-phase2-skeleton" .
+  owl:versionInfo "2026-06-ai-data-center-ontology-hardening-v1" .
 
 dcai:DependencyEdge rdf:type owl:Class ;
   rdfs:subClassOf dcai:OperationalEntity .
@@ -18,12 +18,24 @@ dcai:DependencyPath rdf:type owl:Class ;
   rdfs:subClassOf dcai:OperationalEntity .
 dcai:PowerPath rdf:type owl:Class ;
   rdfs:subClassOf dcai:DependencyPath .
+dcai:PowerFeedPath rdf:type owl:Class ;
+  rdfs:subClassOf dcai:PowerPath .
+dcai:GeneratorTransferPath rdf:type owl:Class ;
+  rdfs:subClassOf dcai:PowerPath .
 dcai:CoolingPath rdf:type owl:Class ;
   rdfs:subClassOf dcai:DependencyPath .
+dcai:ChilledWaterPath rdf:type owl:Class ;
+  rdfs:subClassOf dcai:CoolingPath .
 dcai:TelemetryPath rdf:type owl:Class ;
   rdfs:subClassOf dcai:DependencyPath .
+dcai:ControlTelemetryPath rdf:type owl:Class ;
+  rdfs:subClassOf dcai:TelemetryPath .
 dcai:RedundancyPath rdf:type owl:Class ;
   rdfs:subClassOf dcai:DependencyPath .
+dcai:DependencyRole rdf:type owl:Class ;
+  rdfs:subClassOf dcai:ControlledVocabularyTerm .
+dcai:ImpactScope rdf:type owl:Class ;
+  rdfs:subClassOf dcai:ControlledVocabularyTerm .
 
 dcai:dependsOn rdf:type owl:ObjectProperty ;
   rdfs:domain dcai:InfrastructureAsset ;
@@ -40,9 +52,15 @@ dcai:hasDependencyAsset rdf:type owl:ObjectProperty ;
 dcai:hasDependencyRole rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:DependencyEdge ;
   rdfs:range xsd:string .
+dcai:hasDependencyRoleConcept rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:DependencyEdge ;
+  rdfs:range dcai:DependencyRole .
 dcai:hasImpactScope rdf:type owl:DatatypeProperty ;
   rdfs:domain dcai:DependencyEdge ;
   rdfs:range xsd:string .
+dcai:hasImpactScopeConcept rdf:type owl:ObjectProperty ;
+  rdfs:domain dcai:DependencyEdge ;
+  rdfs:range dcai:ImpactScope .
 dcai:hasPathStep rdf:type owl:ObjectProperty ;
   rdfs:domain dcai:DependencyPath ;
   rdfs:range dcai:DependencyEdge .

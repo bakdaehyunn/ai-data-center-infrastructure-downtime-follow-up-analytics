@@ -1,0 +1,30 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-seeded-recorded-source-scenario-generation-v1
+  rdf:type owl:Ontology ;
+  dcterms:title "Seeded recorded source-system scenario generation v1 release" ;
+  dcterms:description "Internal local deterministic recorded source-system export generation for ontology-native ingestion. This release adds demo, mvp, and stress generation profiles for incident/workflow, asset/topology, work-order/validation, and telemetry/impact CSV exports; preserves stable IDs, timestamps, row ordering, quarantine examples, duplicate workflow events, and batch metadata by seed; routes generated exports through the existing recorded connector loader, SourceExtract DTOs, SHACL/provenance promotion gates, reasoning refresh, and lifecycle inspection tests. It does not add public endpoints, authentication, UI redesign, real external connectors, AI governance, commit, or push." ;
+  dcterms:created "2026-06-11"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-recorded-source-connector-simulation-v1 ;
+  dcterms:hasPart
+    <../../fixtures/source-extracts/generated-scenarios/demo-seed-20260610/manifest.properties>,
+    <../../fixtures/source-extracts/generated-scenarios/demo-seed-20260610/facilities.csv>,
+    <../../fixtures/source-extracts/generated-scenarios/demo-seed-20260610/zones.csv>,
+    <../../fixtures/source-extracts/generated-scenarios/demo-seed-20260610/assets.csv>,
+    <../../fixtures/source-extracts/generated-scenarios/demo-seed-20260610/incidents.csv>,
+    <../../fixtures/source-extracts/generated-scenarios/demo-seed-20260610/dependencies.csv>,
+    <../../fixtures/source-extracts/generated-scenarios/demo-seed-20260610/workflow_events.csv>,
+    <../../fixtures/source-extracts/generated-scenarios/demo-seed-20260610/work_orders.csv>,
+    <../../fixtures/source-extracts/generated-scenarios/demo-seed-20260610/validation_results.csv>,
+    <../../fixtures/source-extracts/generated-scenarios/demo-seed-20260610/telemetry_impacts.csv>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/connectors/RecordedSourceScenarioGenerator.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplication.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/connectors/RecordedSourceScenarioGeneratorTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/runtime/SemanticServiceApplicationTest.kt>,
+    <../../fixtures/source-extracts/README.md>,
+    <../../rdf-mapping/README.md>,
+    <../../semantic-service/README.md> .

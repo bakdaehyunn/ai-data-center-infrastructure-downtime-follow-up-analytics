@@ -1,0 +1,40 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-ai-data-center-operations-ontology-hardening-v1
+  rdf:type owl:Ontology ;
+  dcterms:title "AI data center operations ontology hardening v1 release" ;
+  dcterms:description "Internal ontology-native hardening release for AI data center downtime follow-up semantics. This release strengthens ontology modules for hall/zone/row/rack/GPU pod topology, UPS/PDU/cooling/telemetry asset concepts, controlled operational state vocabularies, stricter SHACL constraints where promoted data supports them, recovery-blocker reasoning, generated recorded scenario coverage, and competency tests for affected asset, upstream dependencies, evidence state, recovery blocker, blast radius, and source-record lineage. It remains local, deterministic, and source-system-simulation based; it does not add public endpoints, authentication, UI redesign, real external connectors, AI governance workflows, production data mutation, commit, or push." ;
+  dcterms:created "2026-06-11"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-seeded-recorded-source-scenario-generation-v1 ;
+  dcterms:hasPart
+    <../modules/core.ttl>,
+    <../modules/infrastructure.ttl>,
+    <../modules/topology.ttl>,
+    <../modules/workflow.ttl>,
+    <../modules/impact.ttl>,
+    <../modules/evidence.ttl>,
+    <../../shapes/canonical-integrity.ttl>,
+    <../../shapes/topology-integrity.ttl>,
+    <../../shapes/workflow-transitions.ttl>,
+    <../../shapes/impact-evidence.ttl>,
+    <../../fixtures/rdf/valid/minimal-incident.ttl>,
+    <../../fixtures/rdf/valid/dependency-path.ttl>,
+    <../../fixtures/rdf/valid/evidence-provenance.ttl>,
+    <../../fixtures/rdf/valid/reasoning-output.ttl>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/ingestion/SourceExtract.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/ingestion/SourceExtractRdfMapper.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/ingestion/OntologyVocabulary.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/connectors/RecordedSourceScenarioGenerator.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/reasoning/ReasoningModelBuilder.kt>,
+    <../../semantic-service/src/main/kotlin/com/dcai/semanticservice/lifecycle/GraphLifecycleInspector.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/connectors/OntologyHardeningCompetencyTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/ingestion/SourceExtractRdfMapperTest.kt>,
+    <../../semantic-service/src/test/kotlin/com/dcai/semanticservice/connectors/RecordedSourceScenarioGeneratorTest.kt>,
+    <../../rdf-mapping/README.md>,
+    <../../fixtures/source-extracts/README.md>,
+    <../../reasoning/README.md>,
+    <../../semantic-service/README.md> .

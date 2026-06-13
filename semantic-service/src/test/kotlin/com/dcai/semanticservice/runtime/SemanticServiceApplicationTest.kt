@@ -354,9 +354,14 @@ class SemanticServiceApplicationTest {
         val options = SemanticServiceRuntimeOptions.fromArgs(
             arrayOf(
                 "--repo-root=/workspace",
+                "--generate-source-scenarios",
+                "--generated-source-profile=mvp",
+                "--generated-source-seed=42",
+                "--generated-source-output-directory=fixtures/source-extracts/generated-scenarios/mvp-seed-42",
                 "--promote-source",
                 "--source-release-id=release-a",
                 "--source-extract-file=fixtures/source-extracts/local-controlled-source-v1.properties",
+                "--source-extract-directory=fixtures/source-extracts/recorded-source-systems/local-ops-v1",
                 "--refresh-reasoning",
                 "--reasoning-input-release-id=release-a",
                 "--reasoning-run-id=reasoning-a",
@@ -366,15 +371,36 @@ class SemanticServiceApplicationTest {
             ),
         )
 
+        assertTrue(options.generateSourceScenarios)
+        assertEquals("mvp", options.generatedSourceProfile)
+        assertEquals(42, options.generatedSourceSeed)
+        assertEquals("fixtures/source-extracts/generated-scenarios/mvp-seed-42", options.generatedSourceOutputDirectory)
         assertTrue(options.promoteSource)
         assertEquals("release-a", options.sourceReleaseId)
         assertEquals("fixtures/source-extracts/local-controlled-source-v1.properties", options.sourceExtractFile)
+        assertEquals("fixtures/source-extracts/recorded-source-systems/local-ops-v1", options.sourceExtractDirectory)
         assertTrue(options.refreshReasoning)
         assertEquals("release-a", options.reasoningInputReleaseId)
         assertEquals("reasoning-a", options.reasoningRunId)
         assertTrue(options.inspectGraphLifecycle)
         assertEquals("release-a", options.inspectReleaseId)
         assertEquals("reasoning-a", options.inspectReasoningRunId)
+    }
+
+    @Test
+    fun generatedSourceScenarioOutputDirectoryDefaultsUnderControlledFixtureDirectory() {
+        assertEquals(
+            "fixtures/source-extracts/generated-scenarios/stress-seed-99",
+            SemanticServiceApplication.defaultGeneratedSourceScenarioDirectory(
+                com.dcai.semanticservice.connectors.RecordedSourceScenarioProfile.STRESS,
+                99,
+            ),
+        )
+
+        assertFailsWith<IllegalStateException> {
+            SemanticServiceRuntimeOptions.fromArgs(arrayOf("--generated-source-profile=unknown"))
+                .let { com.dcai.semanticservice.connectors.RecordedSourceScenarioProfile.fromValue(it.generatedSourceProfile) }
+        }
     }
 
     @Test
@@ -385,13 +411,13 @@ class SemanticServiceApplicationTest {
             repoRoot.resolve("fixtures/source-extracts/local-controlled-source-v1.properties"),
             SemanticServiceApplication.resolveControlledSourceExtractPath(
                 repoRoot = repoRoot,
-                sourceExtractFile = "fixtures/source-extracts/local-controlled-source-v1.properties",
+                sourceExtractPathArgument = "fixtures/source-extracts/local-controlled-source-v1.properties",
             ),
         )
         assertFailsWith<IllegalArgumentException> {
             SemanticServiceApplication.resolveControlledSourceExtractPath(
                 repoRoot = repoRoot,
-                sourceExtractFile = "../uncontrolled.properties",
+                sourceExtractPathArgument = "../uncontrolled.properties",
             )
         }
     }
@@ -412,6 +438,42 @@ class SemanticServiceApplicationTest {
                 repoRoot = repoRoot,
                 sourceReleaseId = "different-release",
                 sourceExtractFile = "fixtures/source-extracts/local-controlled-source-v1.properties",
+            )
+        }
+    }
+
+    @Test
+    fun directoryBackedSourcePromotionLoadsRecordedConnectorReport() {
+        val repoRoot = SemanticServiceApplication.locateRepoRoot()
+
+        val input = SemanticServiceApplication.loadSourceExtractInput(
+            repoRoot = repoRoot,
+            sourceReleaseId = "recorded-local-ops-v1",
+            sourceExtractFile = null,
+            sourceExtractDirectory = "fixtures/source-extracts/recorded-source-systems/local-ops-v1",
+        )
+
+        assertEquals("recorded-local-ops-v1", input.batch.batchId)
+        assertEquals(21, input.recordedConnectorReport?.acceptedRows)
+        assertEquals(2, input.recordedConnectorReport?.rejectedRowCount)
+        assertFailsWith<IllegalArgumentException> {
+            SemanticServiceApplication.loadSourceExtractInput(
+                repoRoot = repoRoot,
+                sourceReleaseId = "different-release",
+                sourceExtractFile = null,
+                sourceExtractDirectory = "fixtures/source-extracts/recorded-source-systems/local-ops-v1",
+            )
+        }
+    }
+
+    @Test
+    fun rejectsConflictingSourceExtractInputs() {
+        assertFailsWith<IllegalArgumentException> {
+            SemanticServiceApplication.loadSourceExtractInput(
+                repoRoot = SemanticServiceApplication.locateRepoRoot(),
+                sourceReleaseId = "recorded-local-ops-v1",
+                sourceExtractFile = "fixtures/source-extracts/local-controlled-source-v1.properties",
+                sourceExtractDirectory = "fixtures/source-extracts/recorded-source-systems/local-ops-v1",
             )
         }
     }

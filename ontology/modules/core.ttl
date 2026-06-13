@@ -8,10 +8,12 @@
 dcai:core
   rdf:type owl:Ontology ;
   dcterms:title "DCAI core ontology module" ;
-  dcterms:description "Phase 2 skeleton for shared identifiers, timestamps, source systems, and cross-module superclasses." ;
-  owl:versionInfo "2026-06-phase2-skeleton" .
+  dcterms:description "Shared identifiers, timestamps, source systems, controlled vocabulary terms, and cross-module superclasses for the ontology-native runtime." ;
+  owl:versionInfo "2026-06-ai-data-center-ontology-hardening-v1" .
 
-dcai:OperationalEntity rdf:type owl:Class .
+dcai:IdentifiedResource rdf:type owl:Class .
+dcai:OperationalEntity rdf:type owl:Class ;
+  rdfs:subClassOf dcai:IdentifiedResource .
 dcai:InfrastructureEntity rdf:type owl:Class ;
   rdfs:subClassOf dcai:OperationalEntity .
 dcai:OperationalEvent rdf:type owl:Class ;
@@ -21,9 +23,11 @@ dcai:EvidenceArtifact rdf:type owl:Class ;
 dcai:DerivedFact rdf:type owl:Class ;
   rdfs:subClassOf dcai:OperationalEntity .
 dcai:SourceSystem rdf:type owl:Class .
+dcai:ControlledVocabularyTerm rdf:type owl:Class ;
+  rdfs:subClassOf dcai:IdentifiedResource .
 
 dcai:hasIdentifier rdf:type owl:DatatypeProperty ;
-  rdfs:domain dcai:OperationalEntity ;
+  rdfs:domain dcai:IdentifiedResource ;
   rdfs:range xsd:string .
 dcai:hasSourceSystem rdf:type owl:ObjectProperty ;
   rdfs:domain dcai:OperationalEntity ;

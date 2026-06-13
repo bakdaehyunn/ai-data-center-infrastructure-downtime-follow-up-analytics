@@ -37,8 +37,20 @@ fixture:gpu-rack-row-a
   dcai:locatedIn fixture:zone-a ;
   dcai:hasAssetType "GPU_RACK_ROW" ;
   dcai:hasCriticalityLevel "CRITICAL" ;
+  dcai:hasCriticality fixture:criticality-critical ;
   dcai:hasOperationalStatus "DEGRADED" ;
+  dcai:hasOperationalState fixture:operational-status-degraded ;
   prov:wasDerivedFrom fixture:source-record-inc-0001 .
+
+fixture:criticality-critical
+  rdf:type dcai:CriticalityLevel ;
+  dcai:hasIdentifier "critical" ;
+  rdfs:label "CRITICAL" .
+
+fixture:operational-status-degraded
+  rdf:type dcai:OperationalStatus ;
+  dcai:hasIdentifier "degraded" ;
+  rdfs:label "DEGRADED" .
 
 fixture:stage-validation
   rdf:type dcai:WorkflowStage ;
@@ -49,4 +61,10 @@ fixture:inc-0001
   dcai:hasIdentifier "INC-0001" ;
   dcai:affectsAsset fixture:gpu-rack-row-a ;
   dcai:hasCurrentStage fixture:stage-validation ;
+  dcai:hasIncidentStageState fixture:incident-stage-validation ;
   prov:wasDerivedFrom fixture:source-record-inc-0001 .
+
+fixture:incident-stage-validation
+  rdf:type dcai:IncidentStageState ;
+  dcai:hasIdentifier "validation" ;
+  rdfs:label "Validation" .

@@ -1,0 +1,5 @@
+assetId,zoneId,assetType,criticalityLevel,operationalStatus,assetClass
+ASSET-GPU-POD-17,ZONE-DFW-A,GPU Pod,critical,degraded,INFRASTRUCTURE
+ASSET-UPS-2A,ZONE-DFW-PWR,UPS Feed,critical,monitor,POWER
+ASSET-CHW-4,ZONE-DFW-COOL,Chilled Water Loop,high,stable,COOLING
+ASSET-DCIM-BRIDGE-1,ZONE-DFW-A,DCIM Telemetry Bridge,high,stable,CONTROL_TELEMETRY

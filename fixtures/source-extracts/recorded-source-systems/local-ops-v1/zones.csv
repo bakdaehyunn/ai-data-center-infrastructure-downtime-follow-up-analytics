@@ -1,0 +1,4 @@
+zoneId,facilityId,label
+ZONE-DFW-A,FAC-DFW-1,Compute Hall A
+ZONE-DFW-PWR,FAC-DFW-1,Power Gallery
+ZONE-DFW-COOL,FAC-DFW-1,Cooling Plant

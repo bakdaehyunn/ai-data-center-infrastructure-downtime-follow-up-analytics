@@ -2,6 +2,12 @@ package com.dcai.semanticservice.runtime
 
 import com.dcai.semanticservice.api.PrivateSemanticQueryEndpointServer
 import com.dcai.semanticservice.api.PrivateSemanticQueryEndpointServerConfig
+import com.dcai.semanticservice.connectors.RecordedConnectorSimulationReport
+import com.dcai.semanticservice.connectors.RecordedSourceScenarioGenerationReport
+import com.dcai.semanticservice.connectors.RecordedSourceScenarioGenerationRequest
+import com.dcai.semanticservice.connectors.RecordedSourceScenarioGenerator
+import com.dcai.semanticservice.connectors.RecordedSourceScenarioProfile
+import com.dcai.semanticservice.connectors.RecordedSourceConnectorSimulationLoader
 import com.dcai.semanticservice.contracts.ContractValidationReport
 import com.dcai.semanticservice.contracts.StaticContractValidator
 import com.dcai.semanticservice.fixtures.ControlledFixtureGraphLoader
@@ -98,18 +104,43 @@ object SemanticServiceApplication {
         val queryResultShaper = approvedQueryManifest?.let { manifest ->
             QueryResultShaper(manifest)
         }
+        val generatedScenarioReport = if (options.generateSourceScenarios) {
+            val profile = RecordedSourceScenarioProfile.fromValue(options.generatedSourceProfile)
+            RecordedSourceScenarioGenerator().generate(
+                RecordedSourceScenarioGenerationRequest(
+                    profile = profile,
+                    seed = options.generatedSourceSeed,
+                    outputDirectory = resolveControlledSourceExtractPath(
+                        repoRoot = repoRoot,
+                        sourceExtractPathArgument = options.generatedSourceOutputDirectory
+                            ?: defaultGeneratedSourceScenarioDirectory(profile, options.generatedSourceSeed),
+                    ),
+                ),
+            )
+        } else {
+            null
+        }
         val graphStore: NamedGraphStore? = if (options.promoteSource || options.refreshReasoning || options.inspectGraphLifecycle) {
             FusekiNamedGraphWriter(FusekiGraphStoreConfig.fromEnvironment())
         } else {
             null
         }
-        val sourcePromotionPlan = if (options.promoteSource) {
-            ProductionGraphPromotionPlan(
-                batch = loadSourceExtractBatch(repoRoot, options.sourceReleaseId, options.sourceExtractFile),
-                graphs = ProductionGraphUris.forRelease(options.sourceReleaseId),
+        val sourceExtractInput = if (options.promoteSource) {
+            loadSourceExtractInput(
+                repoRoot = repoRoot,
+                sourceReleaseId = options.sourceReleaseId,
+                sourceExtractFile = options.sourceExtractFile,
+                sourceExtractDirectory = options.sourceExtractDirectory
+                    ?: generatedScenarioReport?.outputDirectory?.toString(),
             )
         } else {
             null
+        }
+        val sourcePromotionPlan = sourceExtractInput?.let { input ->
+            ProductionGraphPromotionPlan(
+                batch = input.batch,
+                graphs = ProductionGraphUris.forRelease(options.sourceReleaseId),
+            )
         }
         val sourcePromoter = sourcePromotionPlan?.let {
             GraphPromotionService(
@@ -160,6 +191,8 @@ object SemanticServiceApplication {
             reasoningPromotionPlan = reasoningPromotionPlan,
             lifecycleInspector = lifecycleInspector,
             lifecycleInspectionPlan = lifecycleInspectionPlan,
+            recordedConnectorReport = sourceExtractInput?.recordedConnectorReport,
+            generatedScenarioReport = generatedScenarioReport,
         )
 
         println("DCAI Semantic Service")
@@ -174,6 +207,7 @@ object SemanticServiceApplication {
         println("sourcePromotionEnabled=${report.sourcePromotionEnabled}")
         println("reasoningRefreshEnabled=${report.reasoningRefreshEnabled}")
         println("graphLifecycleInspectionEnabled=${report.graphLifecycleInspectionEnabled}")
+        println("sourceScenarioGenerationEnabled=${report.sourceScenarioGenerationEnabled}")
         report.graphConnectionCheck?.let { check ->
             println("graphReachable=${check.reachable}")
             println("graphDatasetUrl=${check.datasetUrl}")
@@ -201,6 +235,24 @@ object SemanticServiceApplication {
             println("sourcePromotionSucceeded=${result.promoted}")
             println("sourcePromotionWrittenGraphs=${result.writtenGraphUris.size}")
             result.releaseManifest?.let { manifest -> println("sourcePromotionRelease=${manifest.releaseId}") }
+        }
+        report.generatedScenarioReport?.let { generationReport ->
+            println("sourceScenarioProfile=${generationReport.profile.value}")
+            println("sourceScenarioSeed=${generationReport.seed}")
+            println("sourceScenarioBatch=${generationReport.batchId}")
+            println("sourceScenarioOutputDirectory=${generationReport.outputDirectory}")
+            println("sourceScenarioCount=${generationReport.scenarioCount}")
+            println("sourceScenarioRows=${generationReport.totalRows}")
+            println("sourceScenarioInvalidIncidentRows=${generationReport.invalidIncidentRows}")
+            println("sourceScenarioDuplicateWorkflowRows=${generationReport.duplicateWorkflowRows}")
+        }
+        report.recordedConnectorReport?.let { connectorReport ->
+            println("recordedConnectorBatch=${connectorReport.batchId}")
+            println("recordedConnectorSourceSystem=${connectorReport.sourceSystemId}")
+            println("recordedConnectorTotalRows=${connectorReport.totalRows}")
+            println("recordedConnectorAcceptedRows=${connectorReport.acceptedRows}")
+            println("recordedConnectorRejectedRows=${connectorReport.rejectedRowCount}")
+            println("recordedConnectorBatchHistory=${connectorReport.batchHistoryEntry}")
         }
         report.reasoningPromotionResult?.let { result ->
             println("reasoningRefreshSucceeded=${result.promoted}")
@@ -260,6 +312,8 @@ object SemanticServiceApplication {
         reasoningPromotionPlan: ReasoningPromotionPlan? = null,
         lifecycleInspector: GraphLifecycleInspector? = null,
         lifecycleInspectionPlan: GraphLifecycleInspectionPlan? = null,
+        recordedConnectorReport: RecordedConnectorSimulationReport? = null,
+        generatedScenarioReport: RecordedSourceScenarioGenerationReport? = null,
     ): SemanticServiceRuntimeReport {
         val validation = StaticContractValidator().validate(repoRoot)
         val graphConnectionCheck = graphClient?.checkConnectivity()
@@ -300,6 +354,8 @@ object SemanticServiceApplication {
             sourcePromotionResult = sourcePromotionResult,
             reasoningPromotionResult = reasoningPromotionResult,
             lifecycleInspectionResult = lifecycleInspectionResult,
+            recordedConnectorReport = recordedConnectorReport,
+            generatedScenarioReport = generatedScenarioReport,
         )
     }
 
@@ -318,13 +374,53 @@ object SemanticServiceApplication {
         error("Unable to locate repository root from $start")
     }
 
-    fun resolveControlledSourceExtractPath(repoRoot: Path, sourceExtractFile: String): Path {
+    fun resolveControlledSourceExtractPath(repoRoot: Path, sourceExtractPathArgument: String): Path {
         val sourceExtractRoot = repoRoot.resolve("fixtures/source-extracts").toAbsolutePath().normalize()
-        val sourceExtractPath = repoRoot.resolve(sourceExtractFile).toAbsolutePath().normalize()
+        val sourceExtractPath = repoRoot.resolve(sourceExtractPathArgument).toAbsolutePath().normalize()
         require(sourceExtractPath.startsWith(sourceExtractRoot)) {
-            "--source-extract-file must resolve under fixtures/source-extracts"
+            "--source-extract-file and --source-extract-directory must resolve under fixtures/source-extracts"
         }
         return sourceExtractPath
+    }
+
+    fun defaultGeneratedSourceScenarioDirectory(
+        profile: RecordedSourceScenarioProfile,
+        seed: Int,
+    ): String {
+        return "fixtures/source-extracts/generated-scenarios/${profile.value}-seed-$seed"
+    }
+
+    fun loadSourceExtractInput(
+        repoRoot: Path,
+        sourceReleaseId: String,
+        sourceExtractFile: String?,
+        sourceExtractDirectory: String?,
+    ): SourceExtractInput {
+        require(sourceExtractFile == null || sourceExtractDirectory == null) {
+            "Use either --source-extract-file or --source-extract-directory, not both"
+        }
+
+        return when {
+            sourceExtractFile != null -> {
+                val batch = FileSourceExtractLoader().load(resolveControlledSourceExtractPath(repoRoot, sourceExtractFile))
+                require(batch.batchId == sourceReleaseId) {
+                    "--source-release-id must match source extract batch.id for file-backed promotion"
+                }
+                SourceExtractInput(batch = batch)
+            }
+            sourceExtractDirectory != null -> {
+                val simulation = RecordedSourceConnectorSimulationLoader()
+                    .load(resolveControlledSourceExtractPath(repoRoot, sourceExtractDirectory))
+                require(simulation.batch.batchId == sourceReleaseId) {
+                    "--source-release-id must match recorded connector batch.id for directory-backed promotion"
+                }
+                SourceExtractInput(
+                    batch = simulation.batch,
+                    recordedConnectorReport = simulation.report,
+                )
+            }
+            else -> SourceExtractInput(batch = LocalControlledSourceExtract.batch(sourceReleaseId))
+        }
     }
 
     fun loadSourceExtractBatch(
@@ -332,15 +428,19 @@ object SemanticServiceApplication {
         sourceReleaseId: String,
         sourceExtractFile: String?,
     ): SourceExtractBatch {
-        return sourceExtractFile?.let { file ->
-            FileSourceExtractLoader().load(resolveControlledSourceExtractPath(repoRoot, file)).also { loadedBatch ->
-                require(loadedBatch.batchId == sourceReleaseId) {
-                    "--source-release-id must match source extract batch.id for file-backed promotion"
-                }
-            }
-        } ?: LocalControlledSourceExtract.batch(sourceReleaseId)
+        return loadSourceExtractInput(
+            repoRoot = repoRoot,
+            sourceReleaseId = sourceReleaseId,
+            sourceExtractFile = sourceExtractFile,
+            sourceExtractDirectory = null,
+        ).batch
     }
 }
+
+data class SourceExtractInput(
+    val batch: SourceExtractBatch,
+    val recordedConnectorReport: RecordedConnectorSimulationReport? = null,
+)
 
 private val DEFAULT_REASONING_GENERATED_AT: Instant = Instant.parse("2026-06-09T01:00:00Z")
 
@@ -369,6 +469,8 @@ data class SemanticServiceRuntimeReport(
     val sourcePromotionResult: GraphPromotionResult? = null,
     val reasoningPromotionResult: ReasoningPromotionResult? = null,
     val lifecycleInspectionResult: GraphLifecycleInspectionResult? = null,
+    val recordedConnectorReport: RecordedConnectorSimulationReport? = null,
+    val generatedScenarioReport: RecordedSourceScenarioGenerationReport? = null,
 ) {
     val mode: String = "contract-validation-runtime"
     val isReady: Boolean = contractValidation.isValid &&
@@ -385,6 +487,7 @@ data class SemanticServiceRuntimeReport(
     val sourcePromotionEnabled: Boolean = sourcePromotionResult != null
     val reasoningRefreshEnabled: Boolean = reasoningPromotionResult != null
     val graphLifecycleInspectionEnabled: Boolean = lifecycleInspectionResult != null
+    val sourceScenarioGenerationEnabled: Boolean = generatedScenarioReport != null
 }
 
 data class SemanticServiceRuntimeOptions(
@@ -395,6 +498,11 @@ data class SemanticServiceRuntimeOptions(
     val promoteSource: Boolean = false,
     val sourceReleaseId: String = LocalControlledSourceExtract.DEFAULT_RELEASE_ID,
     val sourceExtractFile: String? = null,
+    val sourceExtractDirectory: String? = null,
+    val generateSourceScenarios: Boolean = false,
+    val generatedSourceProfile: String = RecordedSourceScenarioProfile.DEMO.value,
+    val generatedSourceSeed: Int = 20260610,
+    val generatedSourceOutputDirectory: String? = null,
     val refreshReasoning: Boolean = false,
     val reasoningInputReleaseId: String? = null,
     val reasoningRunId: String = "local-controlled-reasoning-v1",
@@ -414,6 +522,11 @@ data class SemanticServiceRuntimeOptions(
             var promoteSource = false
             var sourceReleaseId = LocalControlledSourceExtract.DEFAULT_RELEASE_ID
             var sourceExtractFile: String? = null
+            var sourceExtractDirectory: String? = null
+            var generateSourceScenarios = false
+            var generatedSourceProfile = RecordedSourceScenarioProfile.DEMO.value
+            var generatedSourceSeed = 20260610
+            var generatedSourceOutputDirectory: String? = null
             var refreshReasoning = false
             var reasoningInputReleaseId: String? = null
             var reasoningRunId = "local-controlled-reasoning-v1"
@@ -429,12 +542,31 @@ data class SemanticServiceRuntimeOptions(
                     arg == "--check-graph" -> checkGraph = true
                     arg == "--load-fixtures" -> loadFixtures = true
                     arg == "--promote-source" -> promoteSource = true
+                    arg == "--generate-source-scenarios" -> generateSourceScenarios = true
                     arg == "--refresh-reasoning" -> refreshReasoning = true
                     arg == "--inspect-graph-lifecycle" -> inspectGraphLifecycle = true
                     arg == "--serve-private-query-endpoint" -> servePrivateQueryEndpoint = true
                     arg.startsWith("--source-extract-file=") -> {
                         sourceExtractFile = arg.substringAfter("=")
                         require(sourceExtractFile.isNotBlank()) { "--source-extract-file requires a value" }
+                    }
+                    arg.startsWith("--source-extract-directory=") -> {
+                        sourceExtractDirectory = arg.substringAfter("=")
+                        require(sourceExtractDirectory.isNotBlank()) { "--source-extract-directory requires a value" }
+                    }
+                    arg.startsWith("--generated-source-profile=") -> {
+                        generatedSourceProfile = arg.substringAfter("=")
+                        require(generatedSourceProfile.isNotBlank()) { "--generated-source-profile requires a value" }
+                    }
+                    arg.startsWith("--generated-source-seed=") -> {
+                        generatedSourceSeed = arg.substringAfter("=").toInt()
+                        require(generatedSourceSeed >= 0) { "--generated-source-seed must be non-negative" }
+                    }
+                    arg.startsWith("--generated-source-output-directory=") -> {
+                        generatedSourceOutputDirectory = arg.substringAfter("=")
+                        require(generatedSourceOutputDirectory.isNotBlank()) {
+                            "--generated-source-output-directory requires a value"
+                        }
                     }
                     arg.startsWith("--source-release-id=") -> {
                         sourceReleaseId = arg.substringAfter("=")
@@ -481,6 +613,11 @@ data class SemanticServiceRuntimeOptions(
                 promoteSource = promoteSource,
                 sourceReleaseId = sourceReleaseId,
                 sourceExtractFile = sourceExtractFile,
+                sourceExtractDirectory = sourceExtractDirectory,
+                generateSourceScenarios = generateSourceScenarios,
+                generatedSourceProfile = generatedSourceProfile,
+                generatedSourceSeed = generatedSourceSeed,
+                generatedSourceOutputDirectory = generatedSourceOutputDirectory,
                 refreshReasoning = refreshReasoning,
                 reasoningInputReleaseId = reasoningInputReleaseId,
                 reasoningRunId = reasoningRunId,

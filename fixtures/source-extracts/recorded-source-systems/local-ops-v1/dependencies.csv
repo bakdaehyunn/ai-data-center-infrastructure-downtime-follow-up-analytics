@@ -1,0 +1,4 @@
+edgeId,dependentAssetId,dependencyAssetId,dependencyRole,impactScope,pathId,pathClass
+DEP-GPU17-UPS2A,ASSET-GPU-POD-17,ASSET-UPS-2A,power-feed,rack-group,PATH-GPU17-PWR,POWER
+DEP-GPU17-CHW4,ASSET-GPU-POD-17,ASSET-CHW-4,cooling-loop,row,PATH-GPU17-COOL,COOLING
+DEP-DCIM-GPU17,ASSET-GPU-POD-17,ASSET-DCIM-BRIDGE-1,telemetry-source,pod,PATH-GPU17-TEL,TELEMETRY

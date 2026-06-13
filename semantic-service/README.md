@@ -199,12 +199,15 @@ does not add public endpoints, authentication, reasoning refreshes, AI
 governance workflows, frontend read-model changes, or live production connector
 jobs.
 
-Executable reasoning v1 adds internal dependency-exposure and blast-radius
-reasoning over promoted canonical graphs:
+Executable reasoning v1 adds internal dependency-exposure, recovery-blocker,
+and blast-radius reasoning over promoted canonical graphs:
 
 - reads managed canonical and provenance named graphs through `NamedGraphStore`
 - generates candidate `dcai:DependencyImpactFinding` and
   `dcai:BlastRadiusFinding` facts plus `dcai:ReasoningActivity` provenance
+- ontology hardening v1 also derives `dcai:RecoveryBlocker` facts from blocked,
+  delayed, awaiting, missing, conflicting, or manual-review workflow,
+  work-order, validation, and telemetry states in the canonical graph
 - validates reasoning output with SHACL and explicit provenance gates
 - writes managed `urn:dcai:graph:reasoning-audit:*` and
   `urn:dcai:graph:reasoning:*` graphs with rollback snapshots
@@ -266,6 +269,55 @@ fixture under `fixtures/source-extracts/`. Lifecycle inspection is read-only and
 reports graph existence, canonical counts, provenance counts, and reasoning
 finding counts for managed graph URIs. It does not add production connectors,
 public endpoints, authentication, UI changes, or AI governance workflows.
+
+Recorded source-system connector simulation v1 adds a local connector-shaped
+input option to the same internal CLI boundary:
+
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  -e DCAI_FUSEKI_DATASET_URL=http://host.docker.internal:3030/infrastructure \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon run --args="--repo-root=/workspace --promote-source --source-release-id=recorded-local-ops-v1 --source-extract-directory=fixtures/source-extracts/recorded-source-systems/local-ops-v1"
+```
+
+The recorded connector loader reads local incident/workflow, asset/topology,
+work-order/validation, and telemetry/impact CSV exports, maps accepted rows into
+the existing `SourceExtractBatch` DTOs, quarantines invalid or duplicate rows in
+a connector load report, and then uses the normal managed graph promotion path.
+It does not add public endpoints, authentication, UI changes, AI governance, or
+real external connector jobs.
+
+Seeded recorded source-system scenario generation v1 adds deterministic local
+export generation for the same recorded connector format:
+
+```bash
+docker run --rm \
+  -v "$PWD":/workspace \
+  -w /workspace/semantic-service \
+  gradle:8.10.2-jdk17 \
+  gradle --no-daemon run --args="--repo-root=/workspace --generate-source-scenarios --generated-source-profile=demo --generated-source-seed=20260610"
+```
+
+The supported profiles are `demo`, `mvp`, and `stress`. The stress profile
+generates 600 scenarios and 10,000+ source rows for deterministic loader and
+lifecycle stress checks. Generated exports can be promoted by combining
+`--generate-source-scenarios` with `--promote-source` and a matching
+`--source-release-id`, or by passing the generated directory through
+`--source-extract-directory` in a later command. The generator remains internal,
+local, deterministic, and connector-shaped; it does not add real external
+connectors.
+
+AI data center operations ontology hardening v1 strengthens the active
+ontology-native path with explicit hall/zone/row/rack/GPU pod topology, UPS/PDU
+and cooling/telemetry asset concepts, typed controlled vocabulary resources for
+operational state, stricter SHACL where current promoted data supports it, and
+competency tests for affected asset, upstream dependencies, evidence state,
+recovery blocker, blast radius, and source-record lineage. This remains a
+local deterministic simulation and internal runtime hardening slice; it does
+not expose new endpoints, add auth, redesign UI, or connect to real external
+systems.
 
 Post-Phase-20 semantic queue read-model implementation adds
 `semanticFollowUpQueueList` as the first product read model. It returns
