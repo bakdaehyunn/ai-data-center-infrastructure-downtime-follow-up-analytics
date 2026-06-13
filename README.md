@@ -66,8 +66,8 @@ The workflow labels are not the main value. The value is turning every transitio
 - Stage lead time compared with threshold hours
 - Actionable bottlenecks, excluding terminal restored work from active follow-up surfaces
 - Downtime concentration by infrastructure asset and facility zone
-- Spare/vendor waiting impact and stock risk
-- Capacity-at-risk, affected GPU, redundancy-loss, thermal-breach, vendor ETA, and mitigation context
+- Vendor/parts escalation, work-order blockers, and recovery blocker risk
+- Capacity-at-risk, affected GPU, redundancy state, thermal-breach, vendor/parts, and mitigation context
 - Impact confidence status that separates trusted, warning, and unverified impact context
 - Repeat failure signals
 - Facilities engineer assignment and validation delays
@@ -196,16 +196,23 @@ Approved product read-model query IDs include:
 
 The endpoint is internal/loopback only. It accepts approved query IDs, not raw SPARQL text.
 
-## Dashboard
+## Semantic Workbench
 
-The React dashboard is built for follow-up decisions:
+The React frontend is built as a semantic operations workbench:
 
-- Read-only KPI and exposure summaries for the currently visible follow-up queue
-- Queue Intelligence cards that summarize the visible queue or the selected row
-- Queue scope controls for clear queue subsets such as vendor ETA missed, spare/vendor wait, evidence review, and N-1 exposure
-- Compact desktop follow-up table with one value per column and explicit `View details` links
-- Dedicated follow-up detail route with Summary, Impact, Trust, and Dependencies tabs
-- Detail evidence for stage history, work order context, spare context, impact snapshot context, telemetry evidence, vendor/mitigation status, impact trust flags, dependency paths, SHACL validation status, semantic incident evidence, and SPARQL-backed blast-radius context
+- Read-only graph finding summaries for restore readiness, trust review,
+  redundancy exposure, dependency roles, capacity risk, and affected GPUs
+- Semantic finding scope controls aligned with live graph vocabulary such as
+  restore blocked, trust review, redundancy lost, vendor/parts escalation,
+  recovery, and validation
+- A compact findings table with incident, asset, zone, blocker, time, and
+  detail links backed by approved semantic query IDs
+- Dedicated finding detail route with Summary, Impact, Trust, and Dependencies
+  tabs
+- Detail evidence for stage history, work order context, impact snapshot
+  context, telemetry evidence, vendor/mitigation status, impact trust flags,
+  graph-derived dependency paths, SHACL validation status, semantic incident
+  evidence, and SPARQL-backed blast-radius context
 
 Run the frontend build:
 

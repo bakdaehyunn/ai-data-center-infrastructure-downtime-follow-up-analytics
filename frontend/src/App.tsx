@@ -33,6 +33,9 @@ import {
   fetchRequestDetail,
   fetchRequestSemanticContext,
   fetchTopologyDependencies,
+  filterDashboardData,
+  isRedundancyLost,
+  isVendorPartsEscalation,
 } from './api'
 import './App.css'
 
@@ -48,25 +51,29 @@ const detailTabs: { id: DetailTab; label: string }[] = [
 const queueScopes = {
   criticalDelayed: { critical_asset_delayed: true },
   redundancyLost: { redundancy_lost: true },
-  vendorEtaMissed: { vendor_eta_missed: true },
-  spareVendorWait: { stage: 'SPARE_VENDOR_WAITING' },
-  evidenceReview: { evidence_review: true },
+  vendorPartsEscalation: { vendor_parts_escalation: true },
+  recoveryStage: { stage: 'RECOVERY' },
+  validationStage: { stage: 'VALIDATION' },
+  trustReview: { trust_review: true },
+  restoreBlocked: { restore_blocked: true },
 } satisfies Record<string, DashboardFilters>
 
 const queueScopeControls: { id: string; label: string; filters: DashboardFilters }[] = [
-  { id: 'all', label: 'All queue', filters: {} },
+  { id: 'all', label: 'All findings', filters: {} },
+  { id: 'restore-blocked', label: 'Restore blocked', filters: queueScopes.restoreBlocked },
+  { id: 'trust-review', label: 'Trust review', filters: queueScopes.trustReview },
+  { id: 'redundancy-lost', label: 'Redundancy lost', filters: queueScopes.redundancyLost },
+  { id: 'vendor-parts-escalation', label: 'Vendor/parts escalation', filters: queueScopes.vendorPartsEscalation },
+  { id: 'recovery-stage', label: 'Recovery stage', filters: queueScopes.recoveryStage },
+  { id: 'validation-stage', label: 'Validation stage', filters: queueScopes.validationStage },
   { id: 'critical-asset-delay', label: 'Critical asset delay', filters: queueScopes.criticalDelayed },
-  { id: 'vendor-eta-missed', label: 'Vendor ETA missed', filters: queueScopes.vendorEtaMissed },
-  { id: 'spare-vendor-wait', label: 'Spare/vendor wait', filters: queueScopes.spareVendorWait },
-  { id: 'evidence-review', label: 'Evidence review', filters: queueScopes.evidenceReview },
-  { id: 'n-1-exposure', label: 'N-1 exposure', filters: queueScopes.redundancyLost },
 ]
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<FollowUpQueuePage />} />
-      <Route path="/follow-ups/:incidentId" element={<FollowUpDetailPage />} />
+      <Route path="/findings/:incidentId" element={<FollowUpDetailPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
@@ -76,7 +83,7 @@ function FollowUpQueuePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const filterQuery = searchParams.toString()
   const filters = useMemo(() => filtersFromQuery(filterQuery), [filterQuery])
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null)
+  const [dashboardSnapshot, setDashboardSnapshot] = useState<DashboardData | null>(null)
   const [metadata, setMetadata] = useState<FilterMetadata | null>(null)
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -104,9 +111,9 @@ function FollowUpQueuePage() {
       setLoading(true)
       setError(null)
       try {
-        const dashboardData = await fetchDashboardData(filtersFromQuery(filterQuery))
+        const dashboardData = await fetchDashboardData()
         if (!cancelled) {
-          setDashboard(dashboardData)
+          setDashboardSnapshot(dashboardData)
         }
       } catch (err) {
         if (!cancelled) {
@@ -120,7 +127,12 @@ function FollowUpQueuePage() {
     return () => {
       cancelled = true
     }
-  }, [filterQuery])
+  }, [])
+
+  const dashboard = useMemo(
+    () => dashboardSnapshot ? filterDashboardData(dashboardSnapshot, filters) : null,
+    [dashboardSnapshot, filters],
+  )
 
   const setFilter = (key: keyof DashboardFilters, value: string) => {
     applyFilters(setSearchParams, { ...filters, [key]: value || undefined })
@@ -139,7 +151,7 @@ function FollowUpQueuePage() {
         <div>
           <p className="eyebrow">AI infrastructure operations</p>
           <h1>AI Data Center Infrastructure Semantic Operations Platform</h1>
-          <p className="page-summary">Graph-backed follow-up queue for capacity, redundancy, vendor, and evidence-risk decisions.</p>
+          <p className="page-summary">Semantic findings workbench for restore readiness, evidence trust, dependency exposure, and blast-radius decisions.</p>
         </div>
         <button className="icon-button" onClick={() => applyFilters(setSearchParams, {})} title="Reset filters">
           <RefreshCcw size={18} />
@@ -159,27 +171,27 @@ function FollowUpQueuePage() {
         <Select label="Stage" value={filters.stage ?? ''} values={metadata?.stages ?? []} onChange={(value) => setFilter('stage', value)} />
       </section>
 
-      <SectionLabel label="Dashboard Summary" />
+      <SectionLabel label="Graph Finding Summary" />
       <section className="kpi-grid">
-        <Kpi icon={<Wrench size={18} />} label="Queue items" value={queueSummary.queueItems} />
-        <Kpi icon={<Clock3 size={18} />} label="Delayed queue items" value={queueSummary.delayedItems} tone="warning" />
+        <Kpi icon={<Wrench size={18} />} label="Finding items" value={queueSummary.queueItems} />
+        <Kpi icon={<Clock3 size={18} />} label="Restore blocked" value={queueSummary.restoreBlockedItems} tone="danger" />
         <Kpi icon={<AlertTriangle size={18} />} label="Critical priority" value={queueSummary.criticalPriorityItems} tone="danger" />
         <Kpi icon={<Zap size={18} />} label="Capacity at risk" value={`${queueSummary.capacityRiskKw.toFixed(0)} kW`} tone="danger" />
         <Kpi icon={<Cpu size={18} />} label="Affected GPUs" value={queueSummary.affectedGpuCount} tone="warning" />
       </section>
 
       <section className="exposure-strip" aria-label="Operational exposure">
-        <ExposureMetric icon={<ShieldAlert size={16} />} label="N-1 exposure" value={queueSummary.n1ExposureItems} tone="danger" />
-        <ExposureMetric icon={<Clock3 size={16} />} label="Vendor ETA missed" value={queueSummary.vendorEtaMissedItems} tone="warning" />
-        <ExposureMetric icon={<Boxes size={16} />} label="Spare/vendor wait" value={`${queueSummary.spareVendorWaitItems} / ${formatHours(queueSummary.spareVendorWaitHours)}`} />
-        <ExposureMetric icon={<Database size={16} />} label="Evidence review" value={queueSummary.evidenceReviewItems} tone={queueSummary.evidenceReviewItems ? 'danger' : 'ok'} />
+        <ExposureMetric icon={<ShieldAlert size={16} />} label="Redundancy lost" value={queueSummary.n1ExposureItems} tone="danger" />
+        <ExposureMetric icon={<Clock3 size={16} />} label="Vendor/parts escalation" value={queueSummary.vendorEtaMissedItems} tone="warning" />
+        <ExposureMetric icon={<Boxes size={16} />} label="Dependency roles" value={queueSummary.dependencyRoleCount} />
+        <ExposureMetric icon={<Database size={16} />} label="Trust review" value={queueSummary.evidenceReviewItems} tone={queueSummary.evidenceReviewItems ? 'danger' : 'ok'} />
       </section>
 
-      <SectionLabel label="Queue Intelligence" />
+      <SectionLabel label="Graph Insight" />
       <QueueIntelligence rows={followUps} selectedRow={selectedFollowUp} summary={queueSummary} />
 
-      <SectionLabel label="Follow-up Queue" />
-      <section className="queue-scope-bar" aria-label="Queue scopes">
+      <SectionLabel label="Semantic Findings" />
+      <section className="queue-scope-bar" aria-label="Semantic finding scopes">
         <div>
           {queueScopeControls.map((scope) => (
             <button
@@ -199,7 +211,7 @@ function FollowUpQueuePage() {
       <section className="queue-workspace">
         <section className="panel queue-panel">
           {loading ? (
-            <div className="empty-state">Loading follow-up queue</div>
+            <div className="empty-state">Loading semantic findings</div>
           ) : (
             <FollowUpTable rows={followUps} selectedIncidentId={selectedFollowUp?.incident_id ?? null} onSelect={setSelectedIncidentId} />
           )}
@@ -221,7 +233,7 @@ function OperationalCommandStrip({ dashboard, summary, loading }: {
       <SystemSignal icon={<Activity size={16} />} label="Pipeline run" value={formatStage(pipelineStatus)} tone={statusSignalTone(pipelineStatus)} />
       <SystemSignal icon={<CheckCircle2 size={16} />} label="Data quality" value={formatStage(dataQualityStatus)} tone={qualitySignalTone(dataQualityStatus)} />
       <SystemSignal icon={<ServerCog size={16} />} label="Semantic boundary" value="Approved query catalog" tone="ok" />
-      <SystemSignal icon={<Target size={16} />} label="Visible queue" value={`${summary.queueItems} active`} tone={summary.queueItems ? 'warning' : 'ok'} />
+      <SystemSignal icon={<Target size={16} />} label="Visible findings" value={`${summary.queueItems} active`} tone={summary.queueItems ? 'warning' : 'ok'} />
     </section>
   )
 }
@@ -254,7 +266,10 @@ function filtersFromQuery(filterQuery: string): DashboardFilters {
     affected_gpu: searchParams.get('affected_gpu') === 'true' || undefined,
     evidence_review: searchParams.get('evidence_review') === 'true' || undefined,
     redundancy_lost: searchParams.get('redundancy_lost') === 'true' || undefined,
-    vendor_eta_missed: searchParams.get('vendor_eta_missed') === 'true' || undefined,
+    vendor_parts_escalation: searchParams.get('vendor_parts_escalation') === 'true' || undefined,
+    restore_blocked: searchParams.get('restore_blocked') === 'true' || undefined,
+    trust_review: searchParams.get('trust_review') === 'true' || undefined,
+    dependency_role: searchParams.get('dependency_role') || undefined,
   }
 }
 
@@ -279,15 +294,17 @@ function summarizeQueue(rows: FollowUpItem[]) {
   return {
     queueItems: rows.length,
     delayedItems: rows.filter((row) => row.hours_in_current_stage > 0).length,
+    restoreBlockedItems: rows.filter((row) => row.restore_readiness_status === 'NOT_READY').length,
     criticalPriorityItems: rows.filter((row) => row.priority_level === 'CRITICAL').length,
     capacityRiskKw: rows.reduce((total, row) => total + row.estimated_capacity_risk_kw, 0),
     affectedGpuCount: rows.reduce((total, row) => total + row.affected_gpu_count, 0),
-    n1ExposureItems: rows.filter((row) => row.redundancy_state === 'N-1').length,
-    vendorEtaMissedItems: rows.filter((row) => row.vendor_status === 'ETA_MISSED').length,
-    spareVendorWaitItems: rows.filter((row) => row.current_stage === 'SPARE_VENDOR_WAITING').length,
+    n1ExposureItems: rows.filter((row) => isRedundancyLost(row.redundancy_state)).length,
+    vendorEtaMissedItems: rows.filter((row) => isVendorPartsEscalation(row.vendor_status)).length,
+    spareVendorWaitItems: rows.filter((row) => row.current_stage === 'RECOVERY').length,
     spareVendorWaitHours: rows
-      .filter((row) => row.current_stage === 'SPARE_VENDOR_WAITING')
+      .filter((row) => row.current_stage === 'RECOVERY')
       .reduce((total, row) => total + row.hours_in_current_stage, 0),
+    dependencyRoleCount: new Set(rows.flatMap((row) => row.dependency_roles)).size,
     evidenceReviewItems: rows.filter((row) => row.impact_confidence_status !== 'TRUSTED').length,
   }
 }
@@ -305,16 +322,16 @@ function QueueIntelligence({ rows, selectedRow, summary }: {
 }) {
   const items = selectedRow ? buildSelectedFollowUpIntelligence(selectedRow) : buildQueueIntelligence(rows, summary)
   return (
-    <section className={`queue-intelligence ${selectedRow ? 'selected' : ''}`} aria-label="Queue intelligence">
+    <section className={`queue-intelligence ${selectedRow ? 'selected' : ''}`} aria-label="Graph finding insight">
       <div className="queue-intelligence-header">
-        <span>{selectedRow ? 'Selected follow-up preview' : 'Visible queue readout'}</span>
+        <span>{selectedRow ? 'Selected finding preview' : 'Visible graph readout'}</span>
         {selectedRow ? (
-          <Link to={`/follow-ups/${selectedRow.incident_id}`}>
+          <Link to={`/findings/${selectedRow.incident_id}`}>
             Open detail
             <ArrowRight size={14} />
           </Link>
         ) : (
-          <strong>{rows.length} active incident{rows.length === 1 ? '' : 's'}</strong>
+          <strong>{rows.length} active finding{rows.length === 1 ? '' : 's'}</strong>
         )}
       </div>
       <div className="queue-intelligence-grid">
@@ -363,7 +380,7 @@ function buildSelectedFollowUpIntelligence(row: FollowUpItem): QueueIntelligence
     {
       label: 'Capacity risk',
       value: `${row.estimated_capacity_risk_kw.toFixed(0)} kW`,
-      tone: row.redundancy_state === 'N-1' || row.estimated_capacity_risk_kw > 0 ? 'danger' : undefined,
+      tone: isRedundancyLost(row.redundancy_state) || row.estimated_capacity_risk_kw > 0 ? 'danger' : undefined,
     },
     {
       label: 'Trust',
@@ -398,8 +415,8 @@ function buildQueueIntelligence(rows: FollowUpItem[], summary: ReturnType<typeof
       tone: summary.affectedGpuCount > 0 ? 'warning' : undefined,
     },
     {
-      label: 'Trust load',
-      value: summary.evidenceReviewItems ? `${summary.evidenceReviewItems} need review` : 'Trusted queue',
+      label: 'Trust review',
+      value: summary.evidenceReviewItems ? `${summary.evidenceReviewItems} need review` : 'Trusted graph',
       tone: summary.evidenceReviewItems ? 'warning' : 'ok',
     },
     primaryRiskSignal(summary),
@@ -438,34 +455,34 @@ function primaryRiskSignal(summary: ReturnType<typeof summarizeQueue>): QueueInt
   if (summary.n1ExposureItems && summary.vendorEtaMissedItems) {
     return {
       label: 'Primary risk',
-      value: 'N-1 + missed ETA',
+      value: 'Redundancy + vendor',
       tone: 'danger',
     }
   }
   if (summary.n1ExposureItems) {
     return {
       label: 'Primary risk',
-      value: 'N-1 exposure',
+      value: 'Redundancy lost',
       tone: 'danger',
     }
   }
   if (summary.vendorEtaMissedItems) {
     return {
       label: 'Primary risk',
-      value: 'Vendor ETA missed',
+      value: 'Vendor/parts escalation',
       tone: 'warning',
     }
   }
   if (summary.spareVendorWaitItems) {
     return {
       label: 'Primary risk',
-      value: 'Spare/vendor wait',
+      value: 'Recovery blockers',
       tone: 'warning',
     }
   }
   return {
     label: 'Primary risk',
-    value: 'Delay queue',
+    value: 'Graph finding review',
     tone: summary.delayedItems ? 'warning' : undefined,
   }
 }
@@ -548,7 +565,7 @@ function FollowUpTable({ rows, selectedIncidentId, onSelect }: {
   onSelect: (incidentId: string) => void
 }) {
   if (!rows.length) {
-    return <div className="empty-state">No delayed follow-up incidents match the current filters</div>
+    return <div className="empty-state">No semantic findings match the current graph filters</div>
   }
   return (
     <div className="followup-table-wrap">
@@ -602,7 +619,7 @@ function FollowUpTable({ rows, selectedIncidentId, onSelect }: {
                 <span>{formatHours(row.hours_in_current_stage)}</span>
               </td>
               <td data-label="Action" className="queue-detail-action">
-                <Link to={`/follow-ups/${row.incident_id}`} onClick={(event) => event.stopPropagation()}>
+                <Link to={`/findings/${row.incident_id}`} onClick={(event) => event.stopPropagation()}>
                   View details
                   <ArrowRight size={15} />
                 </Link>
@@ -629,7 +646,7 @@ function FollowUpDetailPage() {
     let cancelled = false
     async function loadDetail() {
       if (!incidentId) {
-        setError('Follow-up not found')
+        setError('Semantic finding not found')
         setLoading(false)
         return
       }
@@ -651,7 +668,7 @@ function FollowUpDetailPage() {
           setDetail(null)
           setSemanticContext(null)
           setTopologyDependencies([])
-          setError('Follow-up not found or unavailable')
+          setError('Semantic finding not found or unavailable')
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -667,7 +684,7 @@ function FollowUpDetailPage() {
     <main className="app-shell detail-page-shell">
       <header className="topbar detail-page-header">
         <div>
-          <p className="eyebrow">Selected follow-up</p>
+          <p className="eyebrow">Selected semantic finding</p>
           <h1>{detail?.request.request_number ?? incidentId ?? 'Incident details'}</h1>
           <span>{detail?.request.request_title ?? (loading ? 'Loading selected incident' : 'Incident detail unavailable')}</span>
         </div>
@@ -678,7 +695,7 @@ function FollowUpDetailPage() {
 
       <Link className="back-link" to="/">
         <ArrowLeft size={16} />
-        Back to Follow-up Queue
+        Back to Semantic Findings
       </Link>
 
       {error ? <div className="error-banner">{error}</div> : null}
@@ -723,7 +740,7 @@ function NotFoundPage() {
       </header>
       <Link className="back-link" to="/">
         <ArrowLeft size={16} />
-        Back to Follow-up Queue
+        Back to Semantic Findings
       </Link>
     </main>
   )
@@ -734,7 +751,7 @@ function RequestDetailView({ detail, semanticContext }: {
   semanticContext: RequestSemanticContext | null
 }) {
   if (!detail) {
-    return <div className="empty-state">Select a queued incident to inspect the follow-up action</div>
+    return <div className="empty-state">Select a semantic finding to inspect the recommended action</div>
   }
   const affectedGpuCount = detail.impact_snapshot?.affected_gpu_count ?? detail.request.affected_gpu_count
   const capacityRiskKw = detail.impact_snapshot?.estimated_capacity_risk_kw ?? detail.request.estimated_capacity_risk_kw
@@ -828,7 +845,7 @@ function SemanticTracePanel({ semanticContext }: { semanticContext: RequestSeman
         <GitBranch size={17} />
         <div>
           <span>Semantic evidence trace</span>
-          <strong>{evidenceLinked ? 'RDF incident evidence is linked to this follow-up' : 'RDF incident evidence needs review'}</strong>
+          <strong>{evidenceLinked ? 'RDF incident evidence is linked to this finding' : 'RDF incident evidence needs review'}</strong>
         </div>
       </div>
       <div className="semantic-trace-grid">
@@ -881,7 +898,7 @@ function ImpactView({ detail, semanticContext }: {
   semanticContext: RequestSemanticContext | null
 }) {
   if (!detail) {
-    return <div className="empty-state">Select a queued incident to inspect impact context</div>
+    return <div className="empty-state">Select a semantic finding to inspect impact context</div>
   }
   const impact = detail.impact_snapshot
   return (
@@ -904,7 +921,7 @@ function ImpactView({ detail, semanticContext }: {
           <FactStrip
             ariaLabel="Selected incident impact at a glance"
             items={[
-              { label: 'Redundancy', value: impact.redundancy_state, detail: `${impact.affected_rack_count} affected rack${impact.affected_rack_count === 1 ? '' : 's'}`, tone: redundancyTone(impact.redundancy_state) },
+              { label: 'Redundancy', value: redundancyLabel(impact.redundancy_state), detail: `${impact.affected_rack_count} affected rack${impact.affected_rack_count === 1 ? '' : 's'}`, tone: redundancyTone(impact.redundancy_state) },
               { label: 'Capacity risk', value: `${impact.estimated_capacity_risk_kw.toFixed(0)} kW`, detail: `${impact.estimated_gpu_capacity_risk_pct.toFixed(1)}% GPU capacity risk`, tone: capacityRiskTone(impact.estimated_capacity_risk_kw, impact.estimated_gpu_capacity_risk_pct) },
               { label: 'Affected GPUs', value: String(impact.affected_gpu_count), detail: impact.source_system },
               { label: 'Thermal breach', value: `${impact.thermal_breach_minutes}m`, detail: 'Thermal exposure window', tone: impact.thermal_breach_minutes > 0 ? 'warning' : undefined },
@@ -949,10 +966,10 @@ function ImpactView({ detail, semanticContext }: {
         <div className="score-list">
           <Score label="Downtime" value={detail.request.downtime_score} />
           <Score label="Stage delay" value={detail.request.stage_delay_score} />
-          <Score label="Spare risk" value={detail.request.spare_risk_score} />
+          <Score label="Recovery blocker risk" value={detail.request.spare_risk_score} />
           <Score label="Capacity risk" value={detail.request.capacity_risk_score} />
           <Score label="Redundancy risk" value={detail.request.redundancy_risk_score} />
-          <Score label="Vendor ETA risk" value={detail.request.vendor_eta_risk_score} />
+          <Score label="Vendor/parts risk" value={detail.request.vendor_eta_risk_score} />
           <Score label="Mitigation credit" value={detail.request.mitigation_credit_score} />
         </div>
       </div>
@@ -965,7 +982,7 @@ function RequestTrustView({ detail, semanticContext }: {
   semanticContext: RequestSemanticContext | null
 }) {
   if (!detail) {
-    return <div className="empty-state">Select a queued incident to review data trust</div>
+    return <div className="empty-state">Select a semantic finding to review evidence trust</div>
   }
   const validationSummaryText = validationStatusSummary(detail.validation_results)
   const trustNeedsReview = detail.impact_confidence_status !== 'TRUSTED' || detail.impact_trust_flags.length > 0 || detail.quality_flags.length > 0
@@ -974,7 +991,7 @@ function RequestTrustView({ detail, semanticContext }: {
       <div className="detail-hero">
         <div>
           <strong>Recommendation trust</strong>
-          <span>{detail.request.request_number} · evidence confidence for selected follow-up</span>
+          <span>{detail.request.request_number} · evidence confidence for selected finding</span>
         </div>
         <div className="status-badge-stack">
           <ReadinessBadge status={detail.restore_readiness.status} />
@@ -1087,11 +1104,15 @@ function DependencyDetailView({ detail, semanticContext, topologyDependencies }:
   semanticContext: RequestSemanticContext | null
   topologyDependencies: InfrastructureDependency[]
 }) {
-  const paths = buildTopologyPaths(topologyDependencies)
-  const activeIncidentCount = paths.reduce((total, path) => total + path.activeIncidentCount, 0)
   if (!detail) {
-    return <div className="empty-state">Select a queued incident to compare dependency context against the active blocker</div>
+    return <div className="empty-state">Select a semantic finding to compare dependency context against the active blocker</div>
   }
+  const selectedDependencyRows = topologyDependencies.filter((dependency) =>
+    dependency.dependent_asset_id === detail.request.asset_id ||
+    dependency.dependency_asset_id === detail.request.asset_id,
+  )
+  const paths = buildTopologyPaths(selectedDependencyRows)
+  const activeIncidentCount = paths.reduce((total, path) => total + path.activeIncidentCount, 0)
   return (
     <div className="detail-stack summary-brief">
       <div className="detail-hero">
@@ -1110,10 +1131,10 @@ function DependencyDetailView({ detail, semanticContext, topologyDependencies }:
       <FactStrip
         ariaLabel="Selected incident dependency impact at a glance"
         items={[
-          { label: 'Dependency paths', value: String(paths.length), detail: 'Power and cooling paths' },
+          { label: 'Dependency paths', value: String(paths.length), detail: 'Power, cooling, and telemetry paths' },
           { label: 'Path incidents', value: String(activeIncidentCount), detail: 'Active incidents on paths', tone: activeIncidentCount > 0 ? 'warning' : undefined },
           { label: 'Capacity risk', value: `${detail.request.estimated_capacity_risk_kw.toFixed(0)} kW`, detail: `${detail.request.affected_gpu_count} affected GPUs`, tone: capacityRiskTone(detail.request.estimated_capacity_risk_kw) },
-          { label: 'Redundancy', value: detail.request.redundancy_state ?? 'Unknown', detail: 'Selected incident redundancy state', tone: redundancyTone(detail.request.redundancy_state) },
+          { label: 'Redundancy', value: redundancyLabel(detail.request.redundancy_state), detail: 'Selected incident redundancy state', tone: redundancyTone(detail.request.redundancy_state) },
           { label: 'Inferred downstream', value: String(semanticContext?.blastRadius.inferred_downstream_assets.length ?? 0), detail: 'SPARQL blast-radius traversal', tone: (semanticContext?.blastRadius.inferred_downstream_assets.length ?? 0) ? 'warning' : undefined },
         ]}
       />
@@ -1139,8 +1160,8 @@ function DependencyDetailView({ detail, semanticContext, topologyDependencies }:
       </div>
 
       <div className="detail-section evidence-section">
-        <strong className="detail-section-title">Power and cooling paths</strong>
-        <TopologyRows rows={topologyDependencies} />
+        <strong className="detail-section-title">Graph dependency paths</strong>
+        <TopologyRows rows={selectedDependencyRows} />
       </div>
     </div>
   )
@@ -1269,34 +1290,16 @@ type TopologyNode = {
   activeIncidentCount: number
 }
 
-const topologyPathDefinitions = [
-  {
-    id: 'power',
-    label: 'Power path',
-    dependencyIds: ['DEP-RACK-PDU', 'DEP-PDU-UPS', 'DEP-UPS-SWGR', 'DEP-SWGR-GEN'],
-  },
-  {
-    id: 'air-cooling',
-    label: 'Air cooling path',
-    dependencyIds: ['DEP-RACK-CRAH', 'DEP-CRAH-CHILLER'],
-  },
-  {
-    id: 'liquid-cooling',
-    label: 'Liquid cooling path',
-    dependencyIds: ['DEP-RACK-CDU', 'DEP-CDU-CHILLER'],
-  },
-]
-
 function buildTopologyPaths(rows: InfrastructureDependency[]): TopologyPath[] {
-  const edgesById = new Map(rows.map((row) => [row.dependency_id, row]))
-  return topologyPathDefinitions
-    .map((definition) => {
-      const edges = definition.dependencyIds
-        .map((dependencyId) => edgesById.get(dependencyId))
-        .filter((edge): edge is InfrastructureDependency => Boolean(edge))
-      if (!edges.length) {
-        return null
-      }
+  const pathGroups = rows.reduce<Map<string, InfrastructureDependency[]>>((summary, row) => {
+    const key = row.dependency_role || row.dependency_type || row.dependency_id
+    const edges = summary.get(key) ?? []
+    edges.push(row)
+    summary.set(key, edges)
+    return summary
+  }, new Map())
+  return [...pathGroups.entries()]
+    .map(([id, edges]) => {
       const nodes: TopologyNode[] = []
       edges.forEach((edge, index) => {
         if (index === 0) {
@@ -1316,13 +1319,19 @@ function buildTopologyPaths(rows: InfrastructureDependency[]): TopologyPath[] {
       })
       const activeIncidentCount = nodes.reduce((total, node) => total + node.activeIncidentCount, 0)
       return {
-        id: definition.id,
-        label: definition.label,
+        id,
+        label: dependencyPathLabel(edges[0]),
         nodes,
         activeIncidentCount,
       }
     })
-    .filter((path): path is TopologyPath => Boolean(path))
+    .sort((left, right) => right.activeIncidentCount - left.activeIncidentCount || left.label.localeCompare(right.label))
+}
+
+function dependencyPathLabel(edge: InfrastructureDependency): string {
+  const role = edge.dependency_role ? formatStage(edge.dependency_role) : 'Dependency'
+  const scope = edge.impact_scope && edge.impact_scope !== 'unknown' ? ` · ${formatStage(edge.impact_scope)}` : ''
+  return `${role}${scope}`
 }
 
 function formatHours(value: number) {
@@ -1332,7 +1341,7 @@ function formatHours(value: number) {
 function formatStage(value: string) {
   return value
     .toLowerCase()
-    .split('_')
+    .split(/[_-]+/)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
 }
@@ -1363,7 +1372,7 @@ function trustIssueLabel(issueName: string) {
     infrastructure_incident_without_stage_event: 'Incident is missing stage history',
     stage_event_timestamp_out_of_order: 'Stage events arrived out of order',
     validation_without_completed_work: 'Validation exists without completed work',
-    spare_waiting_without_required_spare: 'Spare wait has no required spare record',
+    spare_waiting_without_required_spare: 'Recovery blocker has no required parts record',
     stale_impact_snapshot: 'Impact snapshot is stale',
     missing_impact_snapshot: 'Impact snapshot is missing',
     contradictory_impact_evidence: 'Impact evidence is contradictory',
@@ -1401,9 +1410,16 @@ function validationTone(summary: string): 'ok' | 'warning' | 'danger' {
 }
 
 function redundancyTone(state?: string | null): 'warning' | 'danger' | undefined {
-  if (state === 'N-1') return 'danger'
-  if (state === 'N') return 'warning'
+  if (isRedundancyLost(state)) return 'danger'
+  if (state) return 'warning'
   return undefined
+}
+
+function redundancyLabel(state?: string | null): string {
+  if (!state) return 'Unknown'
+  if (isRedundancyLost(state)) return 'Redundancy lost'
+  if (state === 'REDUNDANCY_AVAILABLE') return 'Redundancy available'
+  return formatStage(state)
 }
 
 function capacityRiskTone(riskKw: number, riskPct = 0): 'warning' | 'danger' | undefined {
@@ -1413,8 +1429,8 @@ function capacityRiskTone(riskKw: number, riskPct = 0): 'warning' | 'danger' | u
 }
 
 function vendorStatusTone(status: string): 'warning' | 'danger' | undefined {
-  if (status === 'ETA_MISSED') return 'danger'
-  if (status === 'WAITING_VENDOR_DISPATCH') return 'warning'
+  if (isVendorPartsEscalation(status)) return 'danger'
+  if (status) return 'warning'
   return undefined
 }
 

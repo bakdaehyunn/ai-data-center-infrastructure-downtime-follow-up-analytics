@@ -57,6 +57,8 @@ export type FollowUpItem = {
   impact_trust_issue_count: number
   restore_readiness_status: string
   restore_readiness_summary: string | null
+  dependency_roles: string[]
+  dependency_path_ids: string[]
 }
 
 export type StageBottleneck = {
@@ -107,7 +109,7 @@ export type DataQualityCheck = {
   check_result_id: string
   pipeline_run_id: string
   check_name: string
-  target_table: string
+  graph_scope: string
   severity: string
   status: string
   failed_row_count: number
@@ -326,7 +328,10 @@ export type DashboardFilters = {
   affected_gpu?: boolean
   evidence_review?: boolean
   redundancy_lost?: boolean
-  vendor_eta_missed?: boolean
+  vendor_parts_escalation?: boolean
+  restore_blocked?: boolean
+  trust_review?: boolean
+  dependency_role?: string
 }
 
 export type DashboardData = {
@@ -630,7 +635,7 @@ export async function fetchDashboardData(filters: DashboardFilters = {}): Promis
     postSemanticQuery<SemanticTopologyDependencyRecord>('semanticTopologyDependencies'),
   ])
 
-  const followUps = applyDashboardFilters(buildFollowUps(queueRecords, detailRecords), filters)
+  const followUps = applyDashboardFilters(buildFollowUps(queueRecords, detailRecords, dependencyRecords), filters)
 
   return {
     overview: buildOverview(overviewRecords[0], followUps),
@@ -642,6 +647,20 @@ export async function fetchDashboardData(filters: DashboardFilters = {}): Promis
     qualityChecks: trustFindings.map(mapTrustFinding),
     impactSummary: buildImpactSummary(impactRecords[0], followUps),
     topologyDependencies: buildTopologyDependencies(dependencyRecords, followUps),
+  }
+}
+
+export function filterDashboardData(data: DashboardData, filters: DashboardFilters): DashboardData {
+  const followUps = applyDashboardFilters(data.followUps, filters)
+  return {
+    ...data,
+    overview: {
+      ...buildOverview(undefined, followUps),
+      latest_pipeline_run_status: data.overview.latest_pipeline_run_status,
+      data_quality_status: data.overview.data_quality_status,
+    },
+    followUps,
+    impactSummary: buildImpactSummary(undefined, followUps),
   }
 }
 
@@ -678,7 +697,7 @@ export async function fetchRequestDetail(infrastructureRequestId: string): Promi
   ])
   const request = buildFollowUps(queueRecords, detailRecords).find((row) => row.incident_id === infrastructureRequestId)
   if (!request) {
-    throw new Error(`Semantic follow-up not found: ${infrastructureRequestId}`)
+    throw new Error(`Semantic finding not found: ${infrastructureRequestId}`)
   }
   const detailRecord = detailRecords.find((record) => record.incidentId === infrastructureRequestId)
   const evidence = evidenceRecords
@@ -747,15 +766,26 @@ async function postSemanticQuery<T>(
 function buildFollowUps(
   queueRecords: SemanticFollowUpQueueRecord[],
   detailRecords: SemanticFollowUpDetailRecord[],
+  dependencyRecords: SemanticTopologyDependencyRecord[] = [],
 ): FollowUpItem[] {
   const detailsByIncident = new Map(detailRecords.map((record) => [record.incidentId, record]))
+  const dependenciesByAsset = dependencyRecords.reduce<Map<string, SemanticTopologyDependencyRecord[]>>((summary, record) => {
+    const edges = summary.get(record.dependentAssetId) ?? []
+    edges.push(record)
+    summary.set(record.dependentAssetId, edges)
+    return summary
+  }, new Map())
   return queueRecords
-    .map((record) => mapFollowUp(record, detailsByIncident.get(record.incidentId)))
+    .map((record) => mapFollowUp(record, detailsByIncident.get(record.incidentId), dependenciesByAsset.get(record.assetId) ?? []))
     .sort((left, right) => left.priority_rank - right.priority_rank || right.total_priority_score - left.total_priority_score || left.incident_id.localeCompare(right.incident_id))
     .map((row, index) => ({ ...row, priority_rank: row.priority_rank || index + 1 }))
 }
 
-function mapFollowUp(record: SemanticFollowUpQueueRecord, detail?: SemanticFollowUpDetailRecord): FollowUpItem {
+function mapFollowUp(
+  record: SemanticFollowUpQueueRecord,
+  detail?: SemanticFollowUpDetailRecord,
+  dependencies: SemanticTopologyDependencyRecord[] = [],
+): FollowUpItem {
   const semantic = detail ?? record
   const stage = canonicalStage(semantic.stageLabel ?? record.stageLabel ?? record.stageUri)
   const capacityRiskKw = detail?.capacityRiskKw ?? 0
@@ -763,15 +793,15 @@ function mapFollowUp(record: SemanticFollowUpQueueRecord, detail?: SemanticFollo
   const trustIssueCount = detail?.trustFindingUri ? 1 : 0
   const restoreReadinessStatus = restoreReadinessStatusFor(detail?.restoreReadinessSummary)
   const priorityLevel = semantic.priorityLevel ?? priorityFor(capacityRiskKw, affectedGpuCount, trustIssueCount)
-  const redundancyState = detail?.redundancyState ?? (capacityRiskKw > 0 ? 'N-1' : 'N')
-  const vendorStatus = detail?.vendorStatus ?? (stage === 'SPARE_VENDOR_WAITING' ? 'ETA_MISSED' : null)
+  const redundancyState = normalizeRedundancyState(detail?.redundancyState)
+  const vendorStatus = normalizeVendorStatus(detail?.vendorStatus)
   const totalPriorityScore = semantic.totalPriorityScore ?? capacityRiskKw / 10 + affectedGpuCount / 4 + trustIssueCount * 20
 
   return {
     priority_rank: semantic.priorityRank ?? 0,
     incident_id: record.incidentId,
     request_number: record.incidentId,
-    request_title: semantic.requestTitle ?? detail?.blockerSummary ?? detail?.recommendedAction ?? `${humanize(record.assetId)} follow-up`,
+    request_title: semantic.requestTitle ?? detail?.blockerSummary ?? detail?.recommendedAction ?? `${humanize(record.assetId)} semantic finding`,
     asset_id: record.assetId,
     asset_name: humanize(record.assetId),
     zone_id: record.zoneId,
@@ -781,18 +811,18 @@ function mapFollowUp(record: SemanticFollowUpQueueRecord, detail?: SemanticFollo
     hours_in_current_stage: semantic.hoursInCurrentStage ?? 0,
     needed_by_at: semantic.neededByAt ?? '',
     priority_level: priorityLevel,
-    business_impact: semantic.businessImpact ?? (affectedGpuCount ? `${affectedGpuCount} GPUs affected` : 'Semantic graph follow-up'),
+    business_impact: semantic.businessImpact ?? (affectedGpuCount ? `${affectedGpuCount} GPUs affected` : 'Semantic graph finding'),
     asset_criticality_score: semantic.assetCriticalityScore ?? (affectedGpuCount ? 20 : 0),
     downtime_score: semantic.downtimeScore ?? 0,
     stage_delay_score: semantic.stageDelayScore ?? 0,
     infrastructure_zone_impact_score: semantic.infrastructureZoneImpactScore ?? (capacityRiskKw ? 20 : 0),
     needed_by_urgency_score: semantic.neededByUrgencyScore ?? 0,
     repeat_failure_score: semantic.repeatFailureScore ?? 0,
-    spare_risk_score: semantic.spareRiskScore ?? (stage === 'SPARE_VENDOR_WAITING' ? 20 : 0),
+    spare_risk_score: semantic.spareRiskScore ?? (isVendorPartsEscalation(vendorStatus) ? 20 : 0),
     capacity_risk_score: semantic.capacityRiskScore ?? Math.min(30, capacityRiskKw / 30),
-    redundancy_risk_score: semantic.redundancyRiskScore ?? (redundancyState === 'N-1' ? 24 : 0),
+    redundancy_risk_score: semantic.redundancyRiskScore ?? (isRedundancyLost(redundancyState) ? 24 : 0),
     thermal_risk_score: semantic.thermalRiskScore ?? 0,
-    vendor_eta_risk_score: semantic.vendorEtaRiskScore ?? (vendorStatus === 'ETA_MISSED' ? 22 : 0),
+    vendor_eta_risk_score: semantic.vendorEtaRiskScore ?? (isVendorPartsEscalation(vendorStatus) ? 22 : 0),
     mitigation_credit_score: semantic.mitigationCreditScore ?? 0,
     total_priority_score: totalPriorityScore,
     recommended_action: detail?.recommendedAction ?? `Review semantic graph evidence for ${record.incidentId}`,
@@ -806,6 +836,8 @@ function mapFollowUp(record: SemanticFollowUpQueueRecord, detail?: SemanticFollo
     impact_trust_issue_count: trustIssueCount,
     restore_readiness_status: restoreReadinessStatus,
     restore_readiness_summary: detail?.restoreReadinessSummary ?? null,
+    dependency_roles: unique(dependencies.map((dependency) => dependency.dependencyRole)),
+    dependency_path_ids: unique(dependencies.map((dependency) => dependency.pathId).filter(Boolean) as string[]),
   }
 }
 
@@ -819,8 +851,11 @@ function applyDashboardFilters(rows: FollowUpItem[], filters: DashboardFilters):
     if (filters.capacity_risk && row.estimated_capacity_risk_kw <= 0) return false
     if (filters.affected_gpu && row.affected_gpu_count <= 0) return false
     if (filters.evidence_review && row.impact_confidence_status === 'TRUSTED') return false
-    if (filters.redundancy_lost && row.redundancy_state !== 'N-1') return false
-    if (filters.vendor_eta_missed && row.vendor_status !== 'ETA_MISSED') return false
+    if (filters.redundancy_lost && !isRedundancyLost(row.redundancy_state)) return false
+    if (filters.vendor_parts_escalation && !isVendorPartsEscalation(row.vendor_status)) return false
+    if (filters.restore_blocked && row.restore_readiness_status !== 'NOT_READY') return false
+    if (filters.trust_review && row.impact_confidence_status === 'TRUSTED') return false
+    if (filters.dependency_role && !row.dependency_roles.includes(filters.dependency_role)) return false
     if (filters.delayed_only && row.hours_in_current_stage <= 0 && row.estimated_capacity_risk_kw <= 0) return false
     return true
   })
@@ -836,13 +871,13 @@ function buildOverview(record: SemanticDashboardOverviewRecord | undefined, foll
     critical_asset_delayed: followUps.filter((row) => row.priority_level === 'CRITICAL').length,
     avg_downtime_hours: record?.avgDurationHours ?? 0,
     top_bottleneck_stage: topStage(followUps),
-    spare_waiting_delay_hours: followUps.filter((row) => row.current_stage === 'SPARE_VENDOR_WAITING').reduce((total, row) => total + row.hours_in_current_stage, 0),
+    spare_waiting_delay_hours: followUps.filter((row) => row.current_stage === 'RECOVERY').reduce((total, row) => total + row.hours_in_current_stage, 0),
     repeat_failure_asset_count: record?.repeatFailureAssetCount ?? 0,
     engineer_assignment_delay_hours: record?.engineerAssignmentDelayHours ?? 0,
     capacity_risk_kw: capacityRiskKw,
     affected_gpu_count: affectedGpuCount,
-    redundancy_lost_incidents: record?.redundancyLostIncidentCount ?? followUps.filter((row) => row.redundancy_state === 'N-1').length,
-    vendor_eta_missed_count: record?.vendorEtaMissedCount ?? followUps.filter((row) => row.vendor_status === 'ETA_MISSED').length,
+    redundancy_lost_incidents: followUps.filter((row) => isRedundancyLost(row.redundancy_state)).length,
+    vendor_eta_missed_count: followUps.filter((row) => isVendorPartsEscalation(row.vendor_status)).length,
     latest_pipeline_run_status: 'SEMANTIC_GRAPH',
     data_quality_status: (record?.trustFindingCount ?? 0) > 0 ? 'Needs review' : 'Trusted',
   }
@@ -855,8 +890,8 @@ function buildImpactSummary(record: SemanticImpactSummaryRecord | undefined, fol
     capacity_risk_kw: record?.capacityRiskKw ?? followUps.reduce((total, row) => total + row.estimated_capacity_risk_kw, 0),
     affected_rack_count: record?.affectedRackCount ?? 0,
     affected_gpu_count: record?.affectedGpuCount ?? followUps.reduce((total, row) => total + row.affected_gpu_count, 0),
-    redundancy_lost_incidents: followUps.filter((row) => row.redundancy_state === 'N-1').length,
-    vendor_eta_missed_count: followUps.filter((row) => row.vendor_status === 'ETA_MISSED').length,
+    redundancy_lost_incidents: followUps.filter((row) => isRedundancyLost(row.redundancy_state)).length,
+    vendor_eta_missed_count: followUps.filter((row) => isVendorPartsEscalation(row.vendor_status)).length,
     mitigated_incidents: record?.mitigatedIncidentCount ?? 0,
     thermal_breach_minutes: record?.thermalBreachMinutes ?? 0,
     trusted_impact_count: followUps.length - warningCount,
@@ -922,7 +957,7 @@ function mapTrustFinding(record: SemanticTrustFindingRecord): DataQualityCheck {
     check_result_id: record.trustFindingId ?? record.trustFindingUri,
     pipeline_run_id: record.activityUri ?? 'semantic-service',
     check_name: 'Semantic evidence issue',
-    target_table: 'semantic_reasoning_graph',
+    graph_scope: 'reasoning graph',
     severity: record.severity ?? 'WARNING',
     status: record.status ?? 'FAILED',
     failed_row_count: 1,
@@ -1007,7 +1042,7 @@ function buildRequestDetail(
       }))
     : [
         {
-          work_order_id: detail?.followUpDecisionUri ?? `${request.incident_id}:semantic-follow-up`,
+          work_order_id: detail?.followUpDecisionUri ?? `${request.incident_id}:semantic-finding`,
           assigned_team: 'Semantic Operations',
           assigned_engineer_id: null,
           work_order_status: detail?.recommendedAction ? 'RECOMMENDED' : 'REVIEW',
@@ -1074,7 +1109,7 @@ function buildRequestDetail(
       estimated_capacity_risk_kw: request.estimated_capacity_risk_kw,
       estimated_gpu_capacity_risk_pct: detail?.estimatedGpuCapacityRiskPct ?? (request.affected_gpu_count > 0 ? 100 : 0),
       thermal_breach_minutes: detail?.thermalBreachMinutes ?? 0,
-      power_redundancy_lost: detail?.powerRedundancyLost ?? request.redundancy_state === 'N-1',
+      power_redundancy_lost: detail?.powerRedundancyLost ?? isRedundancyLost(request.redundancy_state),
       cooling_redundancy_lost: detail?.coolingRedundancyLost ?? false,
       mitigation_status: detail?.mitigationStatus ?? request.mitigation_status ?? 'UNKNOWN',
       vendor_eta_at: detail?.vendorEtaAt ?? null,
@@ -1231,6 +1266,28 @@ function priorityFor(capacityRiskKw: number, affectedGpuCount: number, trustIssu
   if (capacityRiskKw >= 500 || affectedGpuCount >= 256 || trustIssueCount > 0) return 'CRITICAL'
   if (capacityRiskKw > 0 || affectedGpuCount > 0) return 'HIGH'
   return 'MEDIUM'
+}
+
+export function normalizeRedundancyState(value?: string | null): string | null {
+  if (!value) return null
+  const normalized = canonicalStage(value)
+  if (normalized === 'N_PLUS_0' || normalized.includes('PLUS_0')) return 'REDUNDANCY_LOST'
+  if (normalized === 'N_PLUS_1' || normalized.includes('PLUS_1')) return 'REDUNDANCY_AVAILABLE'
+  return normalized
+}
+
+export function isRedundancyLost(value?: string | null): boolean {
+  return normalizeRedundancyState(value) === 'REDUNDANCY_LOST'
+}
+
+export function normalizeVendorStatus(value?: string | null): string | null {
+  if (!value) return null
+  return canonicalStage(value)
+}
+
+export function isVendorPartsEscalation(value?: string | null): boolean {
+  const normalized = normalizeVendorStatus(value)
+  return normalized === 'VENDOR_ENGAGED' || normalized === 'PARTS_REVIEW'
 }
 
 function canonicalStage(value: string): string {
