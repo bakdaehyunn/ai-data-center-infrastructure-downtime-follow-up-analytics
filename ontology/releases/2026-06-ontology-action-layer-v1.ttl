@@ -1,0 +1,22 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-ontology-action-layer-v1
+  rdf:type owl:Ontology ;
+  dcterms:title "Ontology action layer v1 design release" ;
+  dcterms:description "Design-only release for controlled ontology actions over semantic operations objects. It defines restore blocker acknowledgement, evidence review assignment, validation review, reasoning finding approval/rejection, reasoning refresh request, and promotion batch approval contracts, including target ontology objects, parameters, preconditions, SHACL/provenance/audit gates, rollback behavior, and UI placement. This release does not implement action execution, public write endpoints, authentication, AI governance workflows, source-system writeback, production data mutation, commit, or push." ;
+  dcterms:created "2026-06-13"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-ai-data-center-operations-ontology-hardening-v1 ;
+  dcterms:hasPart
+    <../../docs/ontology-native/ontology_action_layer_v1.md>,
+    <../modules/operations.ttl>,
+    <../modules/provenance.ttl>,
+    <../modules/ai-interaction.ttl>,
+    <../../shapes/provenance-required.ttl>,
+    <../../shapes/reasoning-output-validation.ttl>,
+    <../../docs/ontology-native/phase8_semantic_service_boundary.md>,
+    <../../docs/ontology-native/phase9_api_contract_scaffold.md>,
+    <../../docs/ontology-native/frontend_ontology_ia_redesign_plan.md> .

@@ -124,7 +124,14 @@ h1 {
   border: 1px solid #d7dedc;
   border-radius: 8px;
   background: #ffffff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   box-shadow: 0 8px 20px rgba(27, 35, 32, 0.05);
+}
+
+.system-signal.interactive {
+  cursor: pointer;
 }
 
 .system-signal-icon {
@@ -346,10 +353,13 @@ select:focus {
   padding: 13px 14px;
 }
 
-.kpi:hover,
-.exposure-metric:hover,
-.system-signal:hover {
+.system-signal.interactive:hover {
   border-color: #c5d3d0;
+}
+
+.system-signal.interactive:focus-visible {
+  outline: 2px solid #2f766d;
+  outline-offset: 2px;
 }
 
 .exposure-metric {
@@ -1009,6 +1019,274 @@ select:focus {
   gap: 10px;
 }
 
+.ontology-action-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d6e2df;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(27, 35, 32, 0.035);
+}
+
+.ontology-action-header,
+.ontology-action-card-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.ontology-action-header svg {
+  color: #2f766d;
+}
+
+.ontology-action-header span,
+.ontology-action-card-header span,
+.ontology-action-detail span {
+  color: #55636a;
+  font-size: 0.74rem;
+  font-weight: 850;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.ontology-action-header strong,
+.ontology-action-card-header strong {
+  display: block;
+  min-width: 0;
+  color: #172026;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ontology-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 12px;
+}
+
+.ontology-action-card {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  align-content: start;
+  padding: 12px;
+  border: 1px solid #edf1f3;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.ontology-action-card-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.ontology-action-card-header button {
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid #d9c390;
+  border-radius: 999px;
+  background: #fff8e8;
+  color: #8a5a0f;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.ontology-action-card p {
+  margin: 0;
+  color: #52616b;
+  font-size: 0.84rem;
+  line-height: 1.42;
+}
+
+.ontology-action-detail {
+  display: grid;
+  gap: 6px;
+}
+
+.ontology-action-detail ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ontology-action-detail li {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  padding: 7px 8px;
+  border: 1px solid #e6ecee;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #38454d;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ontology-action-detail.warning li {
+  border-color: #efd49a;
+  background: #fffaf0;
+}
+
+.ontology-action-detail strong {
+  min-width: 0;
+  color: #172026;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.ontology-action-detail code {
+  min-width: 0;
+  color: #52616b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.semantic-explanation-canvas {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr);
+  gap: 12px;
+}
+
+.explanation-panel {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  align-content: start;
+  padding: 14px;
+  border: 1px solid #d6e2df;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(27, 35, 32, 0.035);
+}
+
+.dependency-panel {
+  grid-row: span 2;
+}
+
+.explanation-panel-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.explanation-panel-header svg {
+  color: #2f766d;
+}
+
+.explanation-panel-header span,
+.explanation-panel-header strong {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.explanation-panel-header span {
+  color: #55636a;
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.explanation-panel-header strong {
+  margin-top: 2px;
+  color: #172026;
+  font-size: 0.94rem;
+  line-height: 1.3;
+}
+
+.reasoning-copy {
+  margin: 0;
+  color: #243039;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.semantic-timeline-list,
+.provenance-chain {
+  display: grid;
+  gap: 8px;
+}
+
+.semantic-timeline-event,
+.provenance-step {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #edf1f3;
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.provenance-step {
+  position: relative;
+  padding-left: 40px;
+}
+
+.provenance-step::before {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 999px;
+  background: #2f766d;
+  color: #ffffff;
+  content: attr(data-step);
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.semantic-timeline-event span,
+.provenance-step span {
+  color: #5a6670;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.semantic-timeline-event strong,
+.provenance-step strong {
+  min-width: 0;
+  color: #172026;
+  font-size: 0.88rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.semantic-timeline-event small,
+.provenance-step small {
+  min-width: 0;
+  color: #66727a;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.semantic-timeline-event code,
+.provenance-step code {
+  min-width: 0;
+  color: #52616b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .summary-glance-grid {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
@@ -1341,6 +1619,14 @@ select:focus {
   .semantic-trace-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .semantic-explanation-canvas {
+    grid-template-columns: 1fr;
+  }
+
+  .dependency-panel {
+    grid-row: auto;
+  }
 }
 
 @media (max-width: 760px) {
@@ -1440,6 +1726,7 @@ select:focus {
   .metric-card-grid,
   .evidence-compact-grid,
   .semantic-trace-grid,
+  .semantic-explanation-canvas,
   .brief-work-orders {
     grid-template-columns: 1fr;
   }

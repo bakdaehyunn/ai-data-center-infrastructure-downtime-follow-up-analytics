@@ -224,6 +224,35 @@ export type TimelineEvent = {
   actor_type: string
   reason_code: string | null
   message: string | null
+  source_record_uri: string | null
+}
+
+export type ProvenanceTraceItem = {
+  step: string
+  label: string
+  resource_uri: string
+  detail: string
+}
+
+export type OntologyActionPlacement = 'summary' | 'trust'
+
+export type OntologyActionTarget = {
+  role: string
+  label: string
+  resource_uri: string
+}
+
+export type OntologyActionAffordance = {
+  action_id: string
+  label: string
+  description: string
+  status: 'DISABLED'
+  ui_placement: OntologyActionPlacement[]
+  target_objects: OntologyActionTarget[]
+  required_parameters: string[]
+  preconditions: string[]
+  provenance_requirements: string[]
+  disabled_reasons: string[]
 }
 
 export type WorkOrder = {
@@ -298,6 +327,8 @@ export type RequestDetail = {
     message: string
     evidence: Record<string, unknown>
   }[]
+  provenance_trace: ProvenanceTraceItem[]
+  ontology_actions: OntologyActionAffordance[]
 }
 
 export type FilterOption = {
@@ -1003,6 +1034,7 @@ function buildRequestDetail(
   const telemetryEvidence = evidence.filter(isTelemetryEvidence)
   const validationEvidence = evidence.filter(isValidationEvidence)
   const workOrderEvidence = evidence.filter(isWorkOrderEvidence)
+  const provenanceTrace = buildProvenanceTrace(request, detail, evidence, workflowTimeline)
   const evidenceTimeline = evidence
     .filter((record) => record.evidenceUri || record.trustFindingUri)
     .map((record) => ({
@@ -1014,6 +1046,7 @@ function buildRequestDetail(
       actor_type: record.validatorId ?? record.assignedTeam ?? 'semantic-service',
       reason_code: record.trustFindingUri ? 'TRUST_FINDING' : null,
       message: record.trustSummary ?? record.failureReason ?? null,
+      source_record_uri: record.sourceRecordUri ?? null,
     }))
     .sort((left, right) => left.occurred_at.localeCompare(right.occurred_at))
   const workflowEvents = workflowTimeline.map((record) => ({
@@ -1025,6 +1058,7 @@ function buildRequestDetail(
     actor_type: 'semantic-service',
     reason_code: null,
     message: record.delayHours && record.delayHours > 0 ? `${record.delayHours}h over threshold` : null,
+    source_record_uri: record.sourceRecordUri ?? null,
   }))
   const timeline = [...workflowEvents, ...evidenceTimeline].sort((left, right) => left.occurred_at.localeCompare(right.occurred_at))
   const workOrders = workOrderEvidence.length
@@ -1138,7 +1172,235 @@ function buildRequestDetail(
         trustFindingUri: record.trustFindingUri,
       },
     })),
+    provenance_trace: provenanceTrace,
+    ontology_actions: buildOntologyActionAffordances(request, detail, evidenceIssues, validationEvidence, provenanceTrace),
   }
+}
+
+function buildOntologyActionAffordances(
+  request: FollowUpItem,
+  detail: SemanticFollowUpDetailRecord | undefined,
+  evidenceIssues: SemanticIncidentEvidenceRecord[],
+  validationEvidence: SemanticIncidentEvidenceRecord[],
+  provenanceTrace: ProvenanceTraceItem[],
+): OntologyActionAffordance[] {
+  const incidentUri = detail?.incidentUri ?? `urn:dcai:incident:${request.incident_id}`
+  const restoreReadinessUri = detail?.restoreReadinessUri ?? ''
+  const recoveryBlockerUri = detail?.recoveryBlockerUri ?? ''
+  const trustFindingUri = evidenceIssues[0]?.trustFindingUri ?? detail?.trustFindingUri ?? ''
+  const validationEvidenceUri = validationEvidence[0]?.evidenceUri ?? validationEvidence[0]?.validationId ?? ''
+  const sourceRecordUri = detail?.sourceRecordUri ?? provenanceTrace.find((item) => item.step === 'Source extract')?.resource_uri ?? ''
+  const commonDisabledReasons = [
+    'Action execution runtime is not implemented in this read-only UI slice',
+    'No public or private write endpoint is available for ontology actions',
+    'Actor identity and authorization policy are not configured',
+  ]
+  const commonProvenanceRequirements = [
+    'Action audit event with actor, timestamp, action type, and target object',
+    'prov:used links to selected finding, incident, source record, and supporting evidence',
+    'Validation report before any future operations/reasoning graph promotion',
+  ]
+
+  return [
+    {
+      action_id: 'AcknowledgeRestoreBlocker',
+      label: 'Acknowledge restore blocker',
+      description: 'Record that an operator reviewed the restore-readiness blocker without changing canonical or reasoning graph state.',
+      status: 'DISABLED',
+      ui_placement: ['summary'],
+      target_objects: compactTargets([
+        target('RestoreReadinessFinding', restoreReadinessLabelForAction(request.restore_readiness_status), restoreReadinessUri),
+        target('RecoveryBlocker', formatActionStage(request.current_stage), recoveryBlockerUri),
+        target('InfrastructureIncident', request.incident_id, incidentUri),
+      ]),
+      required_parameters: ['findingUri', 'incidentUri', 'actorId', 'acknowledgedAt', 'acknowledgementReason', 'nextReviewAt?'],
+      preconditions: [
+        'Restore-readiness finding exists',
+        'Finding status is NOT_READY or REVIEW',
+        'Incident is not terminal/restored',
+        'Reasoning and source provenance are present',
+      ],
+      provenance_requirements: commonProvenanceRequirements,
+      disabled_reasons: [
+        ...commonDisabledReasons,
+        ...missingReason(restoreReadinessUri, 'Restore-readiness finding URI is missing'),
+        ...missingReason(recoveryBlockerUri, 'Recovery blocker URI is missing'),
+        ...statusReason(request.restore_readiness_status === 'NOT_READY' || request.restore_readiness_status === 'REVIEW', 'Restore readiness is not in a blocked/review state'),
+      ],
+    },
+    {
+      action_id: 'AssignEvidenceReview',
+      label: 'Assign evidence review',
+      description: 'Assign a trust or evidence issue to a controlled review owner without editing source evidence.',
+      status: 'DISABLED',
+      ui_placement: ['summary', 'trust'],
+      target_objects: compactTargets([
+        target('TrustFinding', evidenceIssues[0]?.trustSummary ?? trustStatusLabelForAction(request.impact_confidence_status), trustFindingUri),
+        target('InfrastructureIncident', request.incident_id, incidentUri),
+        target('SourceRecord', 'Source evidence', sourceRecordUri),
+      ]),
+      required_parameters: ['trustFindingUri', 'incidentUri', 'assignedTeam', 'assigneeId?', 'dueAt?', 'priority?', 'assignmentReason'],
+      preconditions: [
+        'Trust finding exists or selected evidence is unverified',
+        'Assignment target uses controlled team vocabulary',
+        'Referenced evidence or source record is available',
+      ],
+      provenance_requirements: commonProvenanceRequirements,
+      disabled_reasons: [
+        ...commonDisabledReasons,
+        ...statusReason(request.impact_confidence_status !== 'TRUSTED' || evidenceIssues.length > 0, 'No active trust finding requires assignment'),
+        ...missingReason(sourceRecordUri, 'Source record provenance is missing'),
+      ],
+    },
+    {
+      action_id: 'RecordValidationReview',
+      label: 'Record validation review',
+      description: 'Record operator review of validation evidence without overwriting canonical validation evidence.',
+      status: 'DISABLED',
+      ui_placement: ['summary', 'trust'],
+      target_objects: compactTargets([
+        target('ValidationEvidence', validationEvidence[0]?.validationStatus ?? 'Validation evidence', validationEvidenceUri),
+        target('InfrastructureIncident', request.incident_id, incidentUri),
+        target('RestoreReadinessFinding', restoreReadinessLabelForAction(request.restore_readiness_status), restoreReadinessUri),
+      ]),
+      required_parameters: ['incidentUri', 'validationEvidenceUri', 'reviewedStatus', 'reviewerId', 'reviewedAt', 'reviewSummary', 'supportingEvidenceUri?'],
+      preconditions: [
+        'Incident is in validation or blocked by validation evidence',
+        'Reviewed status uses controlled validation vocabulary',
+        'Conflicting evidence is surfaced before submission',
+      ],
+      provenance_requirements: commonProvenanceRequirements,
+      disabled_reasons: [
+        ...commonDisabledReasons,
+        ...statusReason(request.current_stage === 'VALIDATION' || validationEvidence.length > 0, 'Selected finding is not currently tied to validation evidence'),
+        ...missingReason(validationEvidenceUri, 'Validation evidence URI is missing'),
+      ],
+    },
+    {
+      action_id: 'RequestReasoningRefresh',
+      label: 'Request reasoning refresh',
+      description: 'Request an internal reasoning refresh for the selected incident or asset scope while preserving current approved graph state.',
+      status: 'DISABLED',
+      ui_placement: ['summary'],
+      target_objects: compactTargets([
+        target('InfrastructureIncident', request.incident_id, incidentUri),
+        target('InfrastructureAsset', request.asset_id, `urn:dcai:asset:${request.asset_id}`),
+      ]),
+      required_parameters: ['scopeType', 'scopeUri', 'requestedBy', 'requestReason', 'ruleSetId?', 'canonicalGraphRelease?'],
+      preconditions: [
+        'Canonical graph exists and conforms',
+        'Reasoning rule set is approved',
+        'No refresh is already running for the same scope',
+        'Scope is controlled and not a browser-supplied graph URI',
+      ],
+      provenance_requirements: [
+        ...commonProvenanceRequirements,
+        'ReasoningActivity provenance for any candidate output',
+      ],
+      disabled_reasons: [
+        ...commonDisabledReasons,
+        'Internal action runner is required before refresh requests can be accepted from the UI',
+      ],
+    },
+  ]
+}
+
+function target(role: string, label: string, resourceUri: string): OntologyActionTarget {
+  return {
+    role,
+    label,
+    resource_uri: resourceUri,
+  }
+}
+
+function compactTargets(targets: OntologyActionTarget[]): OntologyActionTarget[] {
+  return targets.filter((item) => item.resource_uri)
+}
+
+function missingReason(value: string, reason: string): string[] {
+  return value ? [] : [reason]
+}
+
+function statusReason(condition: boolean, reason: string): string[] {
+  return condition ? [] : [reason]
+}
+
+function formatActionStage(value: string) {
+  return value
+    .toLowerCase()
+    .split(/[_-]+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function trustStatusLabelForAction(status: string) {
+  if (status === 'TRUSTED') return 'Trusted evidence'
+  if (status === 'WARNING') return 'Evidence requires review'
+  return 'Unverified evidence'
+}
+
+function restoreReadinessLabelForAction(status: string) {
+  if (status === 'NOT_READY') return 'Restore blocked'
+  if (status === 'READY') return 'Restore ready'
+  if (status === 'REVIEW') return 'Review readiness'
+  return 'Unknown readiness'
+}
+
+function buildProvenanceTrace(
+  request: FollowUpItem,
+  detail: SemanticFollowUpDetailRecord | undefined,
+  evidence: SemanticIncidentEvidenceRecord[],
+  workflowTimeline: SemanticIncidentTimelineRecord[],
+): ProvenanceTraceItem[] {
+  const trace: ProvenanceTraceItem[] = []
+  pushTrace(trace, {
+    step: 'Source extract',
+    label: 'Recorded source record',
+    resource_uri: detail?.sourceRecordUri ?? evidence[0]?.sourceRecordUri ?? workflowTimeline[0]?.sourceRecordUri ?? '',
+    detail: 'Connector-style export row that was mapped into canonical RDF',
+  })
+  pushTrace(trace, {
+    step: 'Canonical graph',
+    label: 'Incident assertion',
+    resource_uri: detail?.incidentUri ?? `urn:dcai:incident:${request.incident_id}`,
+    detail: `${request.asset_name} in ${request.zone_name}`,
+  })
+  pushTrace(trace, {
+    step: 'Impact observation',
+    label: 'Operational impact',
+    resource_uri: detail?.impactUri ?? '',
+    detail: `${request.affected_gpu_count} GPUs, ${request.estimated_capacity_risk_kw.toFixed(0)} kW at risk`,
+  })
+  pushTrace(trace, {
+    step: 'Recovery blocker',
+    label: 'Blocker finding',
+    resource_uri: detail?.recoveryBlockerUri ?? '',
+    detail: detail?.blockerSummary ?? request.reason_summary,
+  })
+  pushTrace(trace, {
+    step: 'Reasoning graph',
+    label: 'Restore readiness',
+    resource_uri: detail?.restoreReadinessUri ?? '',
+    detail: request.restore_readiness_summary ?? 'Restore-readiness finding from reasoning output',
+  })
+
+  uniqueTrustFindingEvidence(evidence.filter((record) => record.trustFindingUri)).forEach((record) => {
+    pushTrace(trace, {
+      step: 'Trust finding',
+      label: 'Evidence confidence',
+      resource_uri: record.trustFindingUri ?? '',
+      detail: record.trustSummary ?? 'Semantic trust finding requires review',
+    })
+  })
+
+  return trace
+}
+
+function pushTrace(trace: ProvenanceTraceItem[], item: ProvenanceTraceItem) {
+  if (!item.resource_uri || trace.some((existing) => existing.resource_uri === item.resource_uri)) {
+    return
+  }
+  trace.push(item)
 }
 
 function restoreReadinessStatusFor(summary?: string): string {

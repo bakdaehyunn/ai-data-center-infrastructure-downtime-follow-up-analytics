@@ -26,6 +26,8 @@ import {
   type FilterMetadata,
   type FollowUpItem,
   type InfrastructureDependency,
+  type OntologyActionAffordance,
+  type OntologyActionPlacement,
   type RequestDetail,
   type RequestSemanticContext,
   fetchDashboardData,
@@ -158,7 +160,18 @@ function FollowUpQueuePage() {
         </button>
       </header>
 
-      <OperationalCommandStrip dashboard={dashboard} summary={queueSummary} loading={loading} />
+      <OperationalCommandStrip
+        dashboard={dashboard}
+        summary={queueSummary}
+        loading={loading}
+        onRefresh={() => window.location.reload()}
+        onTrustReview={() => setQueueScope(queueScopes.trustReview)}
+        onFocusBoundary={() => document.getElementById('semantic-findings')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        onShowFindings={() => {
+          setQueueScope({})
+          document.getElementById('semantic-findings')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }}
+      />
 
       {error ? <div className="error-banner">{error}</div> : null}
 
@@ -191,7 +204,7 @@ function FollowUpQueuePage() {
       <QueueIntelligence rows={followUps} selectedRow={selectedFollowUp} summary={queueSummary} />
 
       <SectionLabel label="Semantic Findings" />
-      <section className="queue-scope-bar" aria-label="Semantic finding scopes">
+      <section id="semantic-findings" className="queue-scope-bar" aria-label="Semantic finding scopes">
         <div>
           {queueScopeControls.map((scope) => (
             <button
@@ -221,34 +234,52 @@ function FollowUpQueuePage() {
   )
 }
 
-function OperationalCommandStrip({ dashboard, summary, loading }: {
+function OperationalCommandStrip({ dashboard, summary, loading, onRefresh, onTrustReview, onFocusBoundary, onShowFindings }: {
   dashboard: DashboardData | null
   summary: ReturnType<typeof summarizeQueue>
   loading: boolean
+  onRefresh: () => void
+  onTrustReview: () => void
+  onFocusBoundary: () => void
+  onShowFindings: () => void
 }) {
   const pipelineStatus = dashboard?.overview.latest_pipeline_run_status ?? (loading ? 'Loading' : 'Unavailable')
   const dataQualityStatus = dashboard?.overview.data_quality_status ?? (loading ? 'Loading' : 'Unavailable')
   return (
     <section className="command-strip" aria-label="Semantic operations status">
-      <SystemSignal icon={<Activity size={16} />} label="Pipeline run" value={formatStage(pipelineStatus)} tone={statusSignalTone(pipelineStatus)} />
-      <SystemSignal icon={<CheckCircle2 size={16} />} label="Data quality" value={formatStage(dataQualityStatus)} tone={qualitySignalTone(dataQualityStatus)} />
-      <SystemSignal icon={<ServerCog size={16} />} label="Semantic boundary" value="Approved query catalog" tone="ok" />
-      <SystemSignal icon={<Target size={16} />} label="Visible findings" value={`${summary.queueItems} active`} tone={summary.queueItems ? 'warning' : 'ok'} />
+      <SystemSignal icon={<Activity size={16} />} label="Pipeline run" value={formatStage(pipelineStatus)} tone={statusSignalTone(pipelineStatus)} onClick={onRefresh} actionLabel="Refresh semantic dashboard data" />
+      <SystemSignal icon={<CheckCircle2 size={16} />} label="Data quality" value={formatStage(dataQualityStatus)} tone={qualitySignalTone(dataQualityStatus)} onClick={onTrustReview} actionLabel="Show findings that need trust review" />
+      <SystemSignal icon={<ServerCog size={16} />} label="Semantic boundary" value="Approved query catalog" tone="ok" onClick={onFocusBoundary} actionLabel="Focus approved semantic finding controls" />
+      <SystemSignal icon={<Target size={16} />} label="Visible findings" value={`${summary.queueItems} active`} tone={summary.queueItems ? 'warning' : 'ok'} onClick={onShowFindings} actionLabel="Show all visible semantic findings" />
     </section>
   )
 }
 
-function SystemSignal({ icon, label, value, tone }: {
+function SystemSignal({ icon, label, value, tone, onClick, actionLabel }: {
   icon: ReactNode
   label: string
   value: string
   tone?: 'ok' | 'warning' | 'danger'
+  onClick?: () => void
+  actionLabel?: string
 }) {
-  return (
-    <div className={`system-signal ${tone ?? ''}`}>
+  const content = (
+    <>
       <div className="system-signal-icon">{icon}</div>
       <span>{label}</span>
       <strong>{value}</strong>
+    </>
+  )
+  if (onClick) {
+    return (
+      <button type="button" className={`system-signal interactive ${tone ?? ''}`} onClick={onClick} aria-label={actionLabel ?? label}>
+        {content}
+      </button>
+    )
+  }
+  return (
+    <div className={`system-signal ${tone ?? ''}`}>
+      {content}
     </div>
   )
 }
@@ -719,7 +750,7 @@ function FollowUpDetailPage() {
 
         <div className="detail-page-body">
           {loading ? <div className="empty-state">Loading selected incident details</div> : null}
-          {!loading && activeTab === 'summary' ? <RequestDetailView detail={detail} semanticContext={semanticContext} /> : null}
+          {!loading && activeTab === 'summary' ? <RequestDetailView detail={detail} semanticContext={semanticContext} topologyDependencies={topologyDependencies} /> : null}
           {!loading && activeTab === 'impact' ? <ImpactView detail={detail} semanticContext={semanticContext} /> : null}
           {!loading && activeTab === 'trust' ? <RequestTrustView detail={detail} semanticContext={semanticContext} /> : null}
           {!loading && activeTab === 'dependencies' ? <DependencyDetailView detail={detail} semanticContext={semanticContext} topologyDependencies={topologyDependencies} /> : null}
@@ -746,9 +777,10 @@ function NotFoundPage() {
   )
 }
 
-function RequestDetailView({ detail, semanticContext }: {
+function RequestDetailView({ detail, semanticContext, topologyDependencies }: {
   detail: RequestDetail | null
   semanticContext: RequestSemanticContext | null
+  topologyDependencies: InfrastructureDependency[]
 }) {
   if (!detail) {
     return <div className="empty-state">Select a semantic finding to inspect the recommended action</div>
@@ -756,6 +788,7 @@ function RequestDetailView({ detail, semanticContext }: {
   const affectedGpuCount = detail.impact_snapshot?.affected_gpu_count ?? detail.request.affected_gpu_count
   const capacityRiskKw = detail.impact_snapshot?.estimated_capacity_risk_kw ?? detail.request.estimated_capacity_risk_kw
   const evidenceIssueCount = detail.impact_trust_flags.length
+  const selectedDependencyRows = selectedDependenciesFor(detail, topologyDependencies)
   return (
     <div className="detail-stack summary-brief">
       <div className="detail-hero">
@@ -774,7 +807,15 @@ function RequestDetailView({ detail, semanticContext }: {
         <strong>{detail.request.recommended_action}</strong>
       </div>
 
+      <OntologyActionPanel detail={detail} placement="summary" />
+
       <SemanticTracePanel semanticContext={semanticContext} />
+
+      <SemanticExplanationCanvas
+        detail={detail}
+        semanticContext={semanticContext}
+        topologyDependencies={selectedDependencyRows}
+      />
 
       <div className="summary-glance-grid" aria-label="Selected incident at a glance">
         <SummaryMetric label="Asset" value={detail.request.asset_name} />
@@ -830,6 +871,225 @@ function RequestDetailView({ detail, semanticContext }: {
         </div>
       </div>
     </div>
+  )
+}
+
+function OntologyActionPanel({ detail, placement }: {
+  detail: RequestDetail
+  placement: OntologyActionPlacement
+}) {
+  const actions = detail.ontology_actions.filter((action) => action.ui_placement.includes(placement))
+  if (!actions.length) {
+    return null
+  }
+  return (
+    <section className="ontology-action-panel" aria-label={`${placement} ontology action affordances`}>
+      <div className="ontology-action-header">
+        <Wrench size={17} />
+        <div>
+          <span>Governed ontology actions</span>
+          <strong>{actions.length} read-only action affordance{actions.length === 1 ? '' : 's'}</strong>
+        </div>
+      </div>
+      <div className="ontology-action-grid">
+        {actions.map((action) => (
+          <OntologyActionCard action={action} key={`${placement}-${action.action_id}`} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function OntologyActionCard({ action }: { action: OntologyActionAffordance }) {
+  return (
+    <article className="ontology-action-card" aria-label={`${action.label} disabled`}>
+      <div className="ontology-action-card-header">
+        <div>
+          <span>{action.action_id}</span>
+          <strong>{action.label}</strong>
+        </div>
+        <button type="button" disabled title="Ontology action execution is not implemented">
+          Disabled
+        </button>
+      </div>
+      <p>{action.description}</p>
+      <ActionDetailGroup title="Target objects">
+        {action.target_objects.length ? (
+          action.target_objects.map((targetObject) => (
+            <li key={`${action.action_id}-${targetObject.role}-${targetObject.resource_uri}`}>
+              <span>{targetObject.role}</span>
+              <strong>{targetObject.label}</strong>
+              <code>{targetObject.resource_uri}</code>
+            </li>
+          ))
+        ) : (
+          <li>
+            <span>Missing target</span>
+            <strong>No target object URI is available</strong>
+          </li>
+        )}
+      </ActionDetailGroup>
+      <ActionDetailGroup title="Required parameters">
+        {action.required_parameters.map((parameter) => (
+          <li key={`${action.action_id}-parameter-${parameter}`}>
+            <code>{parameter}</code>
+          </li>
+        ))}
+      </ActionDetailGroup>
+      <ActionDetailGroup title="Preconditions">
+        {action.preconditions.map((precondition) => (
+          <li key={`${action.action_id}-precondition-${precondition}`}>{precondition}</li>
+        ))}
+      </ActionDetailGroup>
+      <ActionDetailGroup title="Provenance requirements">
+        {action.provenance_requirements.map((requirement) => (
+          <li key={`${action.action_id}-provenance-${requirement}`}>{requirement}</li>
+        ))}
+      </ActionDetailGroup>
+      <ActionDetailGroup title="Disabled reasons" tone="warning">
+        {action.disabled_reasons.map((reason) => (
+          <li key={`${action.action_id}-disabled-${reason}`}>{reason}</li>
+        ))}
+      </ActionDetailGroup>
+    </article>
+  )
+}
+
+function ActionDetailGroup({ title, tone, children }: {
+  title: string
+  tone?: 'warning'
+  children: ReactNode
+}) {
+  return (
+    <div className={`ontology-action-detail ${tone ?? ''}`}>
+      <span>{title}</span>
+      <ul>{children}</ul>
+    </div>
+  )
+}
+
+function SemanticExplanationCanvas({ detail, semanticContext, topologyDependencies }: {
+  detail: RequestDetail
+  semanticContext: RequestSemanticContext | null
+  topologyDependencies: InfrastructureDependency[]
+}) {
+  const paths = buildTopologyPaths(topologyDependencies)
+  const activeIncidentCount = paths.reduce((total, path) => total + path.activeIncidentCount, 0)
+  const latestTimeline = [...detail.timeline]
+    .filter((event) => event.occurred_at || event.message || event.source_record_uri)
+    .sort((left, right) => right.occurred_at.localeCompare(left.occurred_at))
+    .slice(0, 6)
+  return (
+    <section className="semantic-explanation-canvas" aria-label="Semantic explanation canvas">
+      <div className="explanation-panel reasoning-panel">
+        <div className="explanation-panel-header">
+          <ShieldAlert size={17} />
+          <div>
+            <span>Restore-readiness reasoning</span>
+            <strong>{restoreReadinessLabel(detail.restore_readiness.status)}</strong>
+          </div>
+        </div>
+        <p className="reasoning-copy">{detail.restore_readiness.summary ?? detail.request.reason_summary}</p>
+        <EvidenceRows
+          items={[
+            {
+              label: 'Active blocker',
+              value: formatStage(detail.request.current_stage),
+              detail: `${formatHours(detail.request.hours_in_current_stage)} in stage`,
+              tone: detail.restore_readiness.status === 'NOT_READY' ? 'danger' : 'warning',
+            },
+            {
+              label: 'Work-order state',
+              value: detail.work_orders[0] ? formatStage(detail.work_orders[0].work_order_status) : 'No work order',
+              detail: detail.work_orders[0]?.assigned_team ?? 'No assigned team evidence',
+              tone: detail.restore_readiness.status === 'NOT_READY' ? 'warning' : undefined,
+            },
+          ]}
+        />
+      </div>
+
+      <div className="explanation-panel dependency-panel">
+        <div className="explanation-panel-header">
+          <Network size={17} />
+          <div>
+            <span>Dependency and blast-radius path</span>
+            <strong>{paths.length ? `${paths.length} semantic path${paths.length === 1 ? '' : 's'}` : 'No path evidence'}</strong>
+          </div>
+        </div>
+        <FactStrip
+          ariaLabel="Selected incident semantic dependency explanation"
+          items={[
+            {
+              label: 'Direct graph edges',
+              value: String(semanticContext?.dependencyImpact.direct_dependency_count ?? 0),
+              detail: 'Asset dependency assertions',
+              tone: (semanticContext?.dependencyImpact.direct_dependency_count ?? 0) ? 'warning' : undefined,
+            },
+            {
+              label: 'Path incidents',
+              value: String(activeIncidentCount),
+              detail: 'Incidents on displayed dependency paths',
+              tone: activeIncidentCount ? 'warning' : 'ok',
+            },
+            {
+              label: 'Blast-radius incidents',
+              value: String(semanticContext?.blastRadius.affected_incident_count ?? 0),
+              detail: `${semanticContext?.blastRadius.inferred_downstream_assets.length ?? 0} inferred downstream assets`,
+              tone: (semanticContext?.blastRadius.affected_incident_count ?? 0) ? 'warning' : 'ok',
+            },
+          ]}
+        />
+        <TopologyRows rows={topologyDependencies} />
+      </div>
+
+      <div className="explanation-panel">
+        <div className="explanation-panel-header">
+          <Clock3 size={17} />
+          <div>
+            <span>Evidence timeline</span>
+            <strong>{latestTimeline.length ? `${latestTimeline.length} latest graph facts` : 'No dated evidence'}</strong>
+          </div>
+        </div>
+        {latestTimeline.length ? (
+          <div className="semantic-timeline-list">
+            {latestTimeline.map((event, index) => (
+              <div className="semantic-timeline-event" key={`${event.event_id}-${event.occurred_at}-${index}`}>
+                <span>{event.occurred_at || 'No timestamp'}</span>
+                <strong>{formatStage(event.event_type)} · {formatStage(event.event_status)}</strong>
+                <small>{event.message ?? formatStage(event.stage)}</small>
+                {event.source_record_uri ? <code>{event.source_record_uri}</code> : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state compact-empty">No timeline evidence is attached to this semantic finding</div>
+        )}
+      </div>
+
+      <div className="explanation-panel">
+        <div className="explanation-panel-header">
+          <GitBranch size={17} />
+          <div>
+            <span>Provenance chain</span>
+            <strong>{detail.provenance_trace.length ? `${detail.provenance_trace.length} linked resources` : 'No provenance links'}</strong>
+          </div>
+        </div>
+        {detail.provenance_trace.length ? (
+          <div className="provenance-chain">
+            {detail.provenance_trace.map((item, index) => (
+              <div className="provenance-step" data-step={index + 1} key={item.resource_uri}>
+                <span>{item.step}</span>
+                <strong>{item.label}</strong>
+                <small>{item.detail}</small>
+                <code>{item.resource_uri}</code>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state compact-empty">No provenance chain is available for this finding</div>
+        )}
+      </div>
+    </section>
   )
 }
 
@@ -1004,6 +1264,8 @@ function RequestTrustView({ detail, semanticContext }: {
         <strong>{detail.restore_readiness.status === 'NOT_READY' ? 'Do not restore until readiness blockers are cleared' : trustNeedsReview ? 'Review evidence before relying on this recommendation' : 'Recommendation evidence is trusted for the latest analysis run'}</strong>
       </div>
 
+      <OntologyActionPanel detail={detail} placement="trust" />
+
       <div className="summary-glance-grid" aria-label="Selected incident trust at a glance">
         <SummaryMetric
           label="Restore readiness"
@@ -1033,8 +1295,8 @@ function RequestTrustView({ detail, semanticContext }: {
         <strong className="detail-section-title">Ontology validation evidence</strong>
         {semanticContext?.validation.issues.length ? (
           <div className="brief-card-grid">
-            {semanticContext.validation.issues.map((issue) => (
-              <div className="brief-evidence-card warning" key={`${issue.focus_node}-${issue.result_path}-${issue.message}`}>
+            {semanticContext.validation.issues.map((issue, index) => (
+              <div className="brief-evidence-card warning" key={`${issue.focus_node}-${issue.result_path}-${issue.message}-${index}`}>
                 <strong>{issue.focus_node}</strong>
                 <span>{issue.message}</span>
                 <small>{issue.result_path} · {issue.severity}</small>
@@ -1050,8 +1312,8 @@ function RequestTrustView({ detail, semanticContext }: {
         <strong className="detail-section-title">Impact evidence review</strong>
         {detail.impact_trust_flags.length ? (
           <div className="brief-card-grid">
-            {detail.impact_trust_flags.map((flag) => (
-              <div className="brief-evidence-card warning" key={`${flag.issue_type}-${flag.message}`}>
+            {detail.impact_trust_flags.map((flag, index) => (
+              <div className="brief-evidence-card warning" key={`${flag.issue_type}-${flag.message}-${index}`}>
                 <strong>{trustIssueLabel(flag.issue_type)}</strong>
                 <span>{flag.message}</span>
                 {Object.keys(flag.evidence).length ? <small>{formatEvidence(flag.evidence)}</small> : null}
@@ -1083,8 +1345,8 @@ function RequestTrustView({ detail, semanticContext }: {
         <strong className="detail-section-title">Validation evidence</strong>
         {detail.validation_results.length ? (
           <div className="brief-card-grid">
-            {detail.validation_results.map((validation) => (
-              <div className={`brief-evidence-card ${validation.validation_status === 'PASSED' ? 'ok' : 'warning'}`} key={validation.validation_id}>
+            {detail.validation_results.map((validation, index) => (
+              <div className={`brief-evidence-card ${validation.validation_status === 'PASSED' ? 'ok' : 'warning'}`} key={`${validation.validation_id}-${index}`}>
                 <strong>{formatStage(validation.validation_status)}</strong>
                 <span>{validation.validator_id ?? 'No validator assigned'}</span>
                 {validation.failure_reason ? <small>{validation.failure_reason}</small> : null}
@@ -1107,10 +1369,7 @@ function DependencyDetailView({ detail, semanticContext, topologyDependencies }:
   if (!detail) {
     return <div className="empty-state">Select a semantic finding to compare dependency context against the active blocker</div>
   }
-  const selectedDependencyRows = topologyDependencies.filter((dependency) =>
-    dependency.dependent_asset_id === detail.request.asset_id ||
-    dependency.dependency_asset_id === detail.request.asset_id,
-  )
+  const selectedDependencyRows = selectedDependenciesFor(detail, topologyDependencies)
   const paths = buildTopologyPaths(selectedDependencyRows)
   const activeIncidentCount = paths.reduce((total, path) => total + path.activeIncidentCount, 0)
   return (
@@ -1164,6 +1423,13 @@ function DependencyDetailView({ detail, semanticContext, topologyDependencies }:
         <TopologyRows rows={selectedDependencyRows} />
       </div>
     </div>
+  )
+}
+
+function selectedDependenciesFor(detail: RequestDetail, topologyDependencies: InfrastructureDependency[]) {
+  return topologyDependencies.filter((dependency) =>
+    dependency.dependent_asset_id === detail.request.asset_id ||
+    dependency.dependency_asset_id === detail.request.asset_id,
   )
 }
 

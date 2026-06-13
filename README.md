@@ -207,12 +207,21 @@ The React frontend is built as a semantic operations workbench:
   recovery, and validation
 - A compact findings table with incident, asset, zone, blocker, time, and
   detail links backed by approved semantic query IDs
-- Dedicated finding detail route with Summary, Impact, Trust, and Dependencies
-  tabs
+- Dedicated finding detail route with a Summary explanation canvas plus Impact,
+  Trust, and Dependencies tabs
 - Detail evidence for stage history, work order context, impact snapshot
   context, telemetry evidence, vendor/mitigation status, impact trust flags,
   graph-derived dependency paths, SHACL validation status, semantic incident
-  evidence, and SPARQL-backed blast-radius context
+  evidence, provenance chain, and SPARQL-backed blast-radius context
+- Design-only ontology action layer for future governed operator actions such
+  as restore blocker acknowledgement, evidence review assignment, validation
+  review, reasoning finding approval/rejection, reasoning refresh request, and
+  promotion batch approval. This is not executable writeback and does not expose
+  public write endpoints.
+- Read-only action affordances in selected finding Summary and Trust views.
+  These show action labels, target ontology objects, required parameters,
+  preconditions, provenance requirements, and disabled reasons without executing
+  writes.
 
 Run the frontend build:
 
@@ -266,3 +275,4 @@ npm run build
 - `docs/ontology-native/phase18_semantic_response_contract_checkpoint.md`: Phase 18 semantic response contract checkpoint for future typed query DTOs, error envelopes, versioning rules, and OpenAPI alignment
 - `docs/ontology-native/phase19_internal_response_serialization.md`: Phase 19 internal-only response serialization from typed query envelopes and semantic errors into Phase 18-shaped payloads
 - `docs/ontology-native/phase20_endpoint_readiness_decision.md`: Phase 20 endpoint readiness decision checkpoint for whether to remain internal-only or later start private semantic query endpoint scaffolding
+- `docs/ontology-native/ontology_action_layer_v1.md`: design-only controlled ontology action layer for future governed operator actions, audit/provenance gates, rollback behavior, and UI placement

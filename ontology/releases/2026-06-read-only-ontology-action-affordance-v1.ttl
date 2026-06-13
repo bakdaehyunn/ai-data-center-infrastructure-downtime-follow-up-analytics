@@ -1,0 +1,19 @@
+@prefix dcai-release: <urn:dcai:release:> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dcai-release:2026-06-read-only-ontology-action-affordance-v1
+  rdf:type owl:Ontology ;
+  dcterms:title "Read-only ontology action affordance v1 release" ;
+  dcterms:description "Read-only frontend affordance release for governed ontology actions over selected semantic findings. It adds semantic action contract metadata and disabled UI states for restore blocker acknowledgement, evidence review assignment, validation review, and reasoning refresh request in Summary and Trust views. The affordances show action labels, target ontology objects, required parameters, preconditions, provenance requirements, and disabled reasons. This release does not execute writes, expose public endpoints, add authentication, mutate production data, implement AI governance workflows, commit, or push." ;
+  dcterms:created "2026-06-13"^^xsd:date ;
+  dcterms:requires dcai-release:2026-06-ontology-action-layer-v1 ;
+  dcterms:hasPart
+    <../../frontend/src/api.ts>,
+    <../../frontend/src/App.tsx>,
+    <../../frontend/src/App.css>,
+    <../../docs/ontology-native/ontology_action_layer_v1.md>,
+    <../../docs/ontology-native/frontend_ontology_ia_redesign_plan.md>,
+    <../../README.md> .

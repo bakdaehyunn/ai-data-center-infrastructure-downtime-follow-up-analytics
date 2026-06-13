@@ -178,6 +178,14 @@ lineage:
 - Raw graph identifiers: compact advanced section for URIs, graph scope, query
   ID, and release/run IDs.
 
+Implemented refinement: the Summary tab now acts as the primary semantic
+explanation canvas. It keeps the triage list/detail backbone, but presents
+restore-readiness reasoning, dependency and blast-radius paths, evidence
+timeline entries, and provenance resources directly in the selected finding
+view. It intentionally uses typed path and chain layouts instead of a generic
+force-directed RDF graph, because the operator task is to understand the
+finding, supporting evidence, and next action.
+
 ### 3. Dependency View
 
 Replace hardcoded topology definitions with graph-derived grouping:
@@ -206,6 +214,32 @@ Elevate trust/provenance from a secondary tab into the decision flow:
 - Unsupported impact claim state.
 - Source record and payload hash status.
 - Reasoning activity and generated-at time.
+
+### 5. Governed Ontology Actions
+
+Palantir-style ontology maturity requires governed actions, not only read-only
+dashboards. The action layer is documented in
+`docs/ontology-native/ontology_action_layer_v1.md`.
+
+For the current UI, action placement should be explicit but non-executable until
+runtime authority exists:
+
+- Summary view: restore blocker acknowledgement and validation/evidence review
+  affordances with disabled reasons.
+- Trust view: evidence review assignment and validation review beside the
+  evidence they affect.
+- Admin/lifecycle view: reasoning finding approval/rejection, reasoning refresh
+  request, and promotion batch approval.
+
+The dashboard scope tiles remain filter actions, not ontology write actions.
+The UI must not imply that writeback is available until action execution,
+authorization, validation, provenance, idempotency, and rollback behavior are
+implemented behind semantic-service.
+
+Implemented refinement: selected finding Summary and Trust views now render
+read-only governed-action affordances. They expose action labels, target
+ontology objects, required parameters, preconditions, provenance requirements,
+and disabled reasons while keeping execution unavailable.
 
 ## Filter And Vocabulary Strategy
 
