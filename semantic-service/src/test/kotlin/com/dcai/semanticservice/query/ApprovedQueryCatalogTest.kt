@@ -39,6 +39,17 @@ class ApprovedQueryCatalogTest {
             manifest.entries.keys,
         )
         assertTrue(manifest.entries.values.all { it.mode == QueryMode.SELECT })
+        assertEquals(
+            "fixture or promoted canonical graph, reasoning graph",
+            manifest.requireQuery("semanticFollowUpDetail").graphScope,
+        )
+        assertTrue(manifest.requireQuery("semanticFollowUpDetail").sparql.contains("urn:dcai:graph:canonical:"))
+        assertTrue(manifest.requireQuery("semanticFollowUpDetail").sparql.contains("urn:dcai:graph:reasoning:"))
+        assertEquals(
+            "fixture canonical graph or reasoning graph",
+            manifest.requireQuery("semanticTrustFindingList").graphScope,
+        )
+        assertTrue(manifest.requireQuery("semanticTrustFindingList").sparql.contains("urn:dcai:graph:reasoning:"))
     }
 
     @Test

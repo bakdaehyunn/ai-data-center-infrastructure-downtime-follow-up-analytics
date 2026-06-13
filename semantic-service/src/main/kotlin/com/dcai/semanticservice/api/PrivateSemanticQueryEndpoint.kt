@@ -232,22 +232,38 @@ class PrivateSemanticQueryEndpointServer(
     }
 
     private fun handle(exchange: HttpExchange) {
-        exchange.responseHeaders.set("Access-Control-Allow-Origin", config.corsAllowOrigin)
-        exchange.responseHeaders.set("Access-Control-Allow-Methods", "POST, OPTIONS")
-        exchange.responseHeaders.set("Access-Control-Allow-Headers", "Content-Type")
-        if (exchange.requestMethod == "OPTIONS") {
-            exchange.sendResponseHeaders(204, -1)
-            exchange.close()
-            return
-        }
+        try {
+            exchange.responseHeaders.set("Access-Control-Allow-Origin", config.corsAllowOrigin)
+            exchange.responseHeaders.set("Access-Control-Allow-Methods", "POST, OPTIONS")
+            exchange.responseHeaders.set("Access-Control-Allow-Headers", "Content-Type")
+            if (exchange.requestMethod == "OPTIONS") {
+                exchange.sendResponseHeaders(204, -1)
+                exchange.close()
+                return
+            }
 
-        val response = endpoint.handle(
-            PrivateSemanticQueryRequest(
-                method = exchange.requestMethod,
-                path = exchange.requestURI.path,
-                body = exchange.requestBody.bufferedReader(StandardCharsets.UTF_8).use { it.readText() },
-            ),
-        )
+            val response = endpoint.handle(
+                PrivateSemanticQueryRequest(
+                    method = exchange.requestMethod,
+                    path = exchange.requestURI.path,
+                    body = exchange.requestBody.bufferedReader(StandardCharsets.UTF_8).use { it.readText() },
+                ),
+            )
+            writeResponse(exchange, response)
+        } catch (error: RuntimeException) {
+            val response = PrivateSemanticQueryResponse(
+                statusCode = 500,
+                payload = SemanticResponseSerializer().error(
+                    code = SemanticErrorCode.INTERNAL_SEMANTIC_SERVICE_ERROR,
+                    message = "Private semantic query endpoint failed before a response could be written.",
+                    detail = error.message,
+                ),
+            )
+            writeResponse(exchange, response)
+        }
+    }
+
+    private fun writeResponse(exchange: HttpExchange, response: PrivateSemanticQueryResponse) {
         val bytes = response.jsonBody().toByteArray(StandardCharsets.UTF_8)
         exchange.responseHeaders.set("Content-Type", response.contentType)
         exchange.sendResponseHeaders(response.statusCode, bytes.size.toLong())

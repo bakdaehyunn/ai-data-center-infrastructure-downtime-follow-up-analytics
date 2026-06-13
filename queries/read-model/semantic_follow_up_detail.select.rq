@@ -20,6 +20,8 @@ SELECT
   ?recommendedAction
   ?recoveryBlocker
   ?blockerSummary
+  ?restoreReadiness
+  ?restoreReadinessSummary
   ?trustFinding
   ?trustSummary
   ?priorityRank
@@ -108,23 +110,41 @@ WHERE {
       OPTIONAL { ?impact dcai:vendorEtaAt ?vendorEtaAt . }
       OPTIONAL { ?impact dcai:hasVendorState ?vendorStatus . }
     }
-    OPTIONAL {
+  }
+  OPTIONAL {
+    GRAPH ?reasoningGraph {
       ?followUpDecision a dcai:FollowUpDecision ;
         prov:wasDerivedFrom ?incident ;
         dcai:hasRecommendedAction ?recommendedAction .
     }
-    OPTIONAL {
+    FILTER(STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:reasoning:"))
+  }
+  OPTIONAL {
+    GRAPH ?reasoningGraph {
       ?recoveryBlocker a dcai:RecoveryBlocker ;
         prov:wasDerivedFrom ?incident ;
         dcai:hasFindingSummary ?blockerSummary .
     }
-    OPTIONAL {
+    FILTER(STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:reasoning:"))
+  }
+  OPTIONAL {
+    GRAPH ?reasoningGraph {
+      ?restoreReadiness a dcai:RestoreReadinessFinding ;
+        prov:wasDerivedFrom ?incident ;
+        dcai:hasFindingSummary ?restoreReadinessSummary .
+    }
+    FILTER(STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:reasoning:"))
+  }
+  OPTIONAL {
+    GRAPH ?reasoningGraph {
       ?trustFinding a dcai:TrustFinding ;
-        prov:wasDerivedFrom ?impact ;
+        prov:wasDerivedFrom ?trustSource ;
         dcai:hasFindingSummary ?trustSummary .
     }
+    FILTER(STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:reasoning:"))
+    FILTER(?trustSource = ?incident || (BOUND(?impact) && ?trustSource = ?impact))
   }
-  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
   FILTER(?incidentId = COALESCE(?incidentIdParam, ?incidentId))
 }
 ORDER BY ?incidentId

@@ -2,8 +2,8 @@
 
 This directory records the reasoning pipeline for the ontology-native rewrite.
 Phase 4 started as a scaffold. Executable reasoning v1 now adds internal Kotlin
-reasoning for dependency exposure, recovery blockers, and blast radius over
-promoted canonical graphs.
+reasoning for dependency exposure, recovery blockers, restore readiness, impact
+trust, and blast radius over promoted canonical graphs.
 
 Executable reasoning v1 does not add public endpoints, browser-supplied raw
 SPARQL, UI changes, authentication, AI governance workflows, connector jobs, or
@@ -12,8 +12,8 @@ old-runtime restoration.
 ## Target Graph Boundaries
 
 - `urn:dcai:graph:canonical`: validated source-to-canonical operational facts.
-- `urn:dcai:graph:provenance`: source lineage, promotion activity, and future
-  reasoning activity records.
+- `urn:dcai:graph:provenance`: source lineage, promotion activity, and
+  reasoning activity input context.
 - `urn:dcai:graph:reasoning`: approved derived findings produced from canonical
   facts.
 - `urn:dcai:graph:reasoning-audit`: candidate findings, rule versions, and
@@ -38,6 +38,13 @@ Implemented v1 outputs:
 - recovery-blocker findings from blocked, delayed, awaiting, missing,
   conflicting, or manual-review workflow, work-order, validation, or telemetry
   states supporting an incident
+- restore-readiness findings for each incident from recovery blockers,
+  work-order state, validation state, mitigation state, telemetry state,
+  evidence confidence, stale evidence, unsupported impacts, and downstream
+  dependency exposure
+- trust findings for low-confidence evidence, conflicting validation, telemetry
+  gaps, stale evidence, unsupported impact claims, unsupported evidence targets,
+  and source records missing payload-hash provenance
 - `dcai:ReasoningActivity` provenance with `prov:used`, `prov:generated`, and
   `prov:generatedAtTime`
 - reasoning-audit and approved reasoning graph promotion with rollback
@@ -53,13 +60,12 @@ Implemented v1 outputs:
 - `queries/manifest.ttl`: query-manifest references for future reasoning
   queries.
 
-The existing `queries/reasoning/*.rq` files remain parseable SPARQL scaffolds
-and are not exposed to browsers or the private query endpoint. Executable v1
-uses internal Kotlin model rules so graph mutation remains service-owned.
+The existing `queries/reasoning/*.rq` files remain parseable SPARQL reference
+scaffolds and are not exposed to browsers or the private query endpoint.
+Executable v1 uses internal Kotlin model rules so graph mutation remains
+service-owned.
 
 Remaining future work:
 
-- restore readiness reasoning
-- impact trust reasoning
 - richer path traversal, conflict handling, and policy approval gates
 - production connector scheduling and operator-facing promotion controls

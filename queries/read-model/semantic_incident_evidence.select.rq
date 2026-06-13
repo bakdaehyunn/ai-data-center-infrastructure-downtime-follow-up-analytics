@@ -89,13 +89,17 @@ WHERE {
       OPTIONAL { ?evidence dcai:hasRequiredSpareName ?requiredSpareName . }
       OPTIONAL { ?evidence dcai:hasStockStatus ?stockStatus . }
     }
-    OPTIONAL {
+  }
+  OPTIONAL {
+    GRAPH ?reasoningGraph {
       ?trustFinding a dcai:TrustFinding ;
-        prov:wasDerivedFrom ?impact ;
+        prov:wasDerivedFrom ?trustSource ;
         dcai:hasFindingSummary ?trustSummary .
     }
+    FILTER(STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:reasoning:"))
+    FILTER(?trustSource = ?incident || (BOUND(?impact) && ?trustSource = ?impact) || (BOUND(?evidence) && ?trustSource = ?evidence))
   }
-  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
   FILTER(?incidentId = COALESCE(?incidentIdParam, ?incidentId))
 }
 ORDER BY ?incidentId ?evidence ?trustFinding

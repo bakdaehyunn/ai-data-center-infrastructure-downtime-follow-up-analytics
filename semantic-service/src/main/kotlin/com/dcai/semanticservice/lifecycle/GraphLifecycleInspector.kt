@@ -147,8 +147,14 @@ class ReasoningGraphInspectionSummary(
     val dependencyImpactFindingCount: Int,
     val blastRadiusFindingCount: Int,
     val recoveryBlockerCount: Int,
+    val restoreReadinessFindingCount: Int,
+    val trustFindingCount: Int,
 ) : GraphInspectionSummary(graphUri, exists, tripleCount) {
-    val findingCount: Int = dependencyImpactFindingCount + blastRadiusFindingCount + recoveryBlockerCount
+    val findingCount: Int = dependencyImpactFindingCount +
+        blastRadiusFindingCount +
+        recoveryBlockerCount +
+        restoreReadinessFindingCount +
+        trustFindingCount
 
     companion object {
         fun from(graphUri: String, exists: Boolean, model: Model): ReasoningGraphInspectionSummary {
@@ -160,6 +166,8 @@ class ReasoningGraphInspectionSummary(
                 dependencyImpactFindingCount = model.countType(Dcai.DependencyImpactFinding),
                 blastRadiusFindingCount = model.countType(Dcai.BlastRadiusFinding),
                 recoveryBlockerCount = model.countType(Dcai.RecoveryBlocker),
+                restoreReadinessFindingCount = model.countType(Dcai.RestoreReadinessFinding),
+                trustFindingCount = model.countType(Dcai.TrustFinding),
             )
         }
     }

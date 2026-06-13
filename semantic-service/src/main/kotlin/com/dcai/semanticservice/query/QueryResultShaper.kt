@@ -213,6 +213,8 @@ class QueryResultShaper(
                     recommendedAction = row.optional("recommendedAction"),
                     recoveryBlockerUri = row.optional("recoveryBlocker"),
                     blockerSummary = row.optional("blockerSummary"),
+                    restoreReadinessUri = row.optional("restoreReadiness"),
+                    restoreReadinessSummary = row.optional("restoreReadinessSummary"),
                     trustFindingUri = row.optional("trustFinding"),
                     trustSummary = row.optional("trustSummary"),
                     priorityRank = row.optionalInt("priorityRank"),

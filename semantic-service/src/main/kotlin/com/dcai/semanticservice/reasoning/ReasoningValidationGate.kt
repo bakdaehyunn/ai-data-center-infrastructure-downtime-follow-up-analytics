@@ -99,7 +99,10 @@ class ReasoningValidationGate(
         }
 
         val findings = model.listSubjectsWithProperty(RDF.type, DEPENDENCY_IMPACT_FINDING).toList() +
-            model.listSubjectsWithProperty(RDF.type, BLAST_RADIUS_FINDING).toList()
+            model.listSubjectsWithProperty(RDF.type, BLAST_RADIUS_FINDING).toList() +
+            model.listSubjectsWithProperty(RDF.type, RECOVERY_BLOCKER).toList() +
+            model.listSubjectsWithProperty(RDF.type, RESTORE_READINESS_FINDING).toList() +
+            model.listSubjectsWithProperty(RDF.type, TRUST_FINDING).toList()
         if (findings.isEmpty()) {
             return listOf("Reasoning provenance gate failed: reasoning output has no approved finding")
         }
@@ -118,6 +121,9 @@ class ReasoningValidationGate(
         private val REASONING_ACTIVITY = ResourceFactory.createResource("urn:dcai:ontology:ReasoningActivity")
         private val DEPENDENCY_IMPACT_FINDING = ResourceFactory.createResource("urn:dcai:ontology:DependencyImpactFinding")
         private val BLAST_RADIUS_FINDING = ResourceFactory.createResource("urn:dcai:ontology:BlastRadiusFinding")
+        private val RECOVERY_BLOCKER = ResourceFactory.createResource("urn:dcai:ontology:RecoveryBlocker")
+        private val RESTORE_READINESS_FINDING = ResourceFactory.createResource("urn:dcai:ontology:RestoreReadinessFinding")
+        private val TRUST_FINDING = ResourceFactory.createResource("urn:dcai:ontology:TrustFinding")
         private val USED = ResourceFactory.createProperty("http://www.w3.org/ns/prov#used")
         private val GENERATED = ResourceFactory.createProperty("http://www.w3.org/ns/prov#generated")
         private val GENERATED_AT_TIME = ResourceFactory.createProperty("http://www.w3.org/ns/prov#generatedAtTime")

@@ -33,12 +33,15 @@ WHERE {
       FILTER(?mitigationState = "RUNNING_DEGRADED" || ?mitigationState = "MITIGATED")
       BIND(?impact AS ?mitigatedImpact)
     }
-    OPTIONAL {
+  }
+  OPTIONAL {
+    GRAPH ?reasoningGraph {
       ?trustFinding a dcai:TrustFinding ;
         <http://www.w3.org/ns/prov#wasDerivedFrom> ?impact .
     }
+    FILTER(STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:reasoning:"))
   }
-  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
 }
 GROUP BY ?graph
 ORDER BY ?graph

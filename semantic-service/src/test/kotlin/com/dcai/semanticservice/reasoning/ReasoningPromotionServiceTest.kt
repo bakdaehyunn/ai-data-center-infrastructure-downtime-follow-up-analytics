@@ -29,12 +29,12 @@ class ReasoningPromotionServiceTest {
         val result = service(store).run(plan(runId, inputGraphs, outputGraphs))
 
         assertTrue(result.promoted, result.errors.joinToString(separator = "\n"))
-        assertEquals(2, result.findingCount)
+        assertEquals(3, result.findingCount)
         assertEquals(listOf(outputGraphs.auditGraphUri, outputGraphs.reasoningGraphUri), result.writtenGraphUris)
         assertTrue(store.graph(outputGraphs.auditGraphUri)!!.size() > 0)
         assertTrue(store.graph(outputGraphs.reasoningGraphUri)!!.isIsomorphicWith(store.graph(outputGraphs.auditGraphUri)))
         assertEquals(runId, result.releaseManifest?.runId)
-        assertEquals(2, result.releaseManifest?.findingCount)
+        assertEquals(3, result.releaseManifest?.findingCount)
     }
 
     @Test

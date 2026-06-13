@@ -107,7 +107,7 @@ class RecordedSourceScenarioGeneratorTest {
         )
 
         assertTrue(reasoning.promoted, reasoning.errors.joinToString(separator = "\n"))
-        assertEquals(16, reasoning.findingCount)
+        assertEquals(27, reasoning.findingCount)
 
         val lifecycle = GraphLifecycleInspector(store).inspect(
             GraphLifecycleInspectionPlan(
@@ -123,8 +123,10 @@ class RecordedSourceScenarioGeneratorTest {
         assertEquals(16, lifecycle.canonicalGraph?.assetCount)
         assertEquals(12, lifecycle.canonicalGraph?.dependencyEdgeCount)
         assertEquals(80, lifecycle.provenanceGraph?.sourceRecordCount)
-        assertEquals(16, lifecycle.reasoningGraph?.findingCount)
+        assertEquals(27, lifecycle.reasoningGraph?.findingCount)
         assertEquals(4, lifecycle.reasoningGraph?.recoveryBlockerCount)
+        assertEquals(4, lifecycle.reasoningGraph?.restoreReadinessFindingCount)
+        assertEquals(7, lifecycle.reasoningGraph?.trustFindingCount)
     }
 
     private fun request(

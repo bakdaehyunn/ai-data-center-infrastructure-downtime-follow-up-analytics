@@ -64,6 +64,8 @@ internal object Dcai {
     val DependencyImpactFinding = resource("DependencyImpactFinding")
     val BlastRadiusFinding = resource("BlastRadiusFinding")
     val RecoveryBlocker = resource("RecoveryBlocker")
+    val RestoreReadinessFinding = resource("RestoreReadinessFinding")
+    val TrustFinding = resource("TrustFinding")
 
     val CriticalityLevel = resource("CriticalityLevel")
     val OperationalStatus = resource("OperationalStatus")
@@ -148,6 +150,8 @@ internal object Dcai {
     val hasWorkOrderState = property("hasWorkOrderState")
     val hasAssignedTeam = property("hasAssignedTeam")
     val hasFindingSummary = property("hasFindingSummary")
+    val hasEvidenceSeverity = property("hasEvidenceSeverity")
+    val createdAt = property("createdAt")
 
     private fun resource(localName: String) = ResourceFactory.createResource("$NAMESPACE$localName")
 

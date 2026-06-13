@@ -19,10 +19,6 @@ WHERE {
       prov:wasDerivedFrom ?rowSourceRecord .
     OPTIONAL { ?stage rdfs:label ?stageLabel . }
     OPTIONAL {
-      ?recoveryBlocker a dcai:RecoveryBlocker ;
-        prov:wasDerivedFrom ?incident .
-    }
-    OPTIONAL {
       ?queueItem a dcai:FollowUpQueueItem ;
         dcai:queueItemForIncident ?incident ;
         dcai:hoursInCurrentStage ?durationHours .
@@ -33,7 +29,14 @@ WHERE {
       OPTIONAL { ?workOrder dcai:hasStockStatus ?observedStockStatus . }
     }
   }
-  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  OPTIONAL {
+    GRAPH ?reasoningGraph {
+      ?recoveryBlocker a dcai:RecoveryBlocker ;
+        prov:wasDerivedFrom ?incident .
+    }
+    FILTER(STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:reasoning:"))
+  }
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
   FILTER(
     BOUND(?stageLabel) &&
     (

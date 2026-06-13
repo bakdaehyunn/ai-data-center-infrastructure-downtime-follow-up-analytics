@@ -24,12 +24,23 @@ WHERE {
       ?incident a dcai:InfrastructureIncident ;
         dcai:affectsAsset ?asset ;
         dcai:hasIdentifier ?incidentId .
+    }
+  }
+  OPTIONAL {
+    GRAPH ?reasoningGraph {
       ?finding a dcai:BlastRadiusFinding ;
         prov:wasDerivedFrom ?incident ;
         dcai:hasFindingSummary ?findingSummary .
     }
+    FILTER(STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:reasoning:"))
+    FILTER EXISTS {
+      GRAPH ?graph {
+        ?incident a dcai:InfrastructureIncident ;
+          dcai:affectsAsset ?asset .
+      }
+    }
   }
-  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
   FILTER(?assetId = COALESCE(?assetIdParam, ?assetId))
   FILTER(BOUND(?downstreamAsset) || BOUND(?finding))
 }

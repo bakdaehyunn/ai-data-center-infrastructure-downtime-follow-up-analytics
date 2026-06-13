@@ -204,6 +204,7 @@ class QueryResultShaperTest {
         assertEquals("INC-0001", record.incidentId)
         assertEquals(900.0, record.capacityRiskKw)
         assertEquals("Escalate vendor ETA.", record.recommendedAction)
+        assertEquals("Restore is not ready.", record.restoreReadinessSummary)
         assertEquals("N-1", record.redundancyState)
         assertEquals(40, record.affectedRackCount)
         assertEquals(1, record.repeatFailureAssetCount)
@@ -650,6 +651,8 @@ class QueryResultShaperTest {
             "recommendedAction" to "Escalate vendor ETA.",
             "recoveryBlocker" to "urn:dcai:fixture:valid:reasoning-output:recovery-blocker-0001",
             "blockerSummary" to "Current blocker is spare/vendor waiting.",
+            "restoreReadiness" to "urn:dcai:fixture:valid:reasoning-output:restore-readiness-0001",
+            "restoreReadinessSummary" to "Restore is not ready.",
             "trustFinding" to "urn:dcai:fixture:valid:reasoning-output:trust-finding-0001",
             "trustSummary" to "Impact evidence is supported by telemetry.",
             "redundancyState" to "N-1",

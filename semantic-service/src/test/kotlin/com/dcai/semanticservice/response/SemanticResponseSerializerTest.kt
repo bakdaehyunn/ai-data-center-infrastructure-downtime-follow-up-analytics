@@ -237,6 +237,8 @@ class SemanticResponseSerializerTest {
                             sourceRecordUri = "urn:dcai:fixture:valid:reasoning-output:source-record-0001",
                             capacityRiskKw = 900.0,
                             recommendedAction = "Escalate vendor ETA.",
+                            restoreReadinessUri = "urn:dcai:fixture:valid:reasoning-output:restore-readiness-0001",
+                            restoreReadinessSummary = "Restore is not ready.",
                             repeatFailureAssetCount = 1,
                             engineerAssignmentDelayHours = 4.0,
                         ),
@@ -393,6 +395,7 @@ class SemanticResponseSerializerTest {
         assertEquals(4.0, firstRecord(payloads[0])["engineerAssignmentDelayHours"])
         assertEquals("ASSET-GPU-RACK-ROW-A", firstRecord(payloads[1])["id"])
         assertEquals("Escalate vendor ETA.", firstRecord(payloads[2])["recommendedAction"])
+        assertEquals("Restore is not ready.", firstRecord(payloads[2])["restoreReadinessSummary"])
         assertEquals(1, firstRecord(payloads[2])["repeatFailureAssetCount"])
         assertEquals(4.0, firstRecord(payloads[2])["engineerAssignmentDelayHours"])
         assertEquals(45.0, firstRecord(payloads[0])["totalDelayHours"])

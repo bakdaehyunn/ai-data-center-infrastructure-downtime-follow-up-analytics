@@ -200,14 +200,22 @@ governance workflows, frontend read-model changes, or live production connector
 jobs.
 
 Executable reasoning v1 adds internal dependency-exposure, recovery-blocker,
-and blast-radius reasoning over promoted canonical graphs:
+restore-readiness, impact-trust, and blast-radius reasoning over promoted
+canonical graphs:
 
 - reads managed canonical and provenance named graphs through `NamedGraphStore`
 - generates candidate `dcai:DependencyImpactFinding` and
   `dcai:BlastRadiusFinding` facts plus `dcai:ReasoningActivity` provenance
-- ontology hardening v1 also derives `dcai:RecoveryBlocker` facts from blocked,
+- derives `dcai:RecoveryBlocker` facts from blocked,
   delayed, awaiting, missing, conflicting, or manual-review workflow,
   work-order, validation, and telemetry states in the canonical graph
+- derives `dcai:RestoreReadinessFinding` facts from recovery blockers,
+  work-order state, validation state, mitigation state, telemetry state,
+  evidence confidence, stale evidence, unsupported impacts, and downstream
+  dependency exposure
+- derives `dcai:TrustFinding` facts for low-confidence evidence, conflicting
+  validation, telemetry gaps, stale evidence, unsupported impact claims,
+  unsupported evidence targets, and missing source payload-hash provenance
 - validates reasoning output with SHACL and explicit provenance gates
 - writes managed `urn:dcai:graph:reasoning-audit:*` and
   `urn:dcai:graph:reasoning:*` graphs with rollback snapshots

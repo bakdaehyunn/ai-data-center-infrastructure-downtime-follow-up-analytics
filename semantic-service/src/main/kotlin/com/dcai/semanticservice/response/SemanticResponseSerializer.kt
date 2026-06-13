@@ -137,6 +137,8 @@ class SemanticResponseSerializer {
                     record.recommendedAction?.let { put("recommendedAction", it) }
                     record.recoveryBlockerUri?.let { put("recoveryBlockerUri", it) }
                     record.blockerSummary?.let { put("blockerSummary", it) }
+                    record.restoreReadinessUri?.let { put("restoreReadinessUri", it) }
+                    record.restoreReadinessSummary?.let { put("restoreReadinessSummary", it) }
                     record.trustFindingUri?.let { put("trustFindingUri", it) }
                     record.trustSummary?.let { put("trustSummary", it) }
                     record.priorityRank?.let { put("priorityRank", it) }

@@ -1,9 +1,9 @@
 # Reasoning Query Scaffold
 
-This directory contains parseable placeholder SPARQL query files for the
-ontology-native reasoning boundary. The queries are syntax-checked scaffolds
-only. They are not wired into a service, reasoning orchestrator, graph promotion
-step, or UI surface.
+This directory contains parseable SPARQL reference files for the ontology-native
+reasoning boundary. The queries are syntax-checked scaffolds only. Executable
+reasoning v1 is implemented in Kotlin inside semantic-service; these query files
+are not wired into a service, graph promotion step, or UI surface.
 
 Query files:
 
@@ -21,6 +21,6 @@ PYTHONPATH=/tmp/dcai-rdf-tools python3 queries/validate_sparql.py
 ```
 
 The files must remain aligned with `reasoning/manifest.ttl` and
-`queries/manifest.ttl`. A later implementation phase can replace placeholder
-patterns with production graph logic after the reasoning runtime contract is
-approved.
+`queries/manifest.ttl`. A later implementation phase can either replace these
+placeholder patterns with production graph logic or keep Kotlin as the
+service-owned reasoning runtime.

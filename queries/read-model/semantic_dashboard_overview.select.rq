@@ -2,63 +2,125 @@ PREFIX dcai: <urn:dcai:ontology:>
 
 SELECT
   ?graph
-  (COUNT(DISTINCT ?incident) AS ?totalIncidents)
-  (COUNT(DISTINCT ?asset) AS ?assetCount)
-  (COUNT(DISTINCT ?zone) AS ?zoneCount)
-  (COUNT(DISTINCT ?impact) AS ?impactObservationCount)
-  (COALESCE(SUM(?capacityRisk), 0) AS ?capacityRiskKw)
-  (COALESCE(SUM(?gpuCount), 0) AS ?affectedGpuCount)
-  (COUNT(DISTINCT ?dependencyEdge) AS ?dependencyEdgeCount)
-  (COUNT(DISTINCT ?trustFinding) AS ?trustFindingCount)
-  (COALESCE(AVG(?durationHours), 0) AS ?avgDurationHours)
-  (COALESCE(SUM(?durationHours), 0) AS ?totalDurationHours)
-  (COALESCE(SUM(?delayHours), 0) AS ?totalDelayHours)
-  (COUNT(DISTINCT ?mitigatedImpact) AS ?mitigatedIncidentCount)
-  (COALESCE(SUM(?rackCount), 0) AS ?affectedRackCount)
-  (COALESCE(SUM(?thermalMinutes), 0) AS ?thermalBreachMinutes)
-  (COUNT(DISTINCT ?redundancyLostImpact) AS ?redundancyLostIncidentCount)
-  (COUNT(DISTINCT ?vendorEtaMissedImpact) AS ?vendorEtaMissedCount)
-  (COALESCE(SUM(?repeatFailureAssetCountValue), 0) AS ?repeatFailureAssetCount)
-  (COALESCE(SUM(?engineerAssignmentDelayHoursValue), 0) AS ?engineerAssignmentDelayHours)
+  (COALESCE(?totalIncidentsRaw, 0) AS ?totalIncidents)
+  (COALESCE(?assetCountRaw, 0) AS ?assetCount)
+  (COALESCE(?zoneCountRaw, 0) AS ?zoneCount)
+  (COALESCE(?impactObservationCountRaw, 0) AS ?impactObservationCount)
+  (COALESCE(?capacityRiskKwRaw, 0) AS ?capacityRiskKw)
+  (COALESCE(?affectedGpuCountRaw, 0) AS ?affectedGpuCount)
+  (COALESCE(?dependencyEdgeCountRaw, 0) AS ?dependencyEdgeCount)
+  (COALESCE(?trustFindingCountRaw, 0) AS ?trustFindingCount)
+  (COALESCE(?avgDurationHoursRaw, 0) AS ?avgDurationHours)
+  (COALESCE(?totalDurationHoursRaw, 0) AS ?totalDurationHours)
+  (COALESCE(?totalDelayHoursRaw, 0) AS ?totalDelayHours)
+  (COALESCE(?mitigatedIncidentCountRaw, 0) AS ?mitigatedIncidentCount)
+  (COALESCE(?affectedRackCountRaw, 0) AS ?affectedRackCount)
+  (COALESCE(?thermalBreachMinutesRaw, 0) AS ?thermalBreachMinutes)
+  (COALESCE(?redundancyLostIncidentCountRaw, 0) AS ?redundancyLostIncidentCount)
+  (COALESCE(?vendorEtaMissedCountRaw, 0) AS ?vendorEtaMissedCount)
+  (COALESCE(?repeatFailureAssetCountRaw, 0) AS ?repeatFailureAssetCount)
+  (COALESCE(?engineerAssignmentDelayHoursRaw, 0) AS ?engineerAssignmentDelayHours)
 WHERE {
-  GRAPH ?graph {
-    OPTIONAL { ?incident a dcai:InfrastructureIncident . }
-    OPTIONAL { ?asset a dcai:InfrastructureAsset . }
-    OPTIONAL { ?zone a dcai:InfrastructureZone . }
-    OPTIONAL {
-      ?impact a dcai:ImpactObservation .
-      OPTIONAL { ?impact dcai:estimatedCapacityRiskKw ?capacityRisk . }
-      OPTIONAL { ?impact dcai:affectedGpuCount ?gpuCount . }
-      OPTIONAL { ?impact dcai:affectedRackCount ?rackCount . }
-      OPTIONAL { ?impact dcai:thermalBreachMinutes ?thermalMinutes . }
-      OPTIONAL {
-        ?impact dcai:hasMitigationState ?mitigationState .
-        FILTER(?mitigationState = "RUNNING_DEGRADED" || ?mitigationState = "MITIGATED")
-        BIND(?impact AS ?mitigatedImpact)
-      }
-      OPTIONAL {
-        ?impact dcai:powerRedundancyLost true .
-        BIND(?impact AS ?redundancyLostImpact)
-      }
-      OPTIONAL {
-        ?impact dcai:hasVendorState "ETA_MISSED" .
-        BIND(?impact AS ?vendorEtaMissedImpact)
-      }
+  {
+    SELECT DISTINCT ?graph
+    WHERE {
+      GRAPH ?graph { ?s ?p ?o . }
+      FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
     }
-    OPTIONAL {
-      ?event a dcai:WorkflowEvent .
-      OPTIONAL { ?event dcai:hasDurationHours ?durationHours . }
-      OPTIONAL { ?event dcai:hasDelayHours ?delayHours . }
-    }
-    OPTIONAL {
-      ?queueItem a dcai:FollowUpQueueItem .
-      OPTIONAL { ?queueItem dcai:hasRepeatFailureAssetCount ?repeatFailureAssetCountValue . }
-      OPTIONAL { ?queueItem dcai:hasEngineerAssignmentDelayHours ?engineerAssignmentDelayHoursValue . }
-    }
-    OPTIONAL { ?dependencyEdge a dcai:DependencyEdge . }
-    OPTIONAL { ?trustFinding a dcai:TrustFinding . }
   }
-  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  OPTIONAL {
+    SELECT
+      ?graph
+      (COUNT(DISTINCT ?incident) AS ?totalIncidentsRaw)
+      (COUNT(DISTINCT ?asset) AS ?assetCountRaw)
+      (COUNT(DISTINCT ?zone) AS ?zoneCountRaw)
+      (COUNT(DISTINCT ?dependencyEdge) AS ?dependencyEdgeCountRaw)
+    WHERE {
+      GRAPH ?graph {
+        OPTIONAL { ?incident a dcai:InfrastructureIncident . }
+        OPTIONAL { ?asset a dcai:InfrastructureAsset . }
+        OPTIONAL { ?zone a dcai:InfrastructureZone . }
+        OPTIONAL { ?dependencyEdge a dcai:DependencyEdge . }
+      }
+      FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
+    }
+    GROUP BY ?graph
+  }
+  OPTIONAL {
+    SELECT
+      ?graph
+      (COUNT(DISTINCT ?impact) AS ?impactObservationCountRaw)
+      (COALESCE(SUM(?capacityRisk), 0) AS ?capacityRiskKwRaw)
+      (COALESCE(SUM(?gpuCount), 0) AS ?affectedGpuCountRaw)
+      (COALESCE(SUM(?rackCount), 0) AS ?affectedRackCountRaw)
+      (COALESCE(SUM(?thermalMinutes), 0) AS ?thermalBreachMinutesRaw)
+      (COUNT(DISTINCT ?mitigatedImpact) AS ?mitigatedIncidentCountRaw)
+      (COUNT(DISTINCT ?redundancyLostImpact) AS ?redundancyLostIncidentCountRaw)
+      (COUNT(DISTINCT ?vendorEtaMissedImpact) AS ?vendorEtaMissedCountRaw)
+    WHERE {
+      GRAPH ?graph {
+        ?impact a dcai:ImpactObservation .
+        OPTIONAL { ?impact dcai:estimatedCapacityRiskKw ?capacityRisk . }
+        OPTIONAL { ?impact dcai:affectedGpuCount ?gpuCount . }
+        OPTIONAL { ?impact dcai:affectedRackCount ?rackCount . }
+        OPTIONAL { ?impact dcai:thermalBreachMinutes ?thermalMinutes . }
+        OPTIONAL {
+          ?impact dcai:hasMitigationState ?mitigationState .
+          FILTER(?mitigationState = "RUNNING_DEGRADED" || ?mitigationState = "MITIGATED")
+          BIND(?impact AS ?mitigatedImpact)
+        }
+        OPTIONAL {
+          ?impact dcai:powerRedundancyLost true .
+          BIND(?impact AS ?redundancyLostImpact)
+        }
+        OPTIONAL {
+          ?impact dcai:hasVendorState "ETA_MISSED" .
+          BIND(?impact AS ?vendorEtaMissedImpact)
+        }
+      }
+      FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
+    }
+    GROUP BY ?graph
+  }
+  OPTIONAL {
+    SELECT
+      ?graph
+      (COALESCE(AVG(?durationHours), 0) AS ?avgDurationHoursRaw)
+      (COALESCE(SUM(?durationHours), 0) AS ?totalDurationHoursRaw)
+      (COALESCE(SUM(?delayHours), 0) AS ?totalDelayHoursRaw)
+    WHERE {
+      GRAPH ?graph {
+        ?event a dcai:WorkflowEvent .
+        OPTIONAL { ?event dcai:hasDurationHours ?durationHours . }
+        OPTIONAL { ?event dcai:hasDelayHours ?delayHours . }
+      }
+      FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
+    }
+    GROUP BY ?graph
+  }
+  OPTIONAL {
+    SELECT
+      ?graph
+      (COALESCE(SUM(?repeatFailureAssetCountValue), 0) AS ?repeatFailureAssetCountRaw)
+      (COALESCE(SUM(?engineerAssignmentDelayHoursValue), 0) AS ?engineerAssignmentDelayHoursRaw)
+    WHERE {
+      GRAPH ?graph {
+        ?queueItem a dcai:FollowUpQueueItem .
+        OPTIONAL { ?queueItem dcai:hasRepeatFailureAssetCount ?repeatFailureAssetCountValue . }
+        OPTIONAL { ?queueItem dcai:hasEngineerAssignmentDelayHours ?engineerAssignmentDelayHoursValue . }
+      }
+      FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
+    }
+    GROUP BY ?graph
+  }
+  OPTIONAL {
+    SELECT (COUNT(DISTINCT ?trustFinding) AS ?trustFindingCountRaw)
+    WHERE {
+      GRAPH ?reasoningGraph {
+        ?trustFinding a dcai:TrustFinding .
+      }
+      FILTER(STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?reasoningGraph), "urn:dcai:graph:reasoning:"))
+    }
+  }
 }
-GROUP BY ?graph
 ORDER BY ?graph

@@ -1,16 +1,21 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import {
+  Activity,
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Boxes,
+  CheckCircle2,
   Clock3,
   Cpu,
   Database,
   Filter,
+  GitBranch,
   Network,
   RefreshCcw,
+  ServerCog,
   ShieldAlert,
+  Target,
   Wrench,
   Zap,
 } from 'lucide-react'
@@ -130,15 +135,18 @@ function FollowUpQueuePage() {
 
   return (
     <main className="app-shell">
-      <header className="topbar">
+      <header className="topbar dashboard-hero">
         <div>
           <p className="eyebrow">AI infrastructure operations</p>
           <h1>AI Data Center Infrastructure Semantic Operations Platform</h1>
+          <p className="page-summary">Graph-backed follow-up queue for capacity, redundancy, vendor, and evidence-risk decisions.</p>
         </div>
         <button className="icon-button" onClick={() => applyFilters(setSearchParams, {})} title="Reset filters">
           <RefreshCcw size={18} />
         </button>
       </header>
+
+      <OperationalCommandStrip dashboard={dashboard} summary={queueSummary} loading={loading} />
 
       {error ? <div className="error-banner">{error}</div> : null}
 
@@ -198,6 +206,38 @@ function FollowUpQueuePage() {
         </section>
       </section>
     </main>
+  )
+}
+
+function OperationalCommandStrip({ dashboard, summary, loading }: {
+  dashboard: DashboardData | null
+  summary: ReturnType<typeof summarizeQueue>
+  loading: boolean
+}) {
+  const pipelineStatus = dashboard?.overview.latest_pipeline_run_status ?? (loading ? 'Loading' : 'Unavailable')
+  const dataQualityStatus = dashboard?.overview.data_quality_status ?? (loading ? 'Loading' : 'Unavailable')
+  return (
+    <section className="command-strip" aria-label="Semantic operations status">
+      <SystemSignal icon={<Activity size={16} />} label="Pipeline run" value={formatStage(pipelineStatus)} tone={statusSignalTone(pipelineStatus)} />
+      <SystemSignal icon={<CheckCircle2 size={16} />} label="Data quality" value={formatStage(dataQualityStatus)} tone={qualitySignalTone(dataQualityStatus)} />
+      <SystemSignal icon={<ServerCog size={16} />} label="Semantic boundary" value="Approved query catalog" tone="ok" />
+      <SystemSignal icon={<Target size={16} />} label="Visible queue" value={`${summary.queueItems} active`} tone={summary.queueItems ? 'warning' : 'ok'} />
+    </section>
+  )
+}
+
+function SystemSignal({ icon, label, value, tone }: {
+  icon: ReactNode
+  label: string
+  value: string
+  tone?: 'ok' | 'warning' | 'danger'
+}) {
+  return (
+    <div className={`system-signal ${tone ?? ''}`}>
+      <div className="system-signal-icon">{icon}</div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   )
 }
 
@@ -266,6 +306,17 @@ function QueueIntelligence({ rows, selectedRow, summary }: {
   const items = selectedRow ? buildSelectedFollowUpIntelligence(selectedRow) : buildQueueIntelligence(rows, summary)
   return (
     <section className={`queue-intelligence ${selectedRow ? 'selected' : ''}`} aria-label="Queue intelligence">
+      <div className="queue-intelligence-header">
+        <span>{selectedRow ? 'Selected follow-up preview' : 'Visible queue readout'}</span>
+        {selectedRow ? (
+          <Link to={`/follow-ups/${selectedRow.incident_id}`}>
+            Open detail
+            <ArrowRight size={14} />
+          </Link>
+        ) : (
+          <strong>{rows.length} active incident{rows.length === 1 ? '' : 's'}</strong>
+        )}
+      </div>
       <div className="queue-intelligence-grid">
         {items.map((item) => (
           <div className={`queue-intelligence-item ${item.tone ?? ''}`} key={item.label}>
@@ -318,6 +369,11 @@ function buildSelectedFollowUpIntelligence(row: FollowUpItem): QueueIntelligence
       label: 'Trust',
       value: trustStatusLabel(row.impact_confidence_status),
       tone: row.impact_confidence_status === 'TRUSTED' ? 'ok' : 'warning',
+    },
+    {
+      label: 'Restore',
+      value: restoreReadinessLabel(row.restore_readiness_status),
+      tone: restoreReadinessTone(row.restore_readiness_status),
     },
   ]
 }
@@ -457,12 +513,13 @@ function Select({
   values?: string[]
   onChange: (value: string) => void
 }) {
+  const selectOptions = uniqueSelectOptions(options ?? values?.map((item) => ({ id: item, name: formatStage(item) })) ?? [])
   return (
     <label className="select-field">
       <span>{label}</span>
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         <option value="">All</option>
-        {(options ?? values?.map((item) => ({ id: item, name: formatStage(item) })) ?? []).map((option) => (
+        {selectOptions.map((option) => (
           <option key={option.id} value={option.id}>
             {option.name}
           </option>
@@ -470,6 +527,15 @@ function Select({
       </select>
     </label>
   )
+}
+
+function uniqueSelectOptions(options: { id: string; name: string }[]) {
+  return [...options.reduce<Map<string, { id: string; name: string }>>((summary, option) => {
+    if (!summary.has(option.id)) {
+      summary.set(option.id, option)
+    }
+    return summary
+  }, new Map()).values()]
 }
 
 function SectionLabel({ label }: { label: string }) {
@@ -680,13 +746,18 @@ function RequestDetailView({ detail, semanticContext }: {
           <strong>{detail.request.request_title}</strong>
           <span>{formatStage(detail.request.priority_level)} priority · blocked at {formatStage(detail.request.current_stage)}</span>
         </div>
-        <TrustBadge status={detail.impact_confidence_status} count={detail.impact_trust_flags.length} />
+        <div className="status-badge-stack">
+          <ReadinessBadge status={detail.restore_readiness.status} />
+          <TrustBadge status={detail.impact_confidence_status} count={detail.impact_trust_flags.length} />
+        </div>
       </div>
 
       <div className="detail-action brief-action">
         <span>Next operational action</span>
         <strong>{detail.request.recommended_action}</strong>
       </div>
+
+      <SemanticTracePanel semanticContext={semanticContext} />
 
       <div className="summary-glance-grid" aria-label="Selected incident at a glance">
         <SummaryMetric label="Asset" value={detail.request.asset_name} />
@@ -695,6 +766,12 @@ function RequestDetailView({ detail, semanticContext }: {
         <SummaryMetric label="Time in stage" value={formatHours(detail.request.hours_in_current_stage)} tone="danger" />
         <SummaryMetric label="Affected GPUs" value={String(affectedGpuCount)} tone={affectedGpuCount > 0 ? 'warning' : undefined} />
         <SummaryMetric label="Capacity risk" value={`${capacityRiskKw.toFixed(0)} kW`} tone={capacityRiskKw > 0 ? 'danger' : undefined} />
+        <SummaryMetric
+          label="Restore readiness"
+          value={restoreReadinessLabel(detail.restore_readiness.status)}
+          detail={detail.restore_readiness.summary ?? 'No restore-readiness finding'}
+          tone={restoreReadinessTone(detail.restore_readiness.status)}
+        />
         <SummaryMetric label="Trust" value={trustStatusLabel(detail.impact_confidence_status)} tone={detail.impact_confidence_status === 'TRUSTED' ? 'ok' : 'warning'} />
         <SummaryMetric label="Evidence issues" value={String(evidenceIssueCount)} tone={evidenceIssueCount ? 'warning' : 'ok'} />
         <SummaryMetric
@@ -711,7 +788,7 @@ function RequestDetailView({ detail, semanticContext }: {
 
       <div className="detail-summary">
         <span>Why it matters</span>
-        <p>{detail.request.reason_summary}</p>
+        <p>{detail.restore_readiness.summary ?? detail.request.reason_summary}</p>
       </div>
 
       <div className="detail-section evidence-section">
@@ -736,6 +813,51 @@ function RequestDetailView({ detail, semanticContext }: {
         </div>
       </div>
     </div>
+  )
+}
+
+function SemanticTracePanel({ semanticContext }: { semanticContext: RequestSemanticContext | null }) {
+  const validationConforms = Boolean(semanticContext?.validation.conforms)
+  const evidenceLinked = Boolean(semanticContext?.incidentEvidence.found)
+  const dependencyCount = semanticContext?.dependencyImpact.direct_dependency_count ?? 0
+  const blastRadiusCount = semanticContext?.blastRadius.affected_incident_count ?? 0
+  const inferredDownstreamCount = semanticContext?.blastRadius.inferred_downstream_assets.length ?? 0
+  return (
+    <section className="semantic-trace-panel" aria-label="Semantic evidence trace">
+      <div className="semantic-trace-heading">
+        <GitBranch size={17} />
+        <div>
+          <span>Semantic evidence trace</span>
+          <strong>{evidenceLinked ? 'RDF incident evidence is linked to this follow-up' : 'RDF incident evidence needs review'}</strong>
+        </div>
+      </div>
+      <div className="semantic-trace-grid">
+        <SummaryMetric
+          label="SHACL contract"
+          value={validationConforms ? 'Conforms' : 'Review'}
+          detail={`${semanticContext?.validation.issue_count ?? 0} validation issues`}
+          tone={validationConforms ? 'ok' : 'warning'}
+        />
+        <SummaryMetric
+          label="Incident evidence"
+          value={evidenceLinked ? 'Linked' : 'Missing'}
+          detail={semanticContext?.incidentEvidence.workflow_stage ? formatStage(semanticContext.incidentEvidence.workflow_stage) : 'No workflow assertion'}
+          tone={evidenceLinked ? 'ok' : 'warning'}
+        />
+        <SummaryMetric
+          label="Dependency assertions"
+          value={String(dependencyCount)}
+          detail="Direct asset dependency edges"
+          tone={dependencyCount ? 'warning' : undefined}
+        />
+        <SummaryMetric
+          label="Blast-radius evidence"
+          value={String(blastRadiusCount)}
+          detail={`${inferredDownstreamCount} inferred downstream assets`}
+          tone={blastRadiusCount ? 'warning' : 'ok'}
+        />
+      </div>
+    </section>
   )
 }
 
@@ -854,15 +976,24 @@ function RequestTrustView({ detail, semanticContext }: {
           <strong>Recommendation trust</strong>
           <span>{detail.request.request_number} · evidence confidence for selected follow-up</span>
         </div>
-        <TrustBadge status={detail.impact_confidence_status} count={detail.impact_trust_flags.length} />
+        <div className="status-badge-stack">
+          <ReadinessBadge status={detail.restore_readiness.status} />
+          <TrustBadge status={detail.impact_confidence_status} count={detail.impact_trust_flags.length} />
+        </div>
       </div>
 
       <div className="detail-action brief-action">
         <span>Trust question</span>
-        <strong>{trustNeedsReview ? 'Review evidence before relying on this recommendation' : 'Recommendation evidence is trusted for the latest analysis run'}</strong>
+        <strong>{detail.restore_readiness.status === 'NOT_READY' ? 'Do not restore until readiness blockers are cleared' : trustNeedsReview ? 'Review evidence before relying on this recommendation' : 'Recommendation evidence is trusted for the latest analysis run'}</strong>
       </div>
 
       <div className="summary-glance-grid" aria-label="Selected incident trust at a glance">
+        <SummaryMetric
+          label="Restore readiness"
+          value={restoreReadinessLabel(detail.restore_readiness.status)}
+          detail={detail.restore_readiness.summary ?? 'No restore-readiness finding'}
+          tone={restoreReadinessTone(detail.restore_readiness.status)}
+        />
         <SummaryMetric label="Impact confidence" value={trustStatusLabel(detail.impact_confidence_status)} detail="Latest impact evidence check" tone={detail.impact_confidence_status === 'TRUSTED' ? 'ok' : 'warning'} />
         <SummaryMetric label="Evidence issues" value={String(detail.impact_trust_flags.length)} detail="Impact evidence flags" tone={detail.impact_trust_flags.length ? 'warning' : 'ok'} />
         <SummaryMetric label="Source quality" value={String(detail.quality_flags.length)} detail="Incident source flags" tone={detail.quality_flags.length ? 'danger' : 'ok'} />
@@ -1068,6 +1199,28 @@ function TrustBadge({ status, count }: { status: string; count: number }) {
   )
 }
 
+function ReadinessBadge({ status }: { status: string }) {
+  return (
+    <span className={`trust-badge ${readinessBadgeTone(status)}`}>
+      {restoreReadinessLabel(status)}
+    </span>
+  )
+}
+
+function statusSignalTone(status: string): 'ok' | 'warning' | 'danger' {
+  const normalized = status.toUpperCase()
+  if (normalized.includes('FAILED') || normalized.includes('ERROR')) return 'danger'
+  if (normalized.includes('WARNING') || normalized.includes('UNAVAILABLE') || normalized.includes('LOADING')) return 'warning'
+  return 'ok'
+}
+
+function qualitySignalTone(status: string): 'ok' | 'warning' | 'danger' {
+  const normalized = status.toUpperCase()
+  if (normalized.includes('FAILED') || normalized.includes('ERROR')) return 'danger'
+  if (normalized.includes('WARNING') || normalized.includes('REVIEW') || normalized.includes('UNAVAILABLE') || normalized.includes('LOADING')) return 'warning'
+  return 'ok'
+}
+
 function TopologyRows({ rows }: { rows: InfrastructureDependency[] }) {
   if (!rows.length) {
     return <div className="empty-state">No dependency evidence</div>
@@ -1190,6 +1343,19 @@ function trustStatusLabel(status: string) {
   return 'Unverified'
 }
 
+function restoreReadinessLabel(status: string) {
+  if (status === 'READY') return 'Restore ready'
+  if (status === 'NOT_READY') return 'Restore blocked'
+  if (status === 'REVIEW') return 'Restore review'
+  return 'Readiness unknown'
+}
+
+function restoreReadinessTone(status: string): 'ok' | 'warning' | 'danger' {
+  if (status === 'READY') return 'ok'
+  if (status === 'NOT_READY') return 'danger'
+  return 'warning'
+}
+
 function trustIssueLabel(issueName: string) {
   const labels: Record<string, string> = {
     duplicate_source_record: 'Duplicate source records detected',
@@ -1208,6 +1374,12 @@ function trustIssueLabel(issueName: string) {
 function trustTone(status: string) {
   if (status === 'TRUSTED') return 'trusted'
   if (status === 'WARNING') return 'warning'
+  return 'unverified'
+}
+
+function readinessBadgeTone(status: string) {
+  if (status === 'READY') return 'trusted'
+  if (status === 'NOT_READY') return 'warning'
   return 'unverified'
 }
 

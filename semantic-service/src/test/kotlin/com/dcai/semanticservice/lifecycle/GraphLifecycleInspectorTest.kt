@@ -59,7 +59,9 @@ class GraphLifecycleInspectorTest {
         assertEquals(2, result.canonicalGraph?.dependencyEdgeCount)
         assertEquals(11, result.provenanceGraph?.sourceRecordCount)
         assertEquals(1, result.provenanceGraph?.promotionActivityCount)
-        assertEquals(2, result.reasoningGraph?.findingCount)
+        assertEquals(3, result.reasoningGraph?.findingCount)
+        assertEquals(1, result.reasoningGraph?.restoreReadinessFindingCount)
+        assertEquals(0, result.reasoningGraph?.trustFindingCount)
     }
 
     @Test

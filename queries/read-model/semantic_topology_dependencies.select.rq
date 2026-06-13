@@ -32,6 +32,6 @@ WHERE {
         dcai:hasIdentifier ?pathId .
     }
   }
-  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
 }
 ORDER BY ?dependencyRole ?dependentAssetId ?dependencyAssetId

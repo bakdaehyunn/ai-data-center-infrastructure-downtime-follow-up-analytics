@@ -55,6 +55,8 @@ export type FollowUpItem = {
   vendor_status: string | null
   impact_confidence_status: string
   impact_trust_issue_count: number
+  restore_readiness_status: string
+  restore_readiness_summary: string | null
 }
 
 export type StageBottleneck = {
@@ -282,6 +284,11 @@ export type RequestDetail = {
     }[]
   } | null
   quality_flags: string[]
+  restore_readiness: {
+    status: string
+    summary: string | null
+    finding_uri: string | null
+  }
   impact_confidence_status: string
   impact_trust_flags: {
     issue_type: string
@@ -410,6 +417,8 @@ type SemanticFollowUpDetailRecord = SemanticFollowUpQueueRecord & {
   recommendedAction?: string
   recoveryBlockerUri?: string
   blockerSummary?: string
+  restoreReadinessUri?: string
+  restoreReadinessSummary?: string
   trustFindingUri?: string
   trustSummary?: string
   redundancyState?: string
@@ -752,6 +761,7 @@ function mapFollowUp(record: SemanticFollowUpQueueRecord, detail?: SemanticFollo
   const capacityRiskKw = detail?.capacityRiskKw ?? 0
   const affectedGpuCount = detail?.affectedGpuCount ?? 0
   const trustIssueCount = detail?.trustFindingUri ? 1 : 0
+  const restoreReadinessStatus = restoreReadinessStatusFor(detail?.restoreReadinessSummary)
   const priorityLevel = semantic.priorityLevel ?? priorityFor(capacityRiskKw, affectedGpuCount, trustIssueCount)
   const redundancyState = detail?.redundancyState ?? (capacityRiskKw > 0 ? 'N-1' : 'N')
   const vendorStatus = detail?.vendorStatus ?? (stage === 'SPARE_VENDOR_WAITING' ? 'ETA_MISSED' : null)
@@ -794,6 +804,8 @@ function mapFollowUp(record: SemanticFollowUpQueueRecord, detail?: SemanticFollo
     vendor_status: vendorStatus,
     impact_confidence_status: trustIssueCount ? 'WARNING' : 'TRUSTED',
     impact_trust_issue_count: trustIssueCount,
+    restore_readiness_status: restoreReadinessStatus,
+    restore_readiness_summary: detail?.restoreReadinessSummary ?? null,
   }
 }
 
@@ -909,8 +921,8 @@ function mapTrustFinding(record: SemanticTrustFindingRecord): DataQualityCheck {
   return {
     check_result_id: record.trustFindingId ?? record.trustFindingUri,
     pipeline_run_id: record.activityUri ?? 'semantic-service',
-    check_name: 'Semantic trust finding',
-    target_table: 'rdf_named_graph',
+    check_name: 'Semantic evidence issue',
+    target_table: 'semantic_reasoning_graph',
     severity: record.severity ?? 'WARNING',
     status: record.status ?? 'FAILED',
     failed_row_count: 1,
@@ -952,7 +964,7 @@ function buildRequestDetail(
   evidence: SemanticIncidentEvidenceRecord[],
   workflowTimeline: SemanticIncidentTimelineRecord[],
 ): RequestDetail {
-  const evidenceIssues = evidence.filter((record) => record.trustFindingUri)
+  const evidenceIssues = uniqueTrustFindingEvidence(evidence.filter((record) => record.trustFindingUri))
   const telemetryEvidence = evidence.filter(isTelemetryEvidence)
   const validationEvidence = evidence.filter(isValidationEvidence)
   const workOrderEvidence = evidence.filter(isWorkOrderEvidence)
@@ -1076,6 +1088,11 @@ function buildRequestDetail(
       })),
     },
     quality_flags: [],
+    restore_readiness: {
+      status: request.restore_readiness_status,
+      summary: request.restore_readiness_summary,
+      finding_uri: detail?.restoreReadinessUri ?? null,
+    },
     impact_confidence_status: request.impact_confidence_status,
     impact_trust_flags: evidenceIssues.map((record) => ({
       issue_type: 'semantic_trust_finding',
@@ -1087,6 +1104,24 @@ function buildRequestDetail(
       },
     })),
   }
+}
+
+function restoreReadinessStatusFor(summary?: string): string {
+  if (!summary) return 'UNKNOWN'
+  const normalized = summary.toLowerCase()
+  if (normalized.includes('not ready') || normalized.includes('blocked')) return 'NOT_READY'
+  if (normalized.includes('ready for review') || normalized.includes('ready')) return 'READY'
+  return 'REVIEW'
+}
+
+function uniqueTrustFindingEvidence(records: SemanticIncidentEvidenceRecord[]): SemanticIncidentEvidenceRecord[] {
+  return [...records.reduce<Map<string, SemanticIncidentEvidenceRecord>>((summary, record) => {
+    const key = record.trustFindingUri ?? `${record.sourceRecordUri}:${record.trustSummary ?? ''}`
+    if (!summary.has(key)) {
+      summary.set(key, record)
+    }
+    return summary
+  }, new Map()).values()]
 }
 
 function mapSemanticValidation(records: SemanticValidationSummaryRecord[]): SemanticValidation {
@@ -1220,7 +1255,7 @@ function humanize(value: string): string {
 }
 
 function lastSegment(value: string): string {
-  return value.split(/[\/#:]/).filter(Boolean).at(-1) ?? value
+  return value.split(/[/#:]/).filter(Boolean).at(-1) ?? value
 }
 
 function unique(values: string[]): string[] {

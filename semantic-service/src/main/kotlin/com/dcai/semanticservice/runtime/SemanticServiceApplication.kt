@@ -282,6 +282,8 @@ object SemanticServiceApplication {
                 println("lifecycleReasoningGraphExists=${graph.exists}")
                 println("lifecycleReasoningActivities=${graph.reasoningActivityCount}")
                 println("lifecycleReasoningFindings=${graph.findingCount}")
+                println("lifecycleRestoreReadinessFindings=${graph.restoreReadinessFindingCount}")
+                println("lifecycleTrustFindings=${graph.trustFindingCount}")
             }
         }
 

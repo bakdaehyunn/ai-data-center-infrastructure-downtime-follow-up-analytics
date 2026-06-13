@@ -13,7 +13,7 @@ WHERE {
     OPTIONAL { ?trustFinding dcai:createdAt ?createdAt . }
     OPTIONAL { ?trustFinding prov:wasGeneratedBy ?activity . }
   }
-  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:reasoning:"))
   FILTER(?trustFindingId = COALESCE(?trustFindingIdParam, ?trustFindingId))
 }
 ORDER BY ?trustFinding

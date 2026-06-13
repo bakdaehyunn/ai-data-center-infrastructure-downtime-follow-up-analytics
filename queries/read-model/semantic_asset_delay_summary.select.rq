@@ -49,7 +49,7 @@ WHERE {
       }
     }
   }
-  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
 }
 GROUP BY ?graph ?asset ?assetId ?zone ?zoneId
 ORDER BY DESC(?incidentCount) ?assetId

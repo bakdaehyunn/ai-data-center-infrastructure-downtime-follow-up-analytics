@@ -73,6 +73,6 @@ WHERE {
       OPTIONAL { ?queueItem dcai:hasPriorityScore ?totalPriorityScore . }
     }
   }
-  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
 }
 ORDER BY ?priorityRank ?incidentId ?assetId ?zoneId

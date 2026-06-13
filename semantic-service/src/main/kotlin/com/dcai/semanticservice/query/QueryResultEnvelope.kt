@@ -209,6 +209,8 @@ data class FollowUpDetailRecord(
     val recommendedAction: String? = null,
     val recoveryBlockerUri: String? = null,
     val blockerSummary: String? = null,
+    val restoreReadinessUri: String? = null,
+    val restoreReadinessSummary: String? = null,
     val trustFindingUri: String? = null,
     val trustSummary: String? = null,
     val priorityRank: Int? = null,

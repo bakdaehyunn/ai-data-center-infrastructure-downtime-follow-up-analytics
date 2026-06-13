@@ -132,7 +132,7 @@ dcai-query:fixtureIncidentSummary
   dcterms:title "Fixture incident summary" ;
   dcai-query:queryPath "queries/inspection/fixture_incident_summary.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:fixtureProvenanceSourceRecords
@@ -148,7 +148,7 @@ dcai-query:semanticFollowUpQueueList
   dcterms:title "Semantic follow-up queue list read model" ;
   dcai-query:queryPath "queries/read-model/semantic_follow_up_queue_list.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticDashboardOverview
@@ -156,7 +156,7 @@ dcai-query:semanticDashboardOverview
   dcterms:title "Semantic dashboard overview read model" ;
   dcai-query:queryPath "queries/read-model/semantic_dashboard_overview.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph, reasoning graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticFilterMetadata
@@ -164,7 +164,7 @@ dcai-query:semanticFilterMetadata
   dcterms:title "Semantic filter metadata read model" ;
   dcai-query:queryPath "queries/read-model/semantic_filter_metadata.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticFollowUpDetail
@@ -172,7 +172,7 @@ dcai-query:semanticFollowUpDetail
   dcterms:title "Semantic follow-up detail read model" ;
   dcai-query:queryPath "queries/read-model/semantic_follow_up_detail.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph, reasoning graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticImpactSummary
@@ -180,7 +180,7 @@ dcai-query:semanticImpactSummary
   dcterms:title "Semantic impact summary read model" ;
   dcai-query:queryPath "queries/read-model/semantic_impact_summary.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph, reasoning graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticTopologyDependencies
@@ -188,7 +188,7 @@ dcai-query:semanticTopologyDependencies
   dcterms:title "Semantic topology dependencies read model" ;
   dcai-query:queryPath "queries/read-model/semantic_topology_dependencies.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticTrustFindingList
@@ -196,7 +196,7 @@ dcai-query:semanticTrustFindingList
   dcterms:title "Semantic trust finding list read model" ;
   dcai-query:queryPath "queries/read-model/semantic_trust_finding_list.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture canonical graph or reasoning graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticStageBottlenecks
@@ -204,7 +204,7 @@ dcai-query:semanticStageBottlenecks
   dcterms:title "Semantic stage bottlenecks read model" ;
   dcai-query:queryPath "queries/read-model/semantic_stage_bottlenecks.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticAssetDelaySummary
@@ -212,7 +212,7 @@ dcai-query:semanticAssetDelaySummary
   dcterms:title "Semantic asset delay summary read model" ;
   dcai-query:queryPath "queries/read-model/semantic_asset_delay_summary.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticZoneDelaySummary
@@ -220,7 +220,7 @@ dcai-query:semanticZoneDelaySummary
   dcterms:title "Semantic zone delay summary read model" ;
   dcai-query:queryPath "queries/read-model/semantic_zone_delay_summary.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticSpareWaitSummary
@@ -228,7 +228,7 @@ dcai-query:semanticSpareWaitSummary
   dcterms:title "Semantic spare/vendor wait summary read model" ;
   dcai-query:queryPath "queries/read-model/semantic_spare_wait_summary.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph, reasoning graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticValidationSummary
@@ -236,7 +236,7 @@ dcai-query:semanticValidationSummary
   dcterms:title "Semantic validation summary read model" ;
   dcai-query:queryPath "queries/read-model/semantic_validation_summary.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticIncidentEvidence
@@ -244,7 +244,7 @@ dcai-query:semanticIncidentEvidence
   dcterms:title "Semantic incident evidence read model" ;
   dcai-query:queryPath "queries/read-model/semantic_incident_evidence.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph, reasoning graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticIncidentTimeline
@@ -252,7 +252,7 @@ dcai-query:semanticIncidentTimeline
   dcterms:title "Semantic incident workflow timeline read model" ;
   dcai-query:queryPath "queries/read-model/semantic_incident_timeline.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticDependencyImpactByAsset
@@ -260,7 +260,7 @@ dcai-query:semanticDependencyImpactByAsset
   dcterms:title "Semantic dependency impact by asset read model" ;
   dcai-query:queryPath "queries/read-model/semantic_dependency_impact_by_asset.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph, reasoning graph" ;
   dcai-query:implementationStatus "phase16-approved" .
 
 dcai-query:semanticBlastRadiusByAsset
@@ -268,5 +268,5 @@ dcai-query:semanticBlastRadiusByAsset
   dcterms:title "Semantic blast radius by asset read model" ;
   dcai-query:queryPath "queries/read-model/semantic_blast_radius_by_asset.select.rq" ;
   dcai-query:queryMode "SELECT" ;
-  dcai-query:graphScope "fixture canonical graph" ;
+  dcai-query:graphScope "fixture or promoted canonical graph, reasoning graph" ;
   dcai-query:implementationStatus "phase16-approved" .

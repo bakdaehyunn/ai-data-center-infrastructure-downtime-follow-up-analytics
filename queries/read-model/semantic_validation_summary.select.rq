@@ -22,7 +22,7 @@ WHERE {
         prov:wasDerivedFrom ?assetSourceRecord .
     }
   }
-  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:"))
+  FILTER(STRSTARTS(STR(?graph), "urn:dcai:graph:fixture:canonical:") || STRSTARTS(STR(?graph), "urn:dcai:graph:canonical:"))
 }
 GROUP BY ?graph
 ORDER BY ?graph
